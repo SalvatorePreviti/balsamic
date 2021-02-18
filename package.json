@@ -24,6 +24,10 @@
   "engines": {
     "node": ">=14.15.5"
   },
+  "scripts": {
+    "precommit": "lint-staged && pretty-quick --staged",
+    "postinstall": "husky install"
+  },
   "dependencies": {
     "@balsamic/eslint-config": "file:packages/eslint-config",
     "@balsamic/esrun": "file:packages/esrun"
