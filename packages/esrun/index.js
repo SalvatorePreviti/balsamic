@@ -167,7 +167,7 @@ exports.esrunChild = async ({ entry, watch, args }) => {
       ? {
           onRebuild(_error, rebuildResult) {
             if (rebuildResult) {
-              _esRunChildInput = inputFromBuildResult(entry, srcPath, buildResult)
+              _esRunChildInput = inputFromBuildResult(entry, srcPath, rebuildResult)
               _esRunWatch_runChild()
             }
           }
