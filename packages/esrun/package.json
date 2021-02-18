@@ -1,0 +1,45 @@
+{
+  "name": "@balsamic/esrun",
+  "version": "0.0.1",
+  "description": "transpiles, bundles and run ts and es6 modules on NodeJS using esbuild",
+  "main": "index.js",
+  "bin": {
+    "esrun": "esrun.js"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SalvatorePreviti/esrun.git"
+  },
+  "keywords": [
+    "esbuild",
+    "esrun",
+    "es-run"
+  ],
+  "author": "Salvatore Previti",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SalvatorePreviti/esrun/issues"
+  },
+  "homepage": "https://github.com/SalvatorePreviti/esrun#readme",
+  "files": [
+    "**/*.js",
+    "**/*.d.ts"
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0"
+    ]
+  },
+  "engines": {
+    "node": ">=14.15.5"
+  },
+  "dependencies": {
+    "source-map-support": ">=0.5.19"
+  },
+  "peerDependencies": {
+    "esbuild": ">=0.8.46"
+  }
+}
