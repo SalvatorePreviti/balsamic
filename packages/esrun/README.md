@@ -1,6 +1,7 @@
 # esrun
 
-Transpiles in memory and runs .ts, .tsx and es6 modules using esbuild
+Transpiles in memory and runs .ts, .tsx and es6 modules using esbuild.
+Supports file watching.
 
 # command line interface
 
@@ -29,7 +30,7 @@ npx esrun ./hello
 Runs a .ts or .js file in the same node process
 
 ```js
-const esrun = require('esrun')
+const esrun = require('@balsamic/esrun')
 
 esrun
   .esrun({ entry: './path_to_file_to_run' })
@@ -47,6 +48,8 @@ Runs a .ts or .js file in a child process, restarting and recompiling it when so
 const esrun = require('esrun')
 
 const watcher = esrun.esrunChild({ entry: './path_to_file_to_run', watch: true })
+
+// ... more code ...
 
 // You can call stop to terminate
 watcher.stop()

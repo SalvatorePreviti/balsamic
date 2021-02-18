@@ -1,28 +1,52 @@
-#!/usr/bin/env node
 'use strict'
 
 const Module = require('module')
 const child_process = require('child_process')
 const { dirname: pathDirname, resolve: pathResolve } = require('path')
 const fs = require('fs')
-const esbuild = require('esbuild')
-const { handleUncaughtError, emitUncaughtError, execModule, childProcessFilename } = require('./lib/esrun-main')
+
+const CHILD_PROCESS_RUNNER_KEY = '$Hr75q0d656ajRZHL5UGP'
 
 const nodeTargetVersion = `node${process.version.slice(1)}`
 
-exports.handleUncaughtError = handleUncaughtError
+let _esbuild
 
-exports.emitUncaughtError = emitUncaughtError
+/** @returns {import('esbuild')} */
+exports.getEsBuild = () => _esbuild || (_esbuild = require('esbuild'))
 
-const nodeExternalsPlugin = {
-  name: 'es-run-externals',
+exports.handleUncaughtError = (error) => {
+  if (!process.exitCode) {
+    process.exitCode = 1
+  }
+  console.error('Uncaught', error && error.showStack === false ? `${error}` : error)
+}
+
+exports.emitUncaughtError = (error) => {
+  try {
+    if (process.listenerCount('uncaughtException') === 0) {
+      process.once('uncaughtException', exports.handleUncaughtError)
+    }
+    process.emit('uncaughtException', error)
+  } catch (emitError) {
+    console.error(emitError)
+    try {
+      exports.handleUncaughtError(error)
+    } catch (_) {}
+  }
+}
+
+const esbuildPluginExternalModules = {
+  name: 'esrun_external_modules',
   setup(build) {
     // On every module resolved, we check if the module name should be an external
     build.onResolve({ namespace: 'file', filter: /.*/ }, ({ path, resolveDir }) => {
-      const split = path.split('/', 3)
+      if (path.startsWith('.') || path.startsWith('/')) {
+        return null
+      }
 
+      const split = path.split('/', 3)
       let id = split[0]
-      if (!id || id.startsWith('.') || id.includes(':')) {
+      if (!id || id.includes(':')) {
         return null
       }
       if (path.startsWith('@')) {
@@ -41,6 +65,8 @@ const nodeExternalsPlugin = {
   }
 }
 
+exports.nodeExternalsPlugin = esbuildPluginExternalModules
+
 /**
  * Shared esbuild options
  * @type {import('esbuild').BuildOptions}
@@ -51,7 +77,7 @@ exports.esBuildOptions = {
   minifyWhitespace: true,
   sourcemap: 'external',
   target: nodeTargetVersion,
-  plugins: [nodeExternalsPlugin],
+  plugins: [esbuildPluginExternalModules],
   platform: 'node',
   format: 'cjs',
   watch: false
@@ -69,7 +95,8 @@ exports.esbuildResolve = async (id, resolveDir = process.cwd()) => {
   const resolvedPromise = new Promise((resolve) => (_resolve = resolve))
   return Promise.race([
     resolvedPromise,
-    esbuild
+    exports
+      .getEsBuild()
       .build({
         ...exports.esBuildOptions,
         sourcemap: false,
@@ -107,14 +134,14 @@ exports.esrun = async ({ entry }) => {
   const srcPath = await exports.esbuildResolve(entry)
   const srcDir = pathDirname(srcPath)
 
-  const buildResult = await esbuild.build({
+  const buildResult = await exports.getEsBuild().build({
     ...exports.esBuildOptions,
     entryPoints: [srcPath],
     outdir: srcDir,
     watch: false
   })
 
-  return execModule(getInputFromBuildResult(entry, srcPath, buildResult))
+  return execModule(inputFromBuildResult(entry, srcPath, buildResult))
 }
 
 /**
@@ -123,7 +150,7 @@ exports.esrun = async ({ entry }) => {
  *
  * @param {{entry: string, watch?: boolean}} options
  */
-exports.esrunChild = async ({ entry, watch }) => {
+exports.esrunChild = async ({ entry, watch, args }) => {
   const srcPath = await exports.esbuildResolve(entry)
   const srcDir = pathDirname(srcPath)
 
@@ -132,7 +159,7 @@ exports.esrunChild = async ({ entry, watch }) => {
   let _esRunChildProcess
   let _esRunChildInput
 
-  const buildResult = await esbuild.build({
+  const buildResult = await exports.getEsBuild().build({
     ...exports.esBuildOptions,
     entryPoints: [srcPath],
     outdir: srcDir,
@@ -140,7 +167,7 @@ exports.esrunChild = async ({ entry, watch }) => {
       ? {
           onRebuild(_error, rebuildResult) {
             if (rebuildResult) {
-              _esRunChildInput = getInputFromBuildResult(entry, srcPath, buildResult)
+              _esRunChildInput = inputFromBuildResult(entry, srcPath, buildResult)
               _esRunWatch_runChild()
             }
           }
@@ -148,7 +175,7 @@ exports.esrunChild = async ({ entry, watch }) => {
       : false
   })
 
-  _esRunChildInput = getInputFromBuildResult(entry, srcPath, buildResult)
+  _esRunChildInput = inputFromBuildResult(entry, srcPath, buildResult)
   _esRunWatch_runChild()
 
   return {
@@ -161,7 +188,7 @@ exports.esrunChild = async ({ entry, watch }) => {
   }
 
   function _esRunWatch_newChild(input) {
-    const newChild = child_process.fork(childProcessFilename, process.argv.slice(2), {
+    const newChild = child_process.fork(__filename, [CHILD_PROCESS_RUNNER_KEY, ...args], {
       serialization: 'advanced',
       env: process.env,
       stdio: 'inherit'
@@ -177,10 +204,17 @@ exports.esrunChild = async ({ entry, watch }) => {
 
     process.on('message', handleMessage)
 
-    newChild.on('exit', () => {
+    newChild.on('exit', (code) => {
       process.off('message', handleMessage)
       if (_esRunChildProcess === newChild) {
         _esRunChildProcess = null
+      }
+      if (watch) {
+        if (code) {
+          console.log('[watch] child exited with code', code)
+        } else {
+          console.log('[watch] child exited')
+        }
       }
     })
   }
@@ -204,7 +238,28 @@ exports.esrunChild = async ({ entry, watch }) => {
   }
 }
 
-function getInputFromBuildResult(entry, srcPath, { outputFiles }) {
+function execModule({ entry, srcPath, src, mapPath, map }) {
+  process.argv[1] = entry || srcPath
+
+  const sourceMapSupport = require('source-map-support')
+
+  sourceMapSupport.install({
+    hookRequire: true,
+    retrieveSourceMap: (source) => (source === srcPath ? { url: mapPath, map } : null)
+  })
+
+  const m = new Module(srcPath)
+
+  process.mainModule = m
+  require.main = m
+
+  m.filename = srcPath
+  m.paths = Module._nodeModulePaths(pathDirname(srcPath))
+  m._compile(src, srcPath)
+  m.loaded = true
+}
+
+function inputFromBuildResult(entry, srcPath, { outputFiles }) {
   return {
     entry,
     srcPath,
@@ -214,22 +269,53 @@ function getInputFromBuildResult(entry, srcPath, { outputFiles }) {
   }
 }
 
-const esrunMain = () => {
-  const watch = process.argv[2] === '--watch'
-  let entry = process.argv[2]
-  if (!entry.startsWith('.') && !entry.startsWith('/') && fs.existsSync(entry)) {
-    entry = `./${entry}`
+exports.esrunMain = () => {
+  const argv = process.argv
+
+  let watch = false
+  if (argv[2] === '--watch') {
+    watch = true
+    argv.splice(2, 1)
+  }
+
+  let entry = argv[2]
+  if (!entry || entry === '--help' || entry === '--version') {
+    const pkg = require('./package.json')
+    if (entry !== '--version') {
+      console.info()
+    }
+    console.info(`${pkg.name} v${pkg.version}, esbuild v${this.getEsBuild().version}\n`)
+    if (entry !== '--version') {
+      console.error('Usage: esrun [--watch] <path/to/file/to/run>\n')
+      process.exitCode = 1
+    }
+    return
+  }
+
+  if (!entry.startsWith('.') && !entry.startsWith('/')) {
+    if (fs.existsSync(entry)) {
+      entry = `./${entry}`
+    } else if (fs.existsSync(`${entry}.ts`)) {
+      entry = `./${entry}.ts`
+    } else if (fs.existsSync(`${entry}.js`)) {
+      entry = `./${entry}.js`
+    }
   }
   if (watch) {
-    process.argv.splice(2, 1)
-    exports.esrunChild({ entry, watch: true }).catch(exports.emitUncaughtError)
+    exports.esrunChild({ entry, watch: true, args: argv.slice(2) }).catch(exports.emitUncaughtError)
   } else {
     exports.esrun({ entry }).catch(exports.emitUncaughtError)
   }
 }
 
-exports.esrunMain = esrunMain
-
 if (module === require.main) {
-  esrunMain()
+  const argv = process.argv
+  if (argv[2] === CHILD_PROCESS_RUNNER_KEY) {
+    argv.splice(2, 1)
+    if (require.main === module) {
+      process.once('message', execModule)
+    }
+  } else {
+    exports.esrunMain()
+  }
 }

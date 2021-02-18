@@ -1,7 +1,3 @@
 {
-  "extends": "@balsamic",
-  "rules": {
-    "no-console": 0,
-    "global-require": 0
-  }
+  "extends": ["@balsamic", "@balsamic/eslint-config/configs/scripts"]
 }

@@ -1,14 +1,8 @@
 {
   "name": "@balsamic/esrun",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "transpiles, bundles and run ts and es6 modules on NodeJS using esbuild",
   "main": "index.js",
-  "bin": {
-    "esrun": "esrun.js"
-  },
-  "directories": {
-    "lib": "lib"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SalvatorePreviti/esrun.git"
@@ -24,6 +18,9 @@
     "url": "https://github.com/SalvatorePreviti/esrun/issues"
   },
   "homepage": "https://github.com/SalvatorePreviti/esrun#readme",
+  "bin": {
+    "esrun": "esrun.js"
+  },
   "files": [
     "**/*.js",
     "**/*.d.ts"
