@@ -39,12 +39,12 @@ const config = {
       rules: { '@typescript-eslint/no-var-requires': 2, 'node/shebang': 2 }
     },
     {
-      files: ['*.mjs', '*.es', '*.es6'],
+      files: ['*.mjs', '*.es', '*.es6', '*.jsx', '*.tsx'],
       parserOptions: {
         sourceType: 'module',
         ecmaVersion: 2021,
         ecmaFeatures: {
-          globalReturn: true
+          globalReturn: false
         }
       }
     },
@@ -158,7 +158,7 @@ const config = {
     'import/newline-after-import': 0,
     'import/no-absolute-path': [2, { esmodule: true, commonjs: true, amd: false }],
     'import/no-amd': 2,
-    'import/no-anonymous-default-export': 1,
+    'import/no-anonymous-default-export': 0,
     'import/no-duplicates': 1,
     'import/no-extraneous-dependencies': [
       0,

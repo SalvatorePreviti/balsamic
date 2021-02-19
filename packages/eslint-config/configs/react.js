@@ -3,7 +3,7 @@
 module.exports = {
   extends: ['plugin:react/recommended', 'plugin:react-hooks/recommended'],
   rules: {
-    'react/jsx-filename-extension': [2, { extensions: ['.tsx', 'jsx'] }],
+    'react/jsx-filename-extension': [2, { extensions: ['.tsx', '.jsx'] }],
     'react/react-in-jsx-scope': 0,
     'react/display-name': 0,
     'react/jsx-child-element-spacing': 0,
@@ -28,7 +28,8 @@ module.exports = {
     'react-hooks/exhaustive-deps': 1,
     'react-hooks/rules-of-hooks': 2,
     'react/no-array-index-key': 0,
-    'react/jsx-props-no-spreading': 0
+    'react/jsx-props-no-spreading': 0,
+    'react/self-closing-comp': [1, { component: true, html: true }]
   },
   settings: {
     react: { version: _getReactVersion() }
