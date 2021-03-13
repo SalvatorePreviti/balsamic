@@ -4,6 +4,7 @@ const Module = require('module')
 const child_process = require('child_process')
 const { dirname: pathDirname, resolve: pathResolve } = require('path')
 const fs = require('fs')
+const { pathToFileURL, fileURLToPath } = require('url')
 
 const CHILD_PROCESS_RUNNER_KEY = '$Hr75q0d656ajRZHL5UGP'
 
@@ -80,7 +81,12 @@ exports.esBuildOptions = {
   plugins: [esbuildPluginExternalModules],
   platform: 'node',
   format: 'cjs',
-  watch: false
+  watch: false,
+  define: {
+    'import.meta.url': '__esrun_get_caller_file_url',
+    __filename: '__esrun_get_caller_file_path',
+    __dirname: '__esrun_get_caller_dir_path'
+  }
 }
 
 /**
@@ -122,6 +128,77 @@ exports.esbuildResolve = async (id, resolveDir = process.cwd()) => {
       })
       .then(() => id)
   ])
+}
+
+const _parseStackTraceRegex = /^\s*at (?:((?:\[object object\])?[^\\/]+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i
+
+function fileToFileUrl(file) {
+  if (typeof file !== 'string') {
+    return ''
+  }
+  if (file.indexOf('://') < 0) {
+    try {
+      return pathToFileURL(file).href
+    } catch (_) {}
+  }
+  return file
+}
+
+const __esrun_get_caller_file_url = (caller = __esrun_get_caller_file_url) => {
+  const oldStackTraceLimit = 0
+  Error.stackTraceLimit = 3
+  try {
+    const e = {}
+    Error.captureStackTrace(e, caller)
+    const stack = (e.stack || '').split('\n')
+    for (let i = 0; i < stack.length; ++i) {
+      const parts = _parseStackTraceRegex.exec(stack[i])
+      const file = parts && fileToFileUrl(parts[2])
+      if (file) {
+        return file
+      }
+    }
+  } catch (_e) {
+  } finally {
+    Error.stackTraceLimit = oldStackTraceLimit
+  }
+  return global.__esrun_entry_point_file_url
+}
+
+const __esrun_get_caller_file_path = () => fileURLToPath(__esrun_get_caller_file_url(__esrun_get_caller_file_path))
+
+const __esrun_get_caller_dir_path = () =>
+  pathDirname(fileURLToPath(__esrun_get_caller_file_url(__esrun_get_caller_dir_path)))
+
+const _esrun_file_path_getters_registered = false
+
+function initSyntethicImportMeta(srcPath) {
+  Object.defineProperty(global, '__esrun_entry_point_file_url', {
+    value: fileToFileUrl(srcPath),
+    configurable: true,
+    enumerable: false,
+    writable: true
+  })
+
+  if (!_esrun_file_path_getters_registered) {
+    Object.defineProperty(global, '__esrun_get_caller_file_url', {
+      get: __esrun_get_caller_file_url,
+      configurable: true,
+      enumerable: false
+    })
+
+    Object.defineProperty(global, '__esrun_get_caller_file_path', {
+      get: __esrun_get_caller_file_path,
+      configurable: true,
+      enumerable: false
+    })
+
+    Object.defineProperty(global, '__esrun_get_caller_dir_path', {
+      get: __esrun_get_caller_dir_path,
+      configurable: true,
+      enumerable: false
+    })
+  }
 }
 
 /**
@@ -241,6 +318,8 @@ exports.esrunChild = async ({ entry, watch, args }) => {
 function execModule({ entry, srcPath, src, mapPath, map }) {
   process.argv[1] = entry || srcPath
 
+  initSyntethicImportMeta(srcPath)
+
   const sourceMapSupport = require('source-map-support')
 
   sourceMapSupport.install({
@@ -297,8 +376,12 @@ exports.esrunMain = () => {
       entry = `./${entry}`
     } else if (fs.existsSync(`${entry}.ts`)) {
       entry = `./${entry}.ts`
+    } else if (fs.existsSync(`${entry}.tsx`)) {
+      entry = `./${entry}.tsx`
     } else if (fs.existsSync(`${entry}.js`)) {
       entry = `./${entry}.js`
+    } else if (fs.existsSync(`${entry}.jsx`)) {
+      entry = `./${entry}.jsx`
     }
   }
   if (watch) {
