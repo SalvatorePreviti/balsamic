@@ -2,14 +2,15 @@
 
 const Module = require('module')
 const child_process = require('child_process')
-const { dirname: pathDirname, resolve: pathResolve } = require('path')
+const { dirname: pathDirname, resolve: pathResolve, sep: pathSep } = require('path')
 const fs = require('fs')
 const { pathToFileURL, fileURLToPath } = require('url')
 
-const CHILD_PROCESS_RUNNER_KEY = '$Hr75q0d656ajRZHL5UGP'
+const CHILD_PROCESS_RUNNER_KEY = '$Hr75q0d656ajR'
 
 const nodeTargetVersion = `node${process.version.slice(1)}`
 
+/** @type {import('esbuild')} */
 let _esbuild
 
 /** @returns {import('esbuild')} */
@@ -38,29 +39,48 @@ exports.emitUncaughtError = (error) => {
 
 const esbuildPluginExternalModules = {
   name: 'esrun_external_modules',
+
+  /**
+   *
+   * @param {import('esbuild').PluginBuild} build
+   */
   setup(build) {
+    const requireByDirCache = new Map()
+    const nodeModulesDir = `${pathSep}node_modules${pathSep}`
+
+    build.onResolve({ namespace: 'file', filter: /^file:\/\// }, ({ path, resolveDir }) => {
+      const filePath = pathResolve(resolveDir, fileURLToPath(path))
+      return { path: filePath, external: filePath.includes(nodeModulesDir) }
+    })
+
     // On every module resolved, we check if the module name should be an external
-    build.onResolve({ namespace: 'file', filter: /.*/ }, ({ path, resolveDir }) => {
-      if (path.startsWith('.') || path.startsWith('/')) {
+    build.onResolve({ namespace: 'file', filter: /^[a-zA-Z@_]/ }, ({ path, resolveDir }) => {
+      const split = path.split('/', 3)
+      let id = split[0]
+      if (!id || id.includes('://')) {
         return null
       }
 
-      const split = path.split('/', 3)
-      let id = split[0]
-      if (!id || id.includes(':')) {
-        return null
-      }
       if (path.startsWith('@')) {
         id = `${split[0]}/${split[1]}`
       }
 
       try {
-        const resolved = Module.createRequire(pathResolve(resolveDir, 'index.js')).resolve(`${id}/package.json`)
-        if (resolved.includes('node_modules')) {
+        const key = pathResolve(resolveDir, 'index.js')
+
+        let moduleRequire = requireByDirCache.get(key)
+        if (moduleRequire === undefined) {
+          moduleRequire = Module.createRequire(key).resolve
+          requireByDirCache.set(key, moduleRequire)
+        }
+
+        console.log(requireByDirCache)
+
+        const resolved = moduleRequire(`${id}/package.json`)
+        if (resolved.includes(nodeModulesDir)) {
           return { path, external: true }
         }
       } catch (_) {}
-
       return null
     })
   }
