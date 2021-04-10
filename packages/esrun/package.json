@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/esrun",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "transpiles, bundles and run ts and es6 modules on NodeJS using esbuild",
   "main": "index.js",
   "repository": {
