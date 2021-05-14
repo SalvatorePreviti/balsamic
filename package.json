@@ -30,21 +30,23 @@
   },
   "dependencies": {
     "@balsamic/eslint-config": "file:packages/eslint-config",
-    "@balsamic/esrun": "file:packages/esrun"
+    "@balsamic/esrun": "file:packages/esrun",
+    "@balsamic/estest": "file:packages/estest"
   },
   "devDependencies": {
-    "@types/node": "^14.14.37",
-    "@typescript-eslint/eslint-plugin": "^4.21.0",
-    "@typescript-eslint/parser": "^4.21.0",
-    "esbuild": "^0.11.7",
-    "eslint": "^7.24.0",
-    "eslint-plugin-import": "^2.22.1",
+    "@types/ms": "^0.7.31",
+    "@types/node": "^15.0.3",
+    "@typescript-eslint/eslint-plugin": "^4.23.0",
+    "@typescript-eslint/parser": "^4.23.0",
+    "esbuild": "^0.11.21",
+    "eslint": "^7.26.0",
+    "eslint-plugin-import": "^2.23.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-react": "^7.23.2",
     "eslint-plugin-react-hooks": "^4.2.0",
     "husky": "^6.0.0",
-    "lint-staged": "^10.5.4",
-    "prettier": "^2.2.1",
+    "lint-staged": "^11.0.0",
+    "prettier": "^2.3.0",
     "pretty-quick": "^3.1.0",
     "react": "^17.0.2",
     "typescript": "^4.2.4"

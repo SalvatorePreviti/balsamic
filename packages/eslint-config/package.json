@@ -23,11 +23,11 @@
     "eslint-plugin-quick-prettier": "^0.0.29"
   },
   "peerDependencies": {
-    "@types/node": ">=14.14.37",
-    "@typescript-eslint/eslint-plugin": ">=4.21.0",
-    "@typescript-eslint/parser": ">=4.21.0",
-    "eslint": ">=7.24.0",
-    "eslint-plugin-import": ">=2.22.1",
+    "@types/node": ">=15.0.3",
+    "@typescript-eslint/eslint-plugin": ">=4.23.0",
+    "@typescript-eslint/parser": ">=4.23.0",
+    "eslint": ">=7.26.0",
+    "eslint-plugin-import": ">=2.23.0",
     "eslint-plugin-node": ">=11.1.0",
     "typescript": ">=4.2.4"
   }

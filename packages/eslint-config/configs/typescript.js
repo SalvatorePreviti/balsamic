@@ -1,12 +1,9 @@
 'use strict'
 
-const sharedRules = require('../lib/shared-rules')
-
 module.exports = {
   rules: {
     '@typescript-eslint/adjacent-overload-signatures': 1,
     '@typescript-eslint/await-thenable': 2,
-    '@typescript-eslint/ban-types': 1,
     '@typescript-eslint/dot-notation': [2, { allowKeywords: true }],
     '@typescript-eslint/no-extra-non-null-assertion': 2,
     '@typescript-eslint/no-floating-promises': 2,
@@ -16,7 +13,6 @@ module.exports = {
     '@typescript-eslint/no-non-null-asserted-optional-chain': 2,
     '@typescript-eslint/no-throw-literal': 2,
     '@typescript-eslint/no-unnecessary-type-assertion': 2,
-    '@typescript-eslint/no-unused-vars': sharedRules['no-unused-vars'],
     '@typescript-eslint/prefer-as-const': 2,
     '@typescript-eslint/prefer-namespace-keyword': 1,
     '@typescript-eslint/prefer-regexp-exec': 2,
