@@ -169,7 +169,7 @@ function _initSyntethicImportMeta(srcPath) {
   }
 }
 
-const getMainEntries = async ({ includes, main, resolveDir = process.cwd() }) => {
+const getMainEntries = async ({ includes = [], main, resolveDir = process.cwd() }) => {
   // eslint-disable-next-line node/no-deprecated-api
   const allowedExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', ...Object.keys(require.extensions)])
   allowedExtensions.delete('.json')
@@ -215,7 +215,7 @@ const getMainEntries = async ({ includes, main, resolveDir = process.cwd() }) =>
   return { includes: Array.from(set), main: mainFile }
 }
 
-const createLoadMainPlugin = (includes, main) => {
+const createLoadMainPlugin = (includes = [], main) => {
   return {
     name: 'esrun-main-loader',
     /** @param {import('esbuild').PluginBuild} build */
@@ -319,10 +319,8 @@ exports.register = register
 /**
  * Build and runs a module in the current node instance.
  * Use esrunChild if you need to watch for changes.
- *
- * @param {{entry: string, resolveDir?: string}} options
  */
-exports.esrun = async ({ includes, main, resolveDir = process.cwd() }) => {
+exports.esrun = async ({ includes = [], main, resolveDir = process.cwd() }) => {
   const baseOptions = exports.esBuildOptions
 
   const buildResult = await exports.getEsBuild().build({
@@ -340,10 +338,8 @@ exports.esrun = async ({ includes, main, resolveDir = process.cwd() }) => {
 /**
  * Build and runs a module in a child process.
  * Allows watching if watch is true.
- *
- * @param {{entry: string, watch?: boolean, resolveDir?: string, args?: string[]}} options
  */
-exports.esrunChild = async ({ includes, main, watch, resolveDir = process.cwd(), args }) => {
+exports.esrunChild = async ({ includes = [], main, watch = false, resolveDir = process.cwd(), args = [] }) => {
   let _esRunChildKillTimer = null
   let _esRunChildKillCount = 0
   let _esRunChildProcess = null
