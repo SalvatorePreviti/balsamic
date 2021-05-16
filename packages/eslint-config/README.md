@@ -3,13 +3,13 @@
 Commands:
 
 ```sh
-npx @balsamic/eslint-config --init
+npx @balsamic/eslint-config@latest --init
 ```
 
 Initializes a project, creating all the required files and updating package.json
 
 ```sh
-npx @balsamic/eslint-config --init-clang-format
+npx @balsamic/eslint-config@latest --init-clang-format
 ```
 
 Creates a .clangformat file in the current directory

@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic"

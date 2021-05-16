@@ -126,6 +126,8 @@ function addDependencies(project, { hasGitHooks }) {
     }
   }
 
+  addDevDependency(manifest.name, `^${manifest.version}`)
+
   for (const [key, value] of Object.entries(sortObjectKeys(manifest.peerDependencies))) {
     addDevDependency(key, value.replace('>=', '^'))
   }
