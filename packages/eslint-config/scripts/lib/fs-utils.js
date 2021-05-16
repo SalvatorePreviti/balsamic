@@ -6,6 +6,9 @@ const fs = require('fs')
 const path = require('path')
 const logging = require('./logging')
 const { sortPackageJson } = require('eslint-plugin-quick-prettier/json-utils.js')
+const { spawn } = require('child_process')
+
+const projectRoot = path.dirname(require.resolve('../../package.json'))
 
 function beforeCreateFile(targetPath) {
   if (Array.isArray(targetPath)) {
@@ -14,7 +17,7 @@ function beforeCreateFile(targetPath) {
         logging.skip(`skiping existing file ${item}`)
         return false
       }
-      logging.progress(`creating ${targetPath}...`)
+      logging.progress(`creating ${item}...`)
     }
     return path.resolve(targetPath[0])
   }
@@ -31,7 +34,7 @@ function beforeCreateFile(targetPath) {
 function copyProjectFile(sourcePath, targetPath = sourcePath) {
   targetPath = beforeCreateFile(targetPath)
   if (targetPath) {
-    fs.copyFileSync(require.resolve(`../${sourcePath}`), targetPath)
+    fs.copyFileSync(path.join(projectRoot, sourcePath), targetPath)
   }
 }
 
@@ -114,6 +117,40 @@ function isDirectory(filename) {
   return false
 }
 
+async function runAsync(command, args = [], options) {
+  if (!Array.isArray(args)) {
+    args = [args]
+  }
+  await new Promise((resolve, reject) => {
+    const opt = {
+      stdio: 'inherit',
+      ...options
+    }
+
+    const outputToString = opt.stdio === 'string'
+    if (outputToString) {
+      delete opt.stdio
+    }
+
+    let result
+    const child = spawn(command, args, opt)
+    child
+      .on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`${command} ${args.join(' ')} failed with code ${code}`))
+        } else {
+          resolve(result)
+        }
+      })
+      .on('error', (error) => {
+        reject(error || new Error(`${command} failed`))
+      })
+      .on('data', (d) => {
+        result += d
+      })
+  })
+}
+
 module.exports = {
   beforeCreateFile,
   copyProjectFile,
@@ -121,5 +158,6 @@ module.exports = {
   loadPackageJson,
   rewritePackageJson,
   findDirectoryInParents,
-  cleanupText
+  cleanupText,
+  runAsync
 }

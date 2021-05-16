@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic"
@@ -16,7 +16,7 @@
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git"
   },
   "bin": {
-    "balsamic-eslint-config-init": "scripts/init.js"
+    "balsamic-eslint": "scripts/main.js"
   },
   "engines": {
     "node": ">=14.0.0"

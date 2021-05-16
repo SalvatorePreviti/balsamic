@@ -1,6 +1,7 @@
 const path = require('path')
 const manifest = require('../../package.json')
 const logging = require('./logging')
+const fs = require('fs')
 const { sortObjectKeys } = require('eslint-plugin-quick-prettier/json-utils.js')
 const {
   loadPackageJson,
@@ -8,7 +9,8 @@ const {
   copyProjectFile,
   createProjectFile,
   findDirectoryInParents,
-  cleanupText
+  cleanupText,
+  runAsync
 } = require('./fs-utils')
 
 module.exports = {
@@ -21,8 +23,15 @@ function initClangFormat() {
   copyProjectFile('.clang-format')
 }
 
-function initProject() {
+async function initProject() {
   logging.banner('project initialization')
+
+  if (!fs.existsSync('package.json')) {
+    logging.warn('package.json not found - creating a new project')
+    logging.log()
+    await runAsync('npm', 'init')
+  }
+
   const originalProject = loadPackageJson('package.json')
 
   const project = JSON.parse(JSON.stringify(originalProject))

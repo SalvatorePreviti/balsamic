@@ -54,7 +54,7 @@ const jsRules = {
   'computed-property-spacing': 0,
   'consistent-return': [1, { treatUndefinedAsUnspecified: false }],
   curly: [1, 'all'],
-  'default-case': [1, { commentPattern: '^no default$' }],
+  'default-case': [0, { commentPattern: '^no default$' }],
   'default-param-last': 0,
   'dot-location': [0, 'property'],
   'dot-notation': [2, { allowKeywords: true }],
