@@ -15,19 +15,23 @@
     "type": "git",
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git"
   },
+  "bin": {
+    "balsamic-eslint-config-init": "scripts/init.js"
+  },
   "engines": {
     "node": ">=14.0.0"
   },
   "main": "index.js",
   "dependencies": {
-    "eslint-plugin-quick-prettier": "^0.0.29"
+    "eslint-plugin-quick-prettier": "^0.0.29",
+    "chalk": "^4.1.1"
   },
   "peerDependencies": {
-    "@types/node": ">=15.0.3",
+    "@types/node": ">=15.3.0",
     "@typescript-eslint/eslint-plugin": ">=4.23.0",
     "@typescript-eslint/parser": ">=4.23.0",
     "eslint": ">=7.26.0",
-    "eslint-plugin-import": ">=2.23.0",
+    "eslint-plugin-import": ">=2.23.2",
     "eslint-plugin-node": ">=11.1.0",
     "typescript": ">=4.2.4"
   }

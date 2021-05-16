@@ -516,7 +516,7 @@ const tsProjectRules = {
   '@typescript-eslint/restrict-plus-operands': 2
 }
 
-const config = {
+const eslintConfig = {
   env: { browser: true, es2020: true, node: true },
   ignorePatterns: paths.getIgnorePatterns(),
   extends: [
@@ -579,7 +579,7 @@ const config = {
 }
 
 if (tsConfigPath) {
-  config.rules = { ...config.rules, ...tsProjectRules }
+  eslintConfig.rules = { ...eslintConfig.rules, ...tsProjectRules }
 }
 
-module.exports = config
+module.exports = eslintConfig
