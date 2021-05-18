@@ -2,7 +2,7 @@
 
 const logging = require('./logging')
 const path = require('path')
-const { initProject, initClangFormat } = require('./init-project')
+const { initProject, initClangFormat, initNpmIgnore } = require('./init-project')
 
 exports.handleUncaughtError = logging.handleUncaughtError
 
@@ -17,6 +17,10 @@ exports.main = async function main(argv = process.argv) {
     case '--init':
       return initProject()
 
+    case '--init-npmignore':
+    case '--init-npm-ignore':
+      return initNpmIgnore()
+
     case '--init-clang-format':
     case '--init-clangformat':
     case '--init-clang':
@@ -26,6 +30,7 @@ exports.main = async function main(argv = process.argv) {
   logging.banner('help')
   logging.log(`  ${name} --help              : this help screen`)
   logging.log(`  ${name} --init              : initializes a project`)
+  logging.log(`  ${name} --init-npmignore    : initializes .npmignore`)
   logging.log(`  ${name} --init-clang-format : initializes .clang-format`)
   logging.log()
 

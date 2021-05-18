@@ -151,6 +151,29 @@ async function runAsync(command, args = [], options) {
   })
 }
 
+function getPackageManager(cwd = process.cwd()) {
+  let yarnDate = 0
+  let packageLockDate = 0
+  try {
+    const stats = fs.statSync(path.resolve(cwd, 'yarn.lock'))
+    yarnDate = stats.isFile() && stats.mtimeMs
+  } catch (_error) {}
+  try {
+    const stats = fs.statSync(path.resolve(cwd, 'package-lock.json'))
+    packageLockDate = stats.isFile() && stats.mtimeMs
+  } catch (_error) {}
+
+  if (packageLockDate > yarnDate) {
+    return 'npm'
+  }
+
+  if (yarnDate > packageLockDate) {
+    return 'yarn'
+  }
+
+  return undefined
+}
+
 module.exports = {
   beforeCreateFile,
   copyProjectFile,
@@ -159,5 +182,6 @@ module.exports = {
   rewritePackageJson,
   findDirectoryInParents,
   cleanupText,
-  runAsync
+  runAsync,
+  getPackageManager
 }

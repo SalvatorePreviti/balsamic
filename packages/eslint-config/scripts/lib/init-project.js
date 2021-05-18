@@ -3,6 +3,7 @@ const manifest = require('../../package.json')
 const logging = require('./logging')
 const fs = require('fs')
 const { sortObjectKeys } = require('eslint-plugin-quick-prettier/json-utils.js')
+const chalk = require('chalk')
 const {
   loadPackageJson,
   rewritePackageJson,
@@ -10,17 +11,26 @@ const {
   createProjectFile,
   findDirectoryInParents,
   cleanupText,
-  runAsync
+  runAsync,
+  getPackageManager
 } = require('./fs-utils')
 
 module.exports = {
   initProject,
+  initNpmIgnore,
   initClangFormat
+}
+
+function initNpmIgnore() {
+  logging.banner('.npmignore initialization')
+  copyProjectFile('.npmignore.default', '.npmignore')
+  logging.log()
 }
 
 function initClangFormat() {
   logging.banner('clang-format initialization')
   copyProjectFile('.clang-format')
+  logging.log()
 }
 
 async function initProject() {
@@ -36,6 +46,18 @@ async function initProject() {
 
   const project = JSON.parse(JSON.stringify(originalProject))
 
+  if (project.private === undefined) {
+    project.private = !!(await logging.askConfirmation(
+      `Is this a ${chalk.yellowBright('private')}${chalk.yellow(': ')}${chalk.greenBright('true')} package?`
+    ))
+  }
+
+  if (!findDirectoryInParents('.git')) {
+    if (await logging.askConfirmation(`.git not found. Do you want to run ${chalk.yellow('git init')}?`)) {
+      await runAsync('git', ['init'])
+    }
+  }
+
   createProjectFiles()
   fixProjectFields(project)
 
@@ -45,7 +67,11 @@ async function initProject() {
 
   rewritePackageJson('package.json', project)
 
-  logging.footer('Initialization completed. run `npm i` or `yarn` to complete initialization.')
+  if (getPackageManager() === 'yarn') {
+    logging.footer('Initialization completed. run `yarn` to complete initialization.')
+  } else {
+    logging.footer('Initialization completed. run `npm i` to complete initialization.')
+  }
 }
 
 function createProjectFiles() {
@@ -71,6 +97,12 @@ function initGitHooks(project) {
   }
 
   createProjectFile('.husky/pre-commit', 'npm run precommit\n')
+  try {
+    fs.chmodSync('.husky/pre-commit', '755')
+  } catch (_) {
+    // Ignore error
+  }
+
   createProjectFile('.husky/.gitignore', '_\n')
   const scripts = project.scripts || (project.scripts = {})
 
@@ -84,6 +116,12 @@ function initGitHooks(project) {
     logging.skip('precommit script already present, skipping', precommitScript)
   } else {
     logging.skip('precommit script already present')
+  }
+
+  if (!scripts['int-staged']) {
+    scripts['lint-staged'] = {
+      '*.{js,jsx,ts,tsx}': ['eslint --fix --max-warnings=0']
+    }
   }
 
   if (!scripts.postinstall) {
