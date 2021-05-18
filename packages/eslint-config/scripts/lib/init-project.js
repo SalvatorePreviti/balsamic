@@ -83,9 +83,10 @@ function createProjectFiles() {
   )
 
   copyProjectFile('.gitignore.default', '.gitignore')
-  copyProjectFile('.editorconfig')
-  copyProjectFile('.eslintignore')
   copyProjectFile('.prettierignore')
+  copyProjectFile('.eslintignore')
+  copyProjectFile('.editorconfig')
+  copyProjectFile('.prettierrc')
   copyProjectFile('.vscode/settings.json')
   copyProjectFile('.vscode/extensions.json')
 }
