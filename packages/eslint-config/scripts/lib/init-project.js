@@ -36,6 +36,12 @@ function initClangFormat() {
 async function initProject() {
   logging.banner('project initialization')
 
+  if (!findDirectoryInParents('.git')) {
+    if (await logging.askConfirmation(`.git not found. Do you want to run ${chalk.yellow('git init')}?`)) {
+      await runAsync('git', ['init'])
+    }
+  }
+
   if (!fs.existsSync('package.json')) {
     logging.warn('package.json not found - creating a new project')
     logging.log()
@@ -50,12 +56,6 @@ async function initProject() {
     project.private = !!(await logging.askConfirmation(
       `Is this a ${chalk.yellowBright('private')}${chalk.yellow(': ')}${chalk.greenBright('true')} package?`
     ))
-  }
-
-  if (!findDirectoryInParents('.git')) {
-    if (await logging.askConfirmation(`.git not found. Do you want to run ${chalk.yellow('git init')}?`)) {
-      await runAsync('git', ['init'])
-    }
   }
 
   createProjectFiles()
@@ -109,6 +109,12 @@ function initGitHooks(project) {
   const precommitScript = 'lint-staged && pretty-quick --staged'
   const postInstallScript = 'husky install'
 
+  if (!project['int-staged']) {
+    project['lint-staged'] = {
+      '*.{js,jsx,ts,tsx}': ['eslint --fix --max-warnings=0']
+    }
+  }
+
   if (!scripts.precommit) {
     logging.progress('adding precommit script ...')
     scripts.precommit = precommitScript
@@ -116,12 +122,6 @@ function initGitHooks(project) {
     logging.skip('precommit script already present, skipping', precommitScript)
   } else {
     logging.skip('precommit script already present')
-  }
-
-  if (!scripts['int-staged']) {
-    scripts['lint-staged'] = {
-      '*.{js,jsx,ts,tsx}': ['eslint --fix --max-warnings=0']
-    }
   }
 
   if (!scripts.postinstall) {
