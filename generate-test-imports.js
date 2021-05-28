@@ -2,7 +2,7 @@ const fs = require('fs')
 
 const tryMkDir = (dir) => {
   try {
-    fs.mkdirSync(dir)
+    fs.mkdirSync(dir, { recursive: true })
   } catch (_) {}
 }
 
@@ -30,47 +30,56 @@ const randArray = () => {
   return Buffer.from(buf).toString('hex')
 }
 
-let indexContent = ''
-indexContent += "import crypto from 'crypto'\n\n"
+function generateFiles(folder, format = 'ts') {
+  let indexContent = ''
+  indexContent += "import crypto from 'crypto'\n\n"
 
-const IMAX = 25
-const JMAX = 50
+  const IMAX = 25
+  const JMAX = 50
 
-for (let i = 0; i < IMAX; ++i) {
-  tryMkDir(`__test/x${i}`)
+  tryMkDir(folder)
 
-  let fdir = ''
-  let fname = ''
-  for (let j = 0; j < JMAX; ++j) {
-    let contents = ''
-    if (fname) {
-      contents += `import { fn as importedFn } from './${fname}'\n\n`
-      contents += `export let fn = () => importedFn() + ${j}\n\n`
-      contents += `export const setFn = (value: any) => (fn = value)\n\n`
-      for (let k = 0; k < 50; ++k) {
-        contents += `export const d${k} = () =>\n  '${randArray()}'\n\n`
+  const importExt = format === 'ts' ? '' : `.${format}`
+
+  for (let i = 0; i < IMAX; ++i) {
+    tryMkDir(`${folder}/x${i}`)
+
+    let fdir = ''
+    let fname = ''
+    for (let j = 0; j < JMAX; ++j) {
+      let contents = ''
+      if (fname) {
+        contents += `import { fn as importedFn } from './${fname}${importExt}'\n\n`
+        contents += `export let fn = () => importedFn() + ${j}\n\n`
+        contents += `export const setFn = (value${format === 'ts' ? ': any' : ''}) => (fn = value)\n\n`
+        for (let k = 0; k < 250; ++k) {
+          contents += `export const d${k} = () =>\n  '${randArray()}'\n\n`
+        }
+      } else {
+        contents += `import chalk from 'chalk'\n\n`
+        contents += `export const fn = (x = 'X') => {\n`
+        contents += `  const keys = Object.keys(chalk);\n`
+        contents += `  return x + keys[${i + j} % keys.length] + '${i}-${j}:'\n`
+        contents += `}\n`
       }
-    } else {
-      contents += `import chalk from 'chalk'\n\n`
-      contents += `export const fn = (x = 'X') => {\n`
-      contents += `  const keys = Object.keys(chalk);\n`
-      contents += `  return x + keys[${i + j} % keys.length] + '${i}-${j}:'\n`
-      contents += `}\n`
+      fdir = `x${i}`
+      fname = `file-${i}-${j}`
+      fs.writeFileSync(`${folder}/${fdir}/${fname}.${format}`, contents)
     }
-    fdir = `x${i}`
-    fname = `file-${i}-${j}`
-    fs.writeFileSync(`__test/${fdir}/${fname}.ts`, contents)
+
+    indexContent += `import { fn as fn${i} } from './${fdir}/${fname}${importExt}'\n`
   }
 
-  indexContent += `import { fn as fn${i} } from './${fdir}/${fname}'\n`
+  indexContent += '\nexport const xxx = () =>\n'
+  for (let i = 0; i < IMAX; ++i) {
+    indexContent += `  fn${i}()${i < IMAX - 1 ? ' + \n' : '\n\n'}`
+  }
+  indexContent += "const hash = crypto.createHash('md5').update(xxx()).digest().toString('hex')\n\n"
+  indexContent += '// eslint-disable-next-line no-console\n'
+  indexContent += 'console.log(hash);\n'
+
+  fs.writeFileSync(`${folder}/index.${format}`, indexContent)
 }
 
-indexContent += '\nexport const xxx = () =>\n'
-for (let i = 0; i < IMAX; ++i) {
-  indexContent += `  fn${i}()${i < IMAX - 1 ? ' + \n' : '\n\n'}`
-}
-indexContent += "const hash = crypto.createHash('md5').update(xxx()).digest().toString('hex')\n\n"
-indexContent += '// eslint-disable-next-line no-console\n'
-indexContent += 'console.log(hash);\n'
-
-fs.writeFileSync(`./__test/index.ts`, indexContent)
+generateFiles('__test/mjs', 'mjs')
+generateFiles('__test/ts', 'ts')

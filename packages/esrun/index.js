@@ -1,539 +1,627 @@
 'use strict'
 
+const vm = require('vm')
+
+const { pathToFileURL, fileURLToPath } = require('url')
 const Module = require('module')
-const child_process = require('child_process')
-const { dirname: pathDirname, resolve: pathResolve, sep: pathSep, extname: pathExtname } = require('path')
-const { existsSync: fsExistsSync } = require('fs')
-const { fileURLToPath, pathToFileURL } = require('url')
-const { emitUncaughtError } = require('./errors')
-const fastGlob = require('fast-glob')
-const esbuildPluginExternalModules = require('./esbuild-plugins/external-modules')
+const {
+  dirname: pathDirname,
+  resolve: pathResolve,
+  join: pathJoin,
+  extname: pathExtname,
+  sep: pathSep,
+  isAbsolute: pathIsAbsolute
+} = require('path')
+const fs = require('fs')
 
-const { register: registerSourceMapSupport, setFileSourceMap, getCallerFileUrl } = require('./source-maps')
-
-const { defineProperty } = Reflect
-
-const CHILD_PROCESS_RUNNER_KEY = '$Hr75q0d656ajR'
-
-const nodeTargetVersion = `node${process.version.slice(1)}`
-
-const _nodeModulesDir = `${pathSep}node_modules${pathSep}`
-
-/** @type {import('esbuild')} */
-let _esbuild
-
-/** @returns {import('esbuild')} */
-exports.getEsBuild = () => _esbuild || (_esbuild = require('esbuild'))
-
-/**
- * Shared esbuild options
- * @type {import('esbuild').TransformOptions}
- */
-exports.esTransformOptions = {
-  banner: '"use strict";',
-  format: 'cjs',
-  target: nodeTargetVersion,
-  minifyWhitespace: false,
-  charset: 'utf8',
-  sourcemap: 'external'
-}
-
-/**
- * Shared esbuild options
- * @type {import('esbuild').BuildOptions}
- */
-exports.esBuildOptions = {
-  ...exports.esTransformOptions,
-  write: false,
-  bundle: true,
-  banner: { js: '"use strict";' },
-  external: ['*.node', '*.json'],
-  platform: 'node',
-  plugins: [esbuildPluginExternalModules()],
-  watch: false,
-  define: {
-    require: '__esrun_esrun_require',
-    __filename: '__esrun_get_caller_file_path',
-    __dirname: '__esrun_get_caller_dir_path',
-    'import.meta.url': '__esrun_get_caller_file_url'
-  }
-}
-
-/**
- * Resolves a module using esbuild module resolution
- *
- * @param {string} id Module to resolve
- * @param {string} [resolveDir] The directory to resolve from
- * @returns {Promise<string>} The resolved module
- */
-exports.esbuildResolve = async (id, resolveDir = process.cwd()) => {
-  if (!id) {
-    return id || './'
-  }
-  let _resolve
-  const resolvedPromise = new Promise((resolve) => (_resolve = resolve))
-  return Promise.race([
-    resolvedPromise,
-    exports
-      .getEsBuild()
-      .build({
-        ...exports.esBuildOptions,
-        sourcemap: false,
-        logLevel: 'silent',
-        stdin: { contents: `import ${JSON.stringify(id)}`, loader: 'ts', resolveDir, sourcefile: __filename },
-        plugins: [
-          {
-            name: 'resolve-main',
-            setup(build) {
-              build.onLoad({ filter: /.*/ }, ({ path }) => {
-                id = path
-                _resolve(id)
-                return { contents: '' }
-              })
-            }
-          }
-        ]
-      })
-      .then(() => id)
-  ])
-}
-
-const _esrun_file_path_getters_registered = false
-
-function _initSyntethicImportMeta(srcPath) {
-  defineProperty(global, '__esrun_entry_point_file', {
-    value: srcPath,
-    configurable: true,
-    enumerable: false,
-    writable: true
-  })
-
-  if (!_esrun_file_path_getters_registered) {
-    const __esrun_get_caller_file_url = () =>
-      getCallerFileUrl(__esrun_get_caller_file_url) || pathToFileURL(global.__esrun_entry_point_file)
-
-    const __esrun_get_caller_file_path = () => {
-      const url = getCallerFileUrl(__esrun_get_caller_file_path)
-      return url ? fileURLToPath(url) : global.__esrun_entry_point_file
-    }
-
-    const __esrun_get_caller_dir_path = () => {
-      const url = getCallerFileUrl(__esrun_get_caller_dir_path)
-      return pathDirname(url ? fileURLToPath(url) : global.__esrun_entry_point_file)
-    }
-
-    const requireMap = new Map()
-    const __get_esrun_esrun_require = () => {
-      const callerUrl = getCallerFileUrl(__get_esrun_esrun_require)
-      const callerFilename = callerUrl ? fileURLToPath(callerUrl) : global.__esrun_entry_point_file
-      let rq = requireMap.get(callerFilename)
-      if (!rq && !requireMap.has(callerFilename)) {
-        rq = Module.createRequire(callerFilename)
-        requireMap.set(callerFilename, rq)
-      }
-      return rq
-    }
-
-    const __set_esrun_esrun_require = (value) => {
-      const url = getCallerFileUrl(__set_esrun_esrun_require)
-      if (url) {
-        const callerFilename = fileURLToPath(url)
-        requireMap.set(callerFilename, value)
-      }
-    }
-
-    defineProperty(global, '__esrun_get_caller_file_url', {
-      get: __esrun_get_caller_file_url,
-      configurable: true,
-      enumerable: false
-    })
-
-    defineProperty(global, '__esrun_get_caller_file_path', {
-      get: __esrun_get_caller_file_path,
-      configurable: true,
-      enumerable: false
-    })
-
-    defineProperty(global, '__esrun_get_caller_dir_path', {
-      get: __esrun_get_caller_dir_path,
-      configurable: true,
-      enumerable: false
-    })
-
-    defineProperty(global, '__esrun_esrun_require', {
-      get: __get_esrun_esrun_require,
-      set: __set_esrun_esrun_require,
-      configurable: true,
-      enumerable: false
-    })
-  }
-}
-
-const getMainEntries = async ({ includes = [], main, resolveDir = process.cwd() }) => {
-  // eslint-disable-next-line node/no-deprecated-api
-  const allowedExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', ...Object.keys(require.extensions)])
-  allowedExtensions.delete('.json')
-
-  const exclusions = includes.filter((include) => include.startsWith('!'))
-
-  const includeFiles = []
-
-  const getFile = (entry) => {
-    entry = pathResolve(resolveDir, entry)
-    const ext = pathExtname(entry)
-    if (!allowedExtensions.has(ext)) {
-      for (const extension of allowedExtensions) {
-        const nEntry = entry + extension
-        if (fsExistsSync(nEntry)) {
-          return nEntry
-        }
-      }
-    }
-    return entry
-  }
-
-  for (const include of includes) {
-    if (include.startsWith('!')) {
-      continue
-    }
-    if ((include.startsWith('.') || include.startsWith('/')) && include.indexOf('*') < 0 && include.indexOf('?') < 0) {
-      includeFiles.push(getFile(include))
-    } else {
-      includeFiles.push(
-        fastGlob([include, ...exclusions], { absolute: true, cwd: resolveDir, onlyFiles: true, dot: true }).then(
-          (items) => items.filter((x) => allowedExtensions.has(pathExtname(x)))
-        )
-      )
-    }
-  }
-
-  const set = new Set((await Promise.all(includeFiles)).flat(1))
-
-  const mainFile = getFile(main)
-  set.delete(mainFile)
-
-  return { includes: Array.from(set), main: mainFile }
-}
-
-const createLoadMainPlugin = (includes = [], main) => {
-  return {
-    name: 'esrun-main-loader',
-    /** @param {import('esbuild').PluginBuild} build */
-    setup(build) {
-      build.onResolve({ filter: /__esrun_main__$/ }, ({ path }) => ({ path, external: false }))
-
-      build.onLoad({ filter: /__esrun_main__$/ }, async ({ path }) => {
-        const resolveDir = pathDirname(path)
-        const entries = await getMainEntries({ includes, main, resolveDir })
-        let contents = ''
-        for (const entry of entries.includes) {
-          contents += `import ${JSON.stringify(entry)};\n`
-        }
-        contents += `\nimport ${JSON.stringify(entries.main)};\n`
-        return {
-          contents,
-          loader: 'ts',
-          resolveDir,
-          watchFiles: [...entries.includes, entries.main]
-        }
-      })
-    }
-  }
-}
-
-/** @type {{[key:string]:{loader: import('esbuild').Loader, highPriority?: boolean}}} */
-const _loaders = {
-  '.ts': { loader: 'ts', highPriority: true },
-  '.tsx': { loader: 'tsx', highPriority: true },
-  '.jsx': { loader: 'jsx', highPriority: true },
-  '.css': { loader: 'css', highPriority: false },
-  '.txt': { loader: 'text', highPriority: false }
-}
-
-function makeTransformer(ext, original) {
-  const esbuildTransform = (m, filename) => {
-    if (filename.indexOf(_nodeModulesDir) < 0) {
-      const oldCompile = m._originalCompile || m._compile
-      m._originalCompile = oldCompile
-      m._compile = function esbuild_compile(source, sourcefile) {
-        const opts = {
-          ...exports.esTransformOptions,
-          loader: (_loaders[ext] && _loaders[ext].loader) || '.js'
-        }
-
-        const result = exports.getEsBuild().transformSync(source, opts)
-
-        if (exports.sourceMapSupport && opts.sourcemap) {
-          setFileSourceMap(sourcefile, sourcefile, result.map)
-        }
-        return this._originalCompile(result.code, sourcefile)
-      }
-    }
-    return original(m, filename)
-  }
-  esbuildTransform._original = original
-  return esbuildTransform
-}
+const { isArray } = Array
+const { isBuffer } = Buffer
+const { stringify: JSONstringify } = JSON
+const _Error = Error
+const { captureStackTrace } = _Error
 
 let _registered = false
+const _mainEntries = new Set()
+const _resolveCache = new Map()
+const _builtinModules = new Map()
+const _sourceMaps = new Map()
+const _loaders = new Map()
+const _extensionlessLoaders = []
+const _emptyContents = { contents: '' }
+const _allFilesFilter = { filter: /.*/ }
+const _nodeTargetVersion = `node${process.version.slice(1)}`
 
-function register() {
-  if (!_registered) {
-    // eslint-disable-next-line node/no-deprecated-api
-    const exts = require.extensions || Module._extensions
-    const oldExts = { ...exts }
-    for (const key in oldExts) {
-      delete exts[key]
-    }
+/** @returns {import('esbuild')} */
+let _getEsBuild = () => {
+  const result = require('esbuild')
+  _getEsBuild = () => result
+  return result
+}
 
-    const registerTransformer = (ext) => {
-      let original = oldExts[ext] || oldExts['.js']
-      original = original && (original._original || original)
-      exts[ext] = makeTransformer(ext, original)
-    }
+/** @returns {import('source-map-support')} */
+let _getSourceMapSupport = () => {
+  const result = require('source-map-support')
+  _getSourceMapSupport = () => result
+  return result
+}
 
-    for (const ext in _loaders) {
-      if (_loaders[ext] && _loaders[ext].highPriority) {
-        registerTransformer(ext)
-      }
-    }
-    for (const ext in oldExts) {
-      if (!exts[ext] || !exts[ext]._original) {
-        exts[ext] = oldExts[ext]
-      }
-    }
-    for (const ext in _loaders) {
-      if (!exts[ext] && _loaders[ext]) {
-        registerTransformer(ext)
-      }
-    }
+let _getLoaders = () => {
+  _getLoaders = () => _loaders
 
-    registerSourceMapSupport()
+  const __filenameUrl = pathToFileURL(__filename).href
+  _resolveCache.set(__filename, __filenameUrl)
+  _resolveCache.set(__dirname, __filenameUrl)
+  _resolveCache.set('@balsamic/esrun/index.js', __filenameUrl)
+  _resolveCache.set('@balsamic/esrun/index', __filenameUrl)
+  _resolveCache.set('@balsamic/esrun', __filenameUrl)
+  const resolvedEsrunCjs = pathJoin(__dirname, 'esrun.js')
+  _resolveCache.set(resolvedEsrunCjs, pathToFileURL(resolvedEsrunCjs).href)
 
-    _registered = true
+  exports.registerLoader([
+    { extension: '.ts', loader: 'ts', extensionless: true },
+    { extension: '.tsx', loader: 'tsx', extensionless: true },
+    { extension: '.jsx', loader: 'jsx', extensionless: true },
+    { extension: '.mjs', loader: 'mjs', extensionless: true },
+    { extension: '.js', loader: 'default', extensionless: true },
+    { extension: '.es6', loader: 'mjs', extensionless: true },
+    { extension: '.cjs', loader: 'cjs', extensionless: true },
+    { extension: '.json', loader: 'json', extensionless: true },
+    { extension: '.html', loader: 'text' },
+    { extension: '.htm', loader: 'text' },
+    { extension: '.txt', loader: 'text' },
+    { extension: '.md', loader: 'text' },
+    { extension: '.bin', loader: 'buffer' }
+  ])
+  return _loaders
+}
+
+exports.isRegistered = () => _registered
+
+exports.loaders = {
+  default: null,
+  mjs: {
+    format: 'module'
+  },
+  cjs: {
+    format: 'commonjs'
+  },
+  ts: {
+    format: 'module',
+    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'ts'),
+    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'ts')
+  },
+  tsx: {
+    format: 'module',
+    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'tsx'),
+    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'tsx')
+  },
+  jsx: {
+    format: 'module',
+    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'jsx'),
+    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'jsx')
+  },
+  json: {
+    format: 'commonjs'
+  },
+  text: {
+    format: 'commonjs',
+    loadCommonJS: (_mod, pathName) => _cleanupText(fs.readFileSync(pathName, 'utf8'))
+  },
+  buffer: {
+    format: 'commonjs',
+    loadCommonJS: (_mod, pathName) => fs.readFileSync(pathName)
   }
 }
 
-exports.register = register
+exports.addMainEntry = (pathName) => {
+  if (pathName) {
+    _mainEntries.add(exports.pathNameFromUrl(pathName) || pathName)
+  }
+}
 
-/**
- * Build and runs a module in the current node instance.
- * Use esrunChild if you need to watch for changes.
- */
-exports.esrun = async ({ includes = [], main, resolveDir = process.cwd() }) => {
-  const baseOptions = exports.esBuildOptions
+exports.handleUncaughtError = (error) => {
+  if (!process.exitCode) {
+    process.exitCode = 1
+  }
+  console.error('Uncaught', error && error.showStack === false ? `${error}` : error)
+}
 
-  const buildResult = await exports.getEsBuild().build({
-    ...baseOptions,
-    metafile: true,
-    entryPoints: [pathResolve(resolveDir, '__esrun_main__')],
-    outdir: resolveDir,
-    plugins: [...(baseOptions.plugins || []), createLoadMainPlugin(includes, main)],
-    watch: false
+exports.emitUncaughtError = (error) => {
+  try {
+    if (process.listenerCount('uncaughtException') === 0) {
+      process.once('uncaughtException', exports.handleUncaughtError)
+    }
+    process.emit('uncaughtException', error)
+  } catch (emitError) {
+    console.error(emitError)
+    try {
+      exports.handleUncaughtError(error)
+    } catch (_) {}
+  }
+}
+
+exports.register = function register() {
+  if (_registered || global.__esrun_module) {
+    return false
+  }
+
+  Reflect.defineProperty(global, '__esrun_module', {
+    value: module,
+    configurable: false,
+    enumerable: false,
+    writable: false
   })
 
-  _execModules(buildResult.outputFiles)
+  const _emitWarning = process.emitWarning
+
+  function emitWarning(warning, name, ctor) {
+    if (name === 'ExperimentalWarning') {
+      // Disable all experimental warnings
+      return undefined
+    }
+    return _emitWarning(warning, name, ctor || emitWarning)
+  }
+
+  process.emitWarning = emitWarning
+
+  _fixVm()
+
+  _registered = true
+  _getSourceMapSupport().install({
+    environment: 'node',
+    handleUncaughtExceptions: false,
+    hookRequire: true,
+    retrieveSourceMap: (source) => _sourceMaps.get(source) || null
+  })
+
+  for (const [k, v] of _getLoaders()) {
+    _registerCommonjsLoader(k, v)
+  }
+
+  return true
 }
 
 /**
- * Build and runs a module in a child process.
- * Allows watching if watch is true.
+ * Check wether if the given module is the main module
+ * @param url String url, Module or import.meta
+ * @returns True if the given url, Module or import.meta is the main running module
  */
-exports.esrunChild = async ({ includes = [], main, watch = false, resolveDir = process.cwd(), args = [] }) => {
-  let _esRunChildKillTimer = null
-  let _esRunChildKillCount = 0
-  let _esRunChildProcess = null
-
-  const baseOptions = exports.esBuildOptions
-  let _buildResult = await exports.getEsBuild().build({
-    ...baseOptions,
-    outdir: resolveDir,
-    entryPoints: [pathResolve(resolveDir, '__esrun_main__')],
-    plugins: [...(baseOptions.plugins || []), createLoadMainPlugin(includes, main)],
-    watch: watch
-      ? {
-          onRebuild(_error, rebuildResult) {
-            _buildResult = rebuildResult
-            _esRunWatch_runChild()
-          }
-        }
-      : false
-  })
-
-  _esRunWatch_runChild()
-
-  return {
-    get outputFiles() {
-      return _buildResult.outputFiles
-    },
-    get errors() {
-      return _buildResult.errors
-    },
-    get warnings() {
-      return _buildResult.warnings
-    },
-    get metaFile() {
-      return _buildResult.metafile
-    },
-    stop: () => _buildResult.stop(),
-    rebuild: () => _buildResult.rebuild()
-  }
-
-  function _esRunWatch_newChild(buildResult) {
-    const newChild = child_process.fork(
-      __filename,
-      args ? [CHILD_PROCESS_RUNNER_KEY, ...args] : [CHILD_PROCESS_RUNNER_KEY],
-      {
-        serialization: 'advanced',
-        env: process.env,
-        stdio: 'inherit'
-      }
-    )
-
-    _esRunChildProcess = newChild
-
-    newChild.on('error', (error) => console.error(error))
-
-    newChild.send(buildResult.outputFiles.map((item) => ({ path: item.path, contents: item.contents })))
-
-    const handleMessage = (data) => newChild.send(data)
-
-    process.on('message', handleMessage)
-
-    newChild.on('exit', (code) => {
-      process.off('message', handleMessage)
-      if (_esRunChildProcess === newChild) {
-        _esRunChildProcess = null
-      }
-      if (watch) {
-        if (code) {
-          console.log('[esrun] child exited with code', code)
-        } else {
-          console.log('[esrun] child exited')
-        }
-      }
-    })
-  }
-
-  function _esRunWatch_runChild() {
-    if (_esRunChildKillTimer) {
-      clearTimeout(_esRunChildKillTimer)
-      _esRunChildKillTimer = null
+exports.isMainModule = function isMainModule(url) {
+  if (typeof url === 'object') {
+    if (url === require.main) {
+      return true
     }
-
-    if (_esRunChildProcess) {
-      if (_esRunChildKillCount === 0 || _esRunChildKillCount > 5) {
-        _esRunChildProcess.kill(_esRunChildKillCount > 5 ? 'SIGKILL' : 'SIGTERM')
-      }
-      _esRunChildKillTimer = setTimeout(_esRunWatch_runChild, 10 + _esRunChildKillCount * 100)
-      return
-    }
-
-    _esRunChildKillCount = 0
-    _esRunWatch_newChild(_buildResult)
+    url = url.filename || url.id || url.href || url.url
   }
+
+  url = exports.pathNameFromUrl(url) || url
+
+  if (!url || typeof url !== 'string') {
+    return false
+  }
+
+  if (url.startsWith(pathSep)) {
+    try {
+      url = fileURLToPath(url)
+    } catch (_) {}
+  }
+
+  const indexOfQuestionMark = url.indexOf('?')
+  if (indexOfQuestionMark >= 0) {
+    url = url.slice(0, indexOfQuestionMark - 1)
+  }
+
+  return _mainEntries.has(url)
 }
 
-function _execModules(files) {
-  register()
-
-  const sourceFiles = []
-  for (const file of files) {
-    if (typeof file.path === 'string' && file.path.endsWith('.map')) {
-      const srcPath = file.path.slice(0, file.path.length - 4)
-      setFileSourceMap(srcPath, srcPath, file.text || Buffer.from(file.contents).toString('utf8'))
-    } else {
-      sourceFiles.push(file)
-    }
-  }
-
-  const modules = []
-  for (const file of sourceFiles) {
-    const srcPath = file.path
-
-    process.argv[1] = srcPath
-    _initSyntethicImportMeta(srcPath)
-
-    const m = new Module(srcPath)
-
-    process.mainModule = m
-    require.main = m
-
-    m.filename = srcPath
-    m.paths = Module._nodeModulePaths(pathDirname(srcPath))
-
-    require.cache[m.id] = m
-
-    modules.push({ m, file })
-  }
-
-  for (const { m, file } of modules) {
-    m._compile(file.text || Buffer.from(file.contents).toString('utf8'), m.filename)
-    m.loaded = true
-  }
+exports.setFileSourceMap = function setFileSourceMap(url, sourcePath, map) {
+  _sourceMaps.set(url, { url: sourcePath, map })
 }
 
-exports.esrunMain = () => {
-  const argv = process.argv
-
-  let watch = false
-  const includes = []
-  let i = 2
-  for (; i < argv.length; ++i) {
-    if (argv[i] === '-r') {
-      const include = argv[i + 1]
-      if (!include) {
-        break
-      }
-      includes.push(include)
-      ++i
-    } else if (argv[i] === '--watch') {
-      watch = true
-    } else if (argv[i] === '--no-watch') {
-      watch = false
-    } else {
-      break
-    }
+exports.getLoader = function getLoader(extension) {
+  if (typeof extension !== 'string') {
+    return undefined
   }
-  argv.splice(2, i - 2)
+  if (extension.length === 0) {
+    extension = '.cjs'
+  } else if (!extension.startsWith('.')) {
+    extension = `.${extension}`
+  }
+  return _getLoaders().get(extension)
+}
 
-  const main = argv[2]
-  if (!main || main === '--help' || main === '--version') {
-    const pkg = require('./package.json')
-    if (main !== '--version') {
-      console.info()
-    }
-    console.info(`${pkg.name} v${pkg.version}, esbuild v${this.getEsBuild().version}\n`)
-    if (main !== '--version') {
-      const messages = [
-        'Usage: esrun [--watch] [-r <file|glob-pattern>] <file to run> [arguments]',
-        '  --watch                : Executes in watch mode, restarting every time a file changes.',
-        '  -r <file|glob-pattern> : Adds a file or a glob pattern to require.',
-        '  -r !<glob-pattern>     : Exclude a set of patterns from globbing.'
-      ]
-      console.error(messages.join('\n'), '\n')
-      process.exitCode = 1
+exports.registerLoader = function registerLoader(arg) {
+  if (isArray(arg)) {
+    for (const item of arg) {
+      registerLoader(item)
     }
     return
   }
 
-  if (watch) {
-    exports.esrunChild({ includes, main, watch: true, args: argv.slice(2) }).catch(emitUncaughtError)
-  } else {
-    exports.esrun({ includes, main }).catch(emitUncaughtError)
+  let extension = arg.extension
+  if (typeof extension !== 'string' || extension.length === 0) {
+    throw new Error('Invalid extension')
+  }
+  if (!extension.startsWith('.')) {
+    extension = `.${extension}`
+  }
+  let loader = arg.loader
+  if (typeof loader === 'string') {
+    loader = exports.loaders[loader]
+    if (typeof loader !== 'object') {
+      throw new Error(`Unknown loader "${loader}"`)
+    }
+  }
+  if (typeof loader !== 'object') {
+    throw new Error(`Loader must be an object but is ${typeof loader}`)
+  }
+  if (loader && !loader.format) {
+    throw new Error('loader format property must be specified')
+  }
+  const loaders = _getLoaders()
+  if (arg.extensionless && !loaders.has(extension)) {
+    _extensionlessLoaders.push(extension)
+  }
+  loaders.set(extension, loader)
+
+  if (_registered) {
+    _registerCommonjsLoader(extension, loader)
   }
 }
 
-if (module === require.main) {
-  const argv = process.argv
-  if (argv[2] === CHILD_PROCESS_RUNNER_KEY) {
-    argv.splice(2, 1)
-    if (require.main === module) {
-      process.once('message', (data) => {
-        _execModules(data)
-      })
-    }
-  } else {
-    exports.esrunMain()
+exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
+  id = pathNameFromUrl(id) || id
+
+  if (typeof id === 'object' && id !== null) {
+    id = `${id}`
   }
+
+  sourcefile = pathNameFromUrl(sourcefile)
+
+  const builtin = _builtinModules.get(id)
+  if (builtin !== undefined) {
+    return builtin
+  }
+
+  if (!sourcefile) {
+    sourcefile = pathResolve('index.js')
+  }
+
+  const resolveDir = pathDirname(sourcefile)
+  const isAbsolute = id.startsWith('/') || pathIsAbsolute(id)
+
+  _getLoaders()
+
+  let result
+  let cacheKey
+  if (isAbsolute) {
+    cacheKey = id
+    result = _resolveCache.get(id)
+  } else {
+    cacheKey = `${resolveDir};${id}`
+    result = _resolveCache.get(cacheKey) || _resolveCache.get(id)
+  }
+
+  if (result !== undefined) {
+    return result
+  }
+
+  if (isAbsolute) {
+    const cachedModule = require.cache[id]
+    if (cachedModule) {
+      try {
+        result = pathToFileURL(id).href || undefined
+      } catch (_) {
+        // Ignore error
+      }
+    }
+  }
+
+  if (result === undefined) {
+    result = _esbuildBuildResolve(cacheKey, id, resolveDir)
+  }
+
+  _resolveCache.set(cacheKey, result)
+  return result
+}
+
+exports.resolveEs6Module.clearCache = () => {
+  _resolveCache.clear()
+}
+
+function _registerCommonjsLoader(extension, loader) {
+  if (!loader) {
+    return
+  }
+
+  if (loader.transformCommonJS) {
+    Module._extensions[extension] = (mod, filename) => {
+      const compile = mod._compile
+      mod._compile = function _compile(code) {
+        mod._compile = compile
+        const newCode = loader.transformCommonJS(code, filename)
+        return mod._compile(newCode, filename)
+      }
+      mod.loaded = true
+    }
+  } else if (loader.loadCommonJS) {
+    Module._extensions[extension] = (mod, filename) => {
+      const modExports = loader.loadCommonJS(mod, filename)
+      mod.loaded = true
+      if (modExports !== undefined && mod.exports !== modExports) {
+        mod.exports = modExports
+      }
+    }
+  }
+}
+
+function _esrunTranspileCjsSync(input, pathName, parser) {
+  const output = _getEsBuild().transformSync(_cleanupText(input), {
+    charset: 'utf8',
+    sourcefile: pathName,
+    format: 'cjs',
+    legalComments: 'none',
+    loader: parser,
+    target: _nodeTargetVersion,
+    sourcemap: 'external',
+    sourcesContent: false
+  })
+  return { source: output.code, map: output.map }
+}
+
+async function _esrunTranspileModuleAsync(input, pathName, parser) {
+  const output = await _getEsBuild().transform(_cleanupText(input), {
+    charset: 'utf8',
+    sourcefile: pathName,
+    format: 'esm',
+    legalComments: 'none',
+    loader: parser,
+    target: _nodeTargetVersion,
+    sourcemap: 'external',
+    sourcesContent: false,
+    define: {
+      __filename: JSONstringify(pathName),
+      __dirname: JSONstringify(pathDirname(pathName))
+    }
+  })
+  return { source: output.code, map: output.map }
+}
+
+async function _tryResolveFile(pathName) {
+  let r
+  try {
+    r = await fs.promises.stat(pathName)
+  } catch (_) {}
+
+  if (r) {
+    if (r.isFile()) {
+      return pathName
+    }
+    if (r.isDirectory()) {
+      pathName = pathJoin(pathName, 'index')
+    }
+  }
+
+  const pext = pathExtname(pathName)
+  if (pext && exports.getLoader(pext) !== undefined) {
+    return undefined
+  }
+
+  for (const ext of _extensionlessLoaders) {
+    const resolved = await _tryResolveFile(pathName + ext)
+    if (resolved) {
+      return resolved
+    }
+  }
+
+  return undefined
+}
+
+async function _esbuildBuildResolve(cacheKey, id, resolveDir) {
+  let path
+
+  if (id.startsWith('./') || id.startsWith('/')) {
+    path = await _tryResolveFile(pathResolve(resolveDir, id))
+  }
+  if (!path) {
+    let loaded
+    await _getEsBuild().build({
+      write: false,
+      bundle: true,
+      sourcemap: false,
+      charset: 'utf8',
+      platform: 'node',
+      target: _nodeTargetVersion,
+      format: 'esm',
+      logLevel: 'silent',
+      stdin: { contents: `import ${JSONstringify(id)}`, loader: 'ts', resolveDir },
+      plugins: [
+        {
+          name: '-',
+          setup(build) {
+            build.onLoad(_allFilesFilter, (x) => {
+              loaded = x
+              return _emptyContents
+            })
+          }
+        }
+      ]
+    })
+    path = loaded && loaded.path
+  }
+
+  if (!path) {
+    path = null
+  } else if (path.indexOf('::') < 0) {
+    path = pathToFileURL(path, pathToFileURL(resolveDir)).href
+  }
+
+  _resolveCache.set(cacheKey, path)
+
+  return path
+}
+
+function _cleanupText(text) {
+  if (typeof text !== 'string') {
+    if (isBuffer(text) && ((text[0] === 0xfe && text[1] === 0xff) || (text[0] === 0xff && text[1] === 0xfe))) {
+      text = text.toString('utf8', 2)
+    } else {
+      text = text.toString()
+    }
+  } else if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1)
+  }
+  return text
+}
+
+for (const m of Module.builtinModules) {
+  const solved = `node:${m}`
+  _builtinModules.set(m, solved)
+  _builtinModules.set(solved, solved)
+}
+
+exports.pathNameToUrl = function pathNameToUrl(file) {
+  if (!file) {
+    return undefined
+  }
+  if (typeof file === 'object') {
+    file = `${file}`
+  }
+  if (file.indexOf('://') < 0) {
+    try {
+      return pathToFileURL(file).href
+    } catch (_) {}
+  }
+  return file
+}
+
+function pathNameFromUrl(url) {
+  if (!url) {
+    return undefined
+  }
+  if (url.startsWith('node:')) {
+    return undefined
+  }
+  if (url.indexOf('://') < 0) {
+    const indexOfQuestionMark = url.indexOf('?')
+    return indexOfQuestionMark > 0 ? url.slice(0, indexOfQuestionMark - 1) : url
+  }
+  if (url.startsWith('file://')) {
+    try {
+      return fileURLToPath(url)
+    } catch (_) {}
+  }
+  return undefined
+}
+
+exports.pathNameFromUrl = pathNameFromUrl
+
+/** Node does ot pass a default implementation of importModuleDynamically in vm script functions. Fix this behavior */
+function _fixVm() {
+  const { compileFunction, runInContext, runInNewContext, runInThisContext, Script: VmScript } = vm
+
+  const _fixVmOptions = (options) => {
+    if (typeof options === 'string') {
+      options = {
+        filename: options
+      }
+    }
+    if (typeof options === 'object' && options !== null && !options.importModuleDynamically) {
+      const filename = options.filename
+      if (filename) {
+        options = {
+          ...options,
+          async importModuleDynamically(url) {
+            return import(await exports.resolveEs6Module(url, filename))
+          }
+        }
+      }
+    }
+    return options
+  }
+
+  if (!VmScript.__esrun__) {
+    vm.Script = _fixVmScript(VmScript)
+
+    vm.runInContext = (code, contextifiedObject, options) =>
+      runInContext(code, contextifiedObject, _fixVmOptions(options))
+
+    vm.runInNewContext = (code, contextObject, options) => runInNewContext(code, contextObject, _fixVmOptions(options))
+
+    vm.runInThisContext = (code, options) => runInThisContext(code, _fixVmOptions(options))
+
+    vm.compileFunction = (code, params, options) => compileFunction(code, params, _fixVmOptions(options))
+  }
+
+  function _fixVmScript() {
+    function Script(code, options) {
+      return new VmScript(code, _fixVmOptions(options))
+    }
+
+    Script.__esrun__ = true
+    Script.prototype = VmScript.prototype
+    VmScript.prototype.constructor = Script
+    Object.setPrototypeOf(Script, VmScript)
+    return Script
+  }
+}
+
+const _parseStackTraceRegex =
+  /^\s*at (?:((?:\[object object\])?[^\\/]+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i
+
+const _convertStackToFileUrl = (stack) => {
+  if (isArray(stack)) {
+    const state = { nextPosition: null, curPosition: null }
+    for (let i = 0; i < stack.length; ++i) {
+      const entry = _getSourceMapSupport().wrapCallSite(stack[i], state)
+      if (entry) {
+        const file = exports.pathNameToUrl(
+          entry.getFileName() || entry.getScriptNameOrSourceURL() || (entry.isEval() && entry.getEvalOrigin())
+        )
+        if (file) {
+          return file
+        }
+      }
+    }
+  } else if (typeof stack === 'string') {
+    stack = stack.split('\n')
+    for (let i = 0; i < stack.length; ++i) {
+      const parts = _parseStackTraceRegex.exec(stack[i])
+      const file = parts && exports.pathNameToUrl(parts[2])
+      if (file) {
+        return file
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * Gets the file url of the caller
+ * @param {Function} [caller] The caller function.
+ * @returns
+ */
+exports.getCallerFileUrl = function getCallerFileUrl(caller) {
+  const oldStackTraceLimit = _Error.stackTraceLimit
+  const oldPrepare = _Error.prepareStackTrace
+  try {
+    const e = {}
+    _Error.stackTraceLimit = 3
+    _Error.prepareStackTrace = (_, clallSites) => clallSites
+    captureStackTrace(e, typeof caller === 'function' ? caller : exports.getCallerFileUrl)
+    const stack = e.stack
+    return (stack && _convertStackToFileUrl(stack)) || undefined
+  } catch (_) {
+    // Ignore error
+  } finally {
+    _Error.prepareStackTrace = oldPrepare
+    _Error.stackTraceLimit = oldStackTraceLimit
+  }
+  return undefined
+}
+
+exports.getCallerFilePath = function getCallerFilePath(caller) {
+  return exports.pathNameFromUrl(
+    exports.getCallerFileUrl(typeof caller === 'function' ? caller : exports.getCallerFilePath)
+  )
 }

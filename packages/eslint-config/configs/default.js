@@ -103,7 +103,7 @@ const jsRules = {
   'lines-between-class-members': [1, 'always', { exceptAfterSingleLine: true }],
   'max-len': [0, 120],
   'multiline-ternary': [0, 'always-multiline'],
-  'new-cap': [2, { newIsCap: true, capIsNew: false, properties: true }],
+  'new-cap': [0, { newIsCap: true, capIsNew: false, properties: true }],
   'new-parens': 0,
   'newline-per-chained-call': 0,
   'no-alert': 2,
@@ -426,7 +426,6 @@ const typescriptRules = {
   '@typescript-eslint/consistent-type-definitions': 0,
   '@typescript-eslint/default-param-last': 0,
   '@typescript-eslint/explicit-function-return-type': 0,
-  '@typescript-eslint/explicit-member-accessibility': 1,
   '@typescript-eslint/explicit-module-boundary-types': 0,
   '@typescript-eslint/func-call-spacing': [0, 'never'],
   '@typescript-eslint/indent': 0,
@@ -488,6 +487,7 @@ const typescriptRules = {
       caughtErrorsIgnorePattern: '^_'
     }
   ],
+  'no-redeclare': [0, { builtinGlobals: false }],
   'func-call-spacing': [0, ['never']],
   'lines-between-class-members': [0, ...jsRules['lines-between-class-members'].slice(1)],
   'no-duplicate-imports': 0,
@@ -532,8 +532,17 @@ const eslintConfig = {
   overrides: [
     { files: patterns.sourceExtensions.map((x) => `*${x}`) },
     {
-      files: ['*.d.ts'],
+      files: ['*.ts', '*.tsx'],
       rules: {
+        'import/export': 0,
+        '@typescript-eslint/explicit-member-accessibility': 1
+      }
+    },
+    {
+      files: ['*.d.ts', '*.d.tsx'],
+      rules: {
+        'no-var': 0,
+        'import/export': 0,
         'import/no-default-export': 0,
         '@typescript-eslint/explicit-member-accessibility': 0
       }

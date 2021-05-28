@@ -75,7 +75,10 @@ async function initProject() {
 }
 
 function createProjectFiles() {
-  createProjectFile('tsconfig.json', cleanupText(JSON.stringify({ extends: '@balsamic/eslint-config' }, null, 2)))
+  createProjectFile(
+    'tsconfig.json',
+    cleanupText(JSON.stringify({ extends: '@balsamic/eslint-config/tsconfig.json' }, null, 2))
+  )
 
   createProjectFile(
     ['.eslintrc', '.eslintrc.js', '.eslintrc.cjs', '.eslintrc.yaml', '.eslintrc.yml', '.eslintrc.json'],
@@ -180,6 +183,11 @@ function addDependencies(project, { hasGitHooks }) {
   if (existingDeps.react) {
     addDevDependency('eslint-plugin-react', '^7.23.2')
     addDevDependency('eslint-plugin-react-hooks', '^4.2.0')
+  }
+
+  if (existingDeps.mocha) {
+    addDevDependency('eslint-plugin-mocha', '^8.1.0')
+    addDevDependency('eslint-plugin-chai-expect', '^2.2.0')
   }
 
   if (dependenciesAdded.length !== 0) {
