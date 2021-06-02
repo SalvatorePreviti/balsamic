@@ -487,6 +487,7 @@ const typescriptRules = {
       caughtErrorsIgnorePattern: '^_'
     }
   ],
+  'no-shadow': 0,
   'no-redeclare': [0, { builtinGlobals: false }],
   'func-call-spacing': [0, ['never']],
   'lines-between-class-members': [0, ...jsRules['lines-between-class-members'].slice(1)],
