@@ -310,7 +310,7 @@ const jsRules = {
   'operator-assignment': [1, 'always'],
   'operator-linebreak': [0, 'after', { overrides: { '?': 'before', ':': 'before', '|>': 'before' } }],
   'padded-blocks': [0, { blocks: 'never', switches: 'never', classes: 'never' }],
-  'padding-line-between-statements': [1, ...paddingLineBetweenStatementsRules],
+  'padding-line-between-statements': [0, ...paddingLineBetweenStatementsRules],
   'prefer-arrow-callback': [1, { allowNamedFunctions: true, allowUnboundThis: true }],
   'prefer-const': [1, { destructuring: 'any', ignoreReadBeforeAssign: true }],
   'prefer-exponentiation-operator': 1,

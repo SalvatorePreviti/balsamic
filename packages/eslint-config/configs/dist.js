@@ -41,13 +41,17 @@ module.exports = {
     'no-buffer-constructor': 0,
     'no-lone-blocks': 0,
     'no-constant-condition': 0,
-    '@typescript-eslint/explicit-member-accessibility': 0,
+    'padding-line-between-statements': 0,
     'promise/catch-or-return': 0,
     'node/exports-style': 0,
     'node/no-extraneous-require': 0,
     'import/no-default-export': 0,
     'node/no-missing-require': 0,
     'import/export': 0,
-    'import/no-unresolved': 0
+    'import/no-unresolved': 0,
+    '@typescript-eslint/explicit-member-accessibility': 0,
+    '@typescript-eslint/no-redeclare': 0,
+    '@typescript-eslint/no-shadow': 0,
+    '@typescript-eslint/no-useless-constructor': 0
   }
 }
