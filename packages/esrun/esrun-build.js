@@ -18,10 +18,10 @@ module.exports = {
 }
 
 class SearchDirectories {
-  constructor(patterns, relative) {
+  constructor(patterns, workspaces) {
     this.patterns = new Set()
     this.hasSearchPatterns = false
-    this.relative = relative
+    this.workspaces = workspaces
     this.add(patterns)
   }
 
@@ -43,11 +43,8 @@ class SearchDirectories {
       pattern = pattern.substr(negations[0].length)
     }
 
-    if (this.relative) {
+    if (this.workspaces) {
       pattern = pattern.replace(/^\/+/, '')
-      if (!pattern.endsWith('/')) {
-        pattern += '/'
-      }
     } else if (!pattern.endsWith('.ts') && !pattern.endsWith('.tsx') && !pattern.endsWith('/')) {
       pattern += '/'
     }
@@ -303,6 +300,7 @@ async function getWorkspaceDirectories(cwd) {
         cwd: packageJson.dir,
         absolute: true,
         followSymbolicLinks: true,
+        markDirectories: true,
         suppressErrors: true,
         onlyDirectories: true,
         unique: true
