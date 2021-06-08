@@ -3,6 +3,7 @@
 const vm = require('vm')
 
 const { pathToFileURL, fileURLToPath } = require('url')
+const errors = require('./errors.js')
 const Module = require('module')
 const {
   dirname: pathDirname,
@@ -21,6 +22,8 @@ const _Error = Error
 const { captureStackTrace } = _Error
 
 let _registered = false
+let _sourceMapSupportRegistered = false
+
 const _mainEntries = new Set()
 const _resolveCache = new Map()
 const _builtinModules = new Map()
@@ -119,25 +122,23 @@ exports.addMainEntry = (pathName) => {
   }
 }
 
-exports.handleUncaughtError = (error) => {
-  if (!process.exitCode) {
-    process.exitCode = 1
-  }
-  console.error('Uncaught', error && error.showStack === false ? `${error}` : error)
-}
+exports.handleUncaughtError = errors.handleUncaughtError
 
-exports.emitUncaughtError = (error) => {
-  try {
-    if (process.listenerCount('uncaughtException') === 0) {
-      process.once('uncaughtException', exports.handleUncaughtError)
-    }
-    process.emit('uncaughtException', error)
-  } catch (emitError) {
-    console.error(emitError)
-    try {
-      exports.handleUncaughtError(error)
-    } catch (_) {}
+exports.emitUncaughtError = errors.emitUncaughtError
+
+exports.registerSourceMapSupport = function registerSourceMapSupport() {
+  if (_sourceMapSupportRegistered) {
+    return false
   }
+
+  _getSourceMapSupport().install({
+    environment: 'node',
+    handleUncaughtExceptions: false,
+    hookRequire: true,
+    retrieveSourceMap: (source) => _sourceMaps.get(source) || null
+  })
+  _sourceMapSupportRegistered = true
+  return true
 }
 
 exports.register = function register() {
@@ -163,16 +164,11 @@ exports.register = function register() {
   }
 
   process.emitWarning = emitWarning
+  exports.registerSourceMapSupport()
 
   _fixVm()
 
   _registered = true
-  _getSourceMapSupport().install({
-    environment: 'node',
-    handleUncaughtExceptions: false,
-    hookRequire: true,
-    retrieveSourceMap: (source) => _sourceMaps.get(source) || null
-  })
 
   for (const [k, v] of _getLoaders()) {
     _registerCommonjsLoader(k, v)

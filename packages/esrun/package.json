@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/esrun",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "transpiles and run typescript and jsx files using esbuild and native es6 modules",
   "main": "index.js",
   "types": "index.d.ts",
@@ -19,7 +19,8 @@
   },
   "homepage": "https://github.com/SalvatorePreviti/balsamic/tree/main/packages/esrun#readme",
   "bin": {
-    "esrun": "esrun.js"
+    "esrun": "esrun.js",
+    "esrun-build": "esrun-build.js"
   },
   "engines": {
     "node": ">=14.17.0"
@@ -31,6 +32,6 @@
     "source-map-support": "^0.5.19"
   },
   "peerDependencies": {
-    "esbuild": ">=0.12.5"
+    "esbuild": ">=0.12.7"
   }
 }

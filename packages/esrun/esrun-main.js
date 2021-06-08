@@ -13,6 +13,8 @@ let _getFastGlob = () => {
 exports.esrunMain = function esrunMain() {
   const esrun = require('./index.js')
 
+  process.on('uncaughtException', esrun.handleUncaughtError)
+
   esrun.register()
 
   if (!_hasLoader()) {
@@ -205,7 +207,7 @@ async function _parseArgv(esrun) {
   const includes = new Set()
 
   const inputArgv = process.argv.slice()
-  let finalArgs = [inputArgv[0], inputArgv[1]]
+  const finalArgs = [inputArgv[0], inputArgv[1]]
 
   let i = 2
   for (; i < inputArgv.length; ++i) {
@@ -231,6 +233,8 @@ async function _parseArgv(esrun) {
       mocha = true
       ++i
       break
+    } else {
+      break
     }
   }
 
@@ -246,12 +250,17 @@ async function _parseArgv(esrun) {
     main = _setupMocha(esrun)
   } else {
     main = finalArgs[2]
-    finalArgs.splice(2, 1)
+    if (main !== undefined) {
+      finalArgs.splice(2, 1)
+    }
+  }
+
+  if (main) {
+    finalArgs[1] = main
   }
 
   process.argv.length = 0
   process.argv.push(...finalArgs)
-  finalArgs = process.argv
 
   if (!main || (!mocha && (main === '--help' || main === '--version'))) {
     const pkg = require('./package.json')

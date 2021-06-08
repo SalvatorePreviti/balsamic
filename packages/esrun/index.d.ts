@@ -22,6 +22,8 @@ export declare function handleUncaughtError(error: any): void
 
 export declare function emitUncaughtError(error: any): void
 
+export declare function registerSourceMapSupport(): boolean
+
 export declare function register(): boolean
 
 export declare function isRegistered(): boolean
