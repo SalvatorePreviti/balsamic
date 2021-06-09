@@ -1,3 +1,4 @@
+/* eslint-disable global-require */
 'use strict'
 
 const patterns = require('../lib/config')
@@ -5,9 +6,9 @@ const serverConfig = require('./server.js')
 const scriptsConfig = require('./scripts.js')
 const binConfig = require('./bin.js')
 const distConfig = require('./dist.js')
-const paths = require('../lib/config')
+const config = require('../lib/config')
 
-const tsConfigPath = paths.getTsConfigPath()
+const tsConfigPath = config.getTsConfigPath()
 
 const paddingLineBetweenStatementsRules = [
   { blankLine: 'always', next: 'import', prev: 'let' },
@@ -412,7 +413,19 @@ const jsRules = {
   'restrict-template-expressions': 0,
   'triple-slash-reference': 0,
   'unbound-method': 0,
-  'import/namespace': 0
+  'import/namespace': 0,
+
+  'mocha/no-synchronous-tests': 0,
+  'mocha/no-mocha-arrows': 0,
+  'mocha/no-hooks': 0,
+  'mocha/no-hooks-for-single-case': 0,
+  'mocha/no-sibling-hooks': 0,
+  'mocha/no-top-level-hooks': 0,
+  'mocha/no-identical-title': 0,
+  'mocha/max-top-level-suites': 0,
+  'mocha/no-setup-in-describe': 0,
+  'mocha/prefer-arrow-callback': 0,
+  'chai-expect/no-inner-compare': 0
 }
 
 const typescriptRules = {
@@ -517,9 +530,41 @@ const tsProjectRules = {
   '@typescript-eslint/restrict-plus-operands': 2
 }
 
+const _testOverrides = {
+  files: patterns.tests,
+  rules: {
+    'global-require': 0,
+    'node/no-unpublished-require': 0,
+    'node/no-extraneous-import': 0,
+    'node/no-extraneous-require': 0,
+    'no-unused-expressions': 0, // for chai
+    '@typescript-eslint/no-unused-expressions': 0 // for chai
+  }
+}
+
+if (config.getHasMocha()) {
+  const mochaConfig = require('./mocha')
+  _testOverrides.plugins = [...(_testOverrides.plugins || []), ...mochaConfig.plugins]
+  _testOverrides.env = { ..._testOverrides.env, ...mochaConfig.env }
+  _testOverrides.rules = { ..._testOverrides.rules, ...mochaConfig.rules }
+}
+
+if (config.getHasChai()) {
+  const chaiConfig = require('./chai')
+  _testOverrides.plugins = [...(_testOverrides.plugins || []), ...chaiConfig.plugins]
+  _testOverrides.rules = { ..._testOverrides.rules, ...chaiConfig.rules }
+}
+
+if (config.getHasJest()) {
+  const jestConfig = require('./jest')
+  _testOverrides.plugins = [...(_testOverrides.plugins || []), ...jestConfig.plugins]
+  _testOverrides.env = { ..._testOverrides.env, ...jestConfig.env }
+  _testOverrides.rules = { ..._testOverrides.rules, ...jestConfig.rules }
+}
+
 const eslintConfig = {
   env: { browser: true, es2020: true, node: true },
-  ignorePatterns: paths.getIgnorePatterns(),
+  ignorePatterns: config.getIgnorePatterns(),
   extends: [
     'eslint:recommended',
     'plugin:node/recommended',
@@ -567,7 +612,8 @@ const eslintConfig = {
     { files: patterns.server, ...serverConfig },
     { files: patterns.scripts, ...scriptsConfig },
     { files: patterns.bin, ...binConfig },
-    { files: patterns.dist, ...distConfig }
+    { files: patterns.dist, ...distConfig },
+    _testOverrides
   ],
   parserOptions: {
     ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false },
@@ -585,6 +631,13 @@ const eslintConfig = {
       node: { extensions: patterns.importableExtensions }
     }
   }
+}
+
+if (config.getHasReact()) {
+  const reactConfig = require('./react')
+  eslintConfig.extends = [...eslintConfig.extends, ...reactConfig.extends]
+  eslintConfig.rules = { ...eslintConfig.rules, ...reactConfig.rules }
+  eslintConfig.settings = { ...eslintConfig.settings, ...reactConfig.settings }
 }
 
 if (tsConfigPath) {

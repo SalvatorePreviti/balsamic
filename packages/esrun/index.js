@@ -78,6 +78,8 @@ let _getLoaders = () => {
   return _loaders
 }
 
+Reflect.defineProperty(module.exports, '__esModule', { value: true })
+
 exports.isRegistered = () => _registered
 
 exports.loaders = {

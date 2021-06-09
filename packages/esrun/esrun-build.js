@@ -14,8 +14,11 @@ module.exports = {
   getTsFiles,
   compileDtsFiles,
   compileSourceFiles,
-  esrunBuildMain
+  esrunBuildMain,
+  cleanOutputFiles
 }
+
+Reflect.defineProperty(module.exports, '__esModule', { value: true })
 
 class SearchDirectories {
   constructor(patterns, workspaces) {
@@ -141,6 +144,7 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
   let cjs = true
   let mjs = true
   let dts = false
+  let clean = false
   const baner_cjs = []
   const baner_mjs = []
   const inputPatterns = []
@@ -167,6 +171,8 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
       addWorkspaces = false
     } else if (arg === '--help') {
       help = true
+    } else if (arg === '--clean') {
+      clean = true
     } else if (arg.startsWith('--')) {
       hasInvalidArg = true
     } else {
@@ -183,7 +189,8 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
       '  --baner-mjs=<banner> : Adds a baner to each compiled mjs file',
       '  --baner-cjs=<banner> : Adds a baner to each compiled cjs file',
       '  --dts                : Generates also .d.ts files (very slow).',
-      '  --workspaces         : Looks for .ts files in project workspaces in package.json.'
+      '  --workspaces         : Looks for .ts files in project workspaces in package.json.',
+      '  --clean              : Delete all compiled files (ignores all other options)'
     ]
     if (hasEmptyArgs) {
       messages.push('\nYou need to specify either --workspaces or patterns to build.')
@@ -202,7 +209,14 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
 
     const files = patterns && patterns.length && (await getTsFiles({ patterns, cwd }))
     if (!files || !files.length) {
-      console.warn('esrun-build: No files to compile.')
+      console.warn(clean ? 'esrun-build: No files to delete.' : 'esrun-build: No files to compile.')
+      return true
+    }
+
+    if (clean) {
+      console.info('esrun-build: Removing output of ', files.length, ' source files')
+      const deletedFiles = await cleanOutputFiles({ files, cwd })
+      console.info('esrun-build: Deleted', deletedFiles, 'files')
       return true
     }
 
@@ -224,6 +238,23 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
   }
 
   return result
+}
+
+async function cleanOutputFiles({ files, cwd = process.cwd(), extensions = ['.d.ts', '.mjs', '.cjs'] }) {
+  const promises = []
+  let count = 0
+  const incr = () => ++count
+  const noop = () => undefined
+
+  for (const file of files) {
+    const f = path.resolve(cwd, path.dirname(file), path.basename(file, path.extname(file)))
+    for (const ext of extensions) {
+      promises.push(fs.promises.rm(`${f}${ext}`).then(incr).catch(noop))
+    }
+  }
+
+  await Promise.all(promises)
+  return count
 }
 
 async function compileSourceFiles({

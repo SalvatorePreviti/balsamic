@@ -1,6 +1,7 @@
 const { resolve: pathResolve } = require('path')
 const { readFileSync: fsReadFileSync } = require('fs')
 const { findFileInParents } = require('./utils')
+const Module = require('module')
 
 const sourceExtensions = ['.ts', '.tsx', '.jsx', '.js', '.mjs', '.cjs', '._js', '.es', '.es6']
 
@@ -69,7 +70,11 @@ module.exports = {
     return (
       (_tsConfigPath !== undefined ? _tsConfigPath : (_tsConfigPath = findFileInParents('tsconfig.json'))) || undefined
     )
-  }
+  },
+  getHasChai,
+  getHasMocha,
+  getHasReact,
+  getHasJest
 }
 
 function loadIgnorePatternsFromFile(filename) {
@@ -81,4 +86,40 @@ function loadIgnorePatternsFromFile(filename) {
 
 function loadIgnorePatterns() {
   return loadIgnorePatternsFromFile(pathResolve(__dirname, '../.eslintignore'))
+}
+
+const _hasPackageCache = new Map()
+let _hasPackageResolver
+
+function _hasPackage(name) {
+  let result = _hasPackageCache.get(name)
+  if (result !== undefined) {
+    return result
+  }
+  result = false
+  if (!_hasPackageResolver) {
+    _hasPackageResolver = Module.createRequire(process.cwd())
+  }
+  try {
+    _hasPackageResolver.resolve(name)
+    result = true
+  } catch (_) {}
+  _hasPackageCache.set(name, result)
+  return result
+}
+
+function getHasChai() {
+  return _hasPackage('chai') && _hasPackage('eslint-plugin-chai-expect')
+}
+
+function getHasMocha() {
+  return _hasPackage('mocha') && _hasPackage('eslint-plugin-mocha')
+}
+
+function getHasReact() {
+  return _hasPackage('react') && _hasPackage('eslint-plugin-react') && _hasPackage('eslint-plugin-react-hooks')
+}
+
+function getHasJest() {
+  return _hasPackage('jest') && _hasPackage('eslint-plugin-jest')
 }

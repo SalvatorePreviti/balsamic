@@ -10,6 +10,8 @@ let _getFastGlob = () => {
   return result
 }
 
+Reflect.defineProperty(module.exports, '__esModule', { value: true })
+
 exports.esrunMain = function esrunMain() {
   const esrun = require('./index.js')
 
