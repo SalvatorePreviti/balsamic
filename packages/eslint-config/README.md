@@ -13,3 +13,9 @@ npx @balsamic/eslint-config@latest --init-clang-format
 ```
 
 Creates a .clangformat file in the current directory
+
+```sh
+npx @balsamic/eslint-config@latest --init-npmignore
+```
+
+Creates a default .npmignore file
