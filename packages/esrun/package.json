@@ -33,6 +33,6 @@
     "v8-compile-cache": "^2.3.0"
   },
   "peerDependencies": {
-    "esbuild": ">=0.12.7"
+    "esbuild": ">=0.12.8"
   }
 }
