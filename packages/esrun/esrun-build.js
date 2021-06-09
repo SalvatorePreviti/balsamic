@@ -137,74 +137,72 @@ async function compileDtsFiles({ files, cwd }) {
   })
 }
 
-async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd()) {
-  let addWorkspaces = false
-  let help = false
-  let hasInvalidArg = false
-  let cjs = true
-  let mjs = true
-  let dts = false
-  let clean = false
-  const baner_cjs = []
-  const baner_mjs = []
-  const inputPatterns = []
-  for (const arg of args) {
-    if (arg.startsWith('--banner-mjs=')) {
-      baner_mjs.push(arg.slice('--banner-mjs='.length))
-    } else if (arg.startsWith('--banner-cjs=')) {
-      baner_cjs.push(arg.slice('--banner-cjs='.length))
-    } else if (arg === '--dts') {
-      dts = true
-    } else if (arg === '--no-dts') {
-      dts = false
-    } else if (arg === '--cjs') {
-      cjs = true
-    } else if (arg === '--no-cjs') {
-      cjs = false
-    } else if (arg === '--mjs') {
-      mjs = true
-    } else if (arg === '--no-mjs') {
-      mjs = false
-    } else if (arg === '--workspaces') {
-      addWorkspaces = true
-    } else if (arg === '--no-workspaces') {
-      addWorkspaces = false
-    } else if (arg === '--help') {
-      help = true
-    } else if (arg === '--clean') {
-      clean = true
-    } else if (arg.startsWith('--')) {
-      hasInvalidArg = true
-    } else {
-      inputPatterns.push(arg)
-    }
-  }
-
-  const hasEmptyArgs = !addWorkspaces && !inputPatterns
-  if (help || hasInvalidArg || hasEmptyArgs) {
-    const messages = [
-      'Usage: esrun-build [--dts] [--workspaces] [directories, files or globs pattern to build]',
-      '  --no-cjs             : Does not generate cjs files',
-      '  --no-mjs             : Does not generate mjs files',
-      '  --baner-mjs=<banner> : Adds a baner to each compiled mjs file',
-      '  --baner-cjs=<banner> : Adds a baner to each compiled cjs file',
-      '  --dts                : Generates also .d.ts files (very slow).',
-      '  --workspaces         : Looks for .ts files in project workspaces in package.json.',
-      '  --clean              : Delete all compiled files (ignores all other options)'
-    ]
-    if (hasEmptyArgs) {
-      messages.push('\nYou need to specify either --workspaces or patterns to build.')
-    }
-    console.error(messages.join('\n'), '\n')
-
-    return false
-  }
-
-  console.time('esrun-build')
-
-  let result = false
-
+async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(), isMain = true) {
+  let timing = false
   try {
+    if (isMain) {
+      process.on('uncaughtException', errors.handleUncaughtError)
+    }
+
+    let addWorkspaces = false
+    let help = false
+    let hasInvalidArg = false
+    let cjs = true
+    let mjs = true
+    let dts = false
+    let clean = false
+    const baner_cjs = []
+    const baner_mjs = []
+    const inputPatterns = []
+    for (const arg of args) {
+      if (arg === '--build' || arg === '--time') {
+        // Do nothing
+      } else if (arg.startsWith('--banner-mjs=')) {
+        baner_mjs.push(arg.slice('--banner-mjs='.length))
+      } else if (arg.startsWith('--banner-cjs=')) {
+        baner_cjs.push(arg.slice('--banner-cjs='.length))
+      } else if (arg === '--dts') {
+        dts = true
+      } else if (arg === '--no-dts') {
+        dts = false
+      } else if (arg === '--cjs') {
+        cjs = true
+      } else if (arg === '--no-cjs') {
+        cjs = false
+      } else if (arg === '--mjs') {
+        mjs = true
+      } else if (arg === '--no-mjs') {
+        mjs = false
+      } else if (arg === '--workspaces') {
+        addWorkspaces = true
+      } else if (arg === '--no-workspaces') {
+        addWorkspaces = false
+      } else if (arg === '--help') {
+        help = true
+      } else if (arg === '--clean') {
+        clean = true
+      } else if (arg.startsWith('--')) {
+        hasInvalidArg = true
+      } else {
+        inputPatterns.push(arg)
+      }
+    }
+
+    const hasEmptyArgs = !addWorkspaces && !inputPatterns.length
+    if (help || hasInvalidArg || hasEmptyArgs) {
+      require('./lib/esrun-main-help').printHelp()
+      if (hasEmptyArgs) {
+        console.error('You need to specify either --workspaces or patterns to build.\n')
+      }
+
+      return false
+    }
+
+    console.time('esrun-build')
+    timing = true
+
+    let result = false
+
     const patterns = await getTsPatterns({ addWorkspaces, cwd, input: inputPatterns })
 
     const files = patterns && patterns.length && (await getTsFiles({ patterns, cwd }))
@@ -233,11 +231,25 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd())
     }
 
     result = (await Promise.all(promises)).every((x) => !!x)
+
+    if (isMain && !result && !process.exitCode) {
+      process.exitCode = 1
+    }
+
+    return result
+  } catch (error) {
+    if (isMain) {
+      errors.emitUncaughtError(error)
+    } else {
+      throw error
+    }
   } finally {
-    console.timeEnd('esrun-build')
+    if (timing) {
+      console.timeEnd('esrun-build')
+    }
   }
 
-  return result
+  return false
 }
 
 async function cleanOutputFiles({ files, cwd = process.cwd(), extensions = ['.d.ts', '.mjs', '.cjs'] }) {
@@ -366,12 +378,5 @@ async function findPackageJson(curentFolder) {
 }
 
 if (require.main === module) {
-  process.on('uncaughtException', errors.handleUncaughtError)
   esrunBuildMain()
-    .then((result) => {
-      if (!result && !process.exitCode) {
-        process.exitCode = 1
-      }
-    })
-    .catch(errors.emitUncaughtError)
 }

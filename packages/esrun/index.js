@@ -20,9 +20,12 @@ const { isBuffer } = Buffer
 const { stringify: JSONstringify } = JSON
 const _Error = Error
 const { captureStackTrace } = _Error
+const { existsSync: fsExistsSync } = fs
 
 let _registered = false
 let _sourceMapSupportRegistered = false
+
+const _mainFields = ['source', 'module', 'main']
 
 const _mainEntries = new Set()
 const _resolveCache = new Map()
@@ -65,16 +68,18 @@ let _getLoaders = () => {
     { extension: '.tsx', loader: 'tsx', extensionless: true },
     { extension: '.jsx', loader: 'jsx', extensionless: true },
     { extension: '.mjs', loader: 'mjs', extensionless: true },
+    { extension: '.es6', loader: 'mjs' },
     { extension: '.js', loader: 'default', extensionless: true },
-    { extension: '.es6', loader: 'mjs', extensionless: true },
     { extension: '.cjs', loader: 'cjs', extensionless: true },
     { extension: '.json', loader: 'json', extensionless: true },
     { extension: '.html', loader: 'text' },
     { extension: '.htm', loader: 'text' },
     { extension: '.txt', loader: 'text' },
+    { extension: '.css', loader: 'text' },
     { extension: '.md', loader: 'text' },
     { extension: '.bin', loader: 'buffer' }
   ])
+
   return _loaders
 }
 
@@ -429,9 +434,11 @@ async function _esbuildBuildResolve(cacheKey, id, resolveDir) {
       sourcemap: false,
       charset: 'utf8',
       platform: 'node',
-      target: _nodeTargetVersion,
       format: 'esm',
       logLevel: 'silent',
+      target: _nodeTargetVersion,
+      mainFields: _mainFields,
+      resolveExtensions: _extensionlessLoaders,
       stdin: { contents: `import ${JSONstringify(id)}`, loader: 'ts', resolveDir },
       plugins: [
         {
@@ -450,8 +457,23 @@ async function _esbuildBuildResolve(cacheKey, id, resolveDir) {
 
   if (!path) {
     path = null
-  } else if (path.indexOf('::') < 0) {
-    path = pathToFileURL(path, pathToFileURL(resolveDir)).href
+  } else {
+    const ext = pathExtname(path)
+    if ((ext === '.js' || ext === '.mjs' || ext === '.cjs') && !id.endsWith(ext)) {
+      const tsPath = `${path.slice(0, path.length - ext.length)}.ts`
+      if (fsExistsSync(tsPath)) {
+        path = tsPath
+      } else {
+        const tsxPath = `${path.slice(0, path.length - ext.length)}.tsx`
+        if (fsExistsSync(tsxPath)) {
+          path = tsxPath
+        }
+      }
+    }
+
+    if (path.indexOf('::') < 0) {
+      path = pathToFileURL(path, pathToFileURL(resolveDir)).href
+    }
   }
 
   _resolveCache.set(cacheKey, path)

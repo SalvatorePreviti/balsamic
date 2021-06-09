@@ -17,7 +17,8 @@
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git"
   },
   "engines": {
-    "node": ">=14.17.0"
+    "node": ">=14.17.0",
+    "npm": ">=7.0.0"
   },
   "scripts": {
     "precommit": "lint-staged && pretty-quick --staged",
@@ -28,6 +29,9 @@
       "eslint --fix --max-warnings=0"
     ]
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
     "@balsamic/eslint-config": "file:packages/eslint-config",
     "@balsamic/esrun": "file:packages/esrun"
@@ -39,6 +43,7 @@
     "@types/node": "^15.12.2",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
     "@typescript-eslint/parser": "^4.26.1",
+    "benchmark": "^2.1.4",
     "chai": "^4.3.4",
     "esbuild": "^0.12.8",
     "eslint": "^7.28.0",

@@ -31,22 +31,22 @@ exports.esrunMain = function esrunMain() {
 }
 
 async function _esrun(esrun) {
-  const options = await _parseArgv(esrun)
-  if (!options) {
-    return
-  }
-
-  const { measureTime, main, includes } = options
-
-  if (measureTime) {
-    console.time('esrun execution')
-    process.once('exit', () => {
-      console.timeEnd('esrun execution')
-      console.log()
-    })
-  }
-
   try {
+    const options = await _parseArgv(esrun)
+    if (!options) {
+      return
+    }
+
+    const { measureTime, main, includes } = options
+
+    if (measureTime) {
+      console.time('esrun execution')
+      process.once('exit', () => {
+        console.timeEnd('esrun execution')
+        console.log()
+      })
+    }
+
     const resolveDir = process.cwd()
     const mainEntries = await _resolveEntries(esrun, main, resolveDir)
 
@@ -265,26 +265,11 @@ async function _parseArgv(esrun) {
   process.argv.push(...finalArgs)
 
   if (!main || (!mocha && (main === '--help' || main === '--version'))) {
-    const pkg = require('./package.json')
-    if (main !== '--version') {
-      console.info()
-    }
-    let esbuildVersion = ''
-    try {
-      esbuildVersion = `, esbuild v${require('esbuild/package.json').version}`
-    } catch (_) {
-      // ignore error
-    }
-    console.info(`${pkg.name} v${pkg.version}${esbuildVersion}\n`)
-    if (main !== '--version') {
-      const messages = [
-        'Usage: esrun [--time] [--require=<glob>] [--mocha] <file or glob pattern to run> [arguments]',
-        '  --time            : Measure the process execution time and prints it.',
-        '  --require=<glob>  : Adds a file or a glob pattern to require.',
-        '  --require=!<glob> : Exclude a set of patterns from require.',
-        '  --mocha           : Runs mocha tests. All arguments after this are passed to mocha.'
-      ]
-      console.error(messages.join('\n'), '\n')
+    const { printHelp, printVersion } = require('./lib/esrun-main-help.js')
+    if (main === '--version') {
+      printVersion()
+    } else {
+      printHelp()
       process.exitCode = 1
     }
     return undefined
@@ -378,4 +363,8 @@ function _forkRestart() {
       child.send(msg)
     })
   })
+}
+
+if (require.main === module) {
+  this.esrunMain()
 }

@@ -185,9 +185,18 @@ function addDependencies(project, { hasGitHooks }) {
     addDevDependency('eslint-plugin-react-hooks', '^4.2.0')
   }
 
+  let hasChai = !!existingDeps.chai
+
   if (existingDeps.mocha) {
     addDevDependency('eslint-plugin-mocha', '^9.0.0')
+    addDevDependency('@types/mocha', '^8.2.2')
+    addDevDependency('chai', '^4.3.4')
+    hasChai = true
+  }
+
+  if (hasChai) {
     addDevDependency('eslint-plugin-chai-expect', '^2.2.0')
+    addDevDependency('@types/chai', '^4.2.18')
   }
 
   if (dependenciesAdded.length !== 0) {
