@@ -1,7 +1,14 @@
 'use strict'
 
 const { Module } = require('module')
-const { join: pathJoin, extname: pathExtname, fileURLToPath, isAbsolute: pathIsAbsolute } = require('path')
+const {
+  join: pathJoin,
+  extname: pathExtname,
+  fileURLToPath,
+  isAbsolute: pathIsAbsolute,
+  resolve: pathResolve
+} = require('path')
+const { pathToFileURL } = require('url')
 
 /** @returns {import('fast-glob')} */
 let _getFastGlob = () => {
@@ -37,7 +44,7 @@ async function _esrun(esrun) {
       return
     }
 
-    const { measureTime, main, includes } = options
+    const { measureTime, main, includes, bundle } = options
 
     if (measureTime) {
       console.time('esrun execution')
@@ -54,14 +61,33 @@ async function _esrun(esrun) {
       process.argv[1] = mainEntries[0]
     }
 
+    let filesToInclude
     if (includes.length > 0) {
-      const filesToInclude = await _getIncludesEntries(esrun, includes, mainEntries, resolveDir)
-      await Promise.all(filesToInclude.map((file) => import(file)))
+      filesToInclude = await _getIncludesEntries(esrun, includes, mainEntries, resolveDir)
     }
 
     for (const mainEntry of mainEntries) {
       esrun.addMainEntry(mainEntry)
-      await import(mainEntry)
+    }
+
+    if (bundle) {
+      const generateSource = (array) =>
+        array ? `${array.map((x) => `import ${JSON.stringify(x)}\n`).join('\n')}\n` : ''
+
+      const code = generateSource(filesToInclude) + generateSource(mainEntries)
+
+      await esrun.esrunEval(code, {
+        bundle: true,
+        isMain: true,
+        callerUrl: pathToFileURL(pathResolve('index.js')).href
+      })
+    } else {
+      if (filesToInclude) {
+        await Promise.all(filesToInclude.map((file) => import(file)))
+      }
+      for (const mainEntry of mainEntries) {
+        await import(mainEntry)
+      }
     }
   } catch (error) {
     esrun.emitUncaughtError(error)
@@ -206,6 +232,7 @@ function _setupMocha(esrun) {
 async function _parseArgv(esrun) {
   let measureTime = false
   let mocha = false
+  let bundle = false
   const includes = new Set()
 
   const inputArgv = process.argv.slice()
@@ -229,8 +256,14 @@ async function _parseArgv(esrun) {
       if (!include) {
         includes.add(include)
       }
+    } else if (arg === '--bundle') {
+      bundle = true
+    } else if (arg === '--no-bundle') {
+      bundle = false
     } else if (arg === '--time') {
       measureTime = true
+    } else if (arg === '--no-time') {
+      measureTime = false
     } else if (arg === '--mocha') {
       mocha = true
       ++i
@@ -248,6 +281,9 @@ async function _parseArgv(esrun) {
   if (mocha) {
     if (finalArgs.includes('--watch')) {
       throw new Error('Watch mode for mocha not supported with ESM modules')
+    }
+    if (bundle) {
+      throw new Error('--mocha cannot be used together with --bundle')
     }
     main = _setupMocha(esrun)
   } else {
@@ -277,6 +313,7 @@ async function _parseArgv(esrun) {
 
   return {
     measureTime,
+    bundle,
     mocha,
     includes: Array.from(includes),
     main,

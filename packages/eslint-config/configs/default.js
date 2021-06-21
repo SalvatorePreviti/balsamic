@@ -270,7 +270,7 @@ const jsRules = {
       ignoreRestSiblings: true,
       vars: 'all',
       argsIgnorePattern: '^_|^react$|^req$|^res$|^next$',
-      varsIgnorePattern: '^React$',
+      varsIgnorePattern: '^_|^React$',
       caughtErrorsIgnorePattern: '^_'
     }
   ],

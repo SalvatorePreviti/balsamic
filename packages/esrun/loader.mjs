@@ -27,6 +27,11 @@ export async function resolve(specifier, context, defaultResolve) {
 }
 
 export async function getFormat(url, context, defaultGetFormat) {
+  const evalModule = esrun._evalModuleTemp.get(url)
+  if (evalModule !== undefined) {
+    return evalModule
+  }
+
   const pathname = esrun.pathNameFromUrl(url)
 
   let result
@@ -53,6 +58,11 @@ export async function getFormat(url, context, defaultGetFormat) {
 }
 
 export async function getSource(url, context, defaultGetSource) {
+  const evalModule = esrun._evalModuleTemp.get(url)
+  if (evalModule !== undefined) {
+    return evalModule
+  }
+
   if (context.format === 'module' && _fileIsCjsModuleCache.get(url)) {
     const pathName = esrun.pathNameFromUrl(url)
     if (pathName) {
@@ -67,10 +77,17 @@ export async function getSource(url, context, defaultGetSource) {
 export async function transformSource(source, context, defaultTransformSource) {
   const url = context && context.url
   if (!_fileIsCjsModuleCache.get(url)) {
+    const evalModule = esrun._evalModuleTemp.get(url)
     const pathName = esrun.pathNameFromUrl(url)
-    const loader = pathName && esrun.getLoader(extname(pathName))
+    const loader = evalModule ? esrun.getLoader(evalModule.extension) : pathName && esrun.getLoader(extname(pathName))
     if (loader && loader.transformModule) {
-      const transformed = await loader.transformModule(source, pathName, context)
+      const transformed = await loader.transformModule({
+        ...evalModule,
+        source,
+        url,
+        pathName,
+        context
+      })
       if (transformed) {
         source = transformed.source
         if (transformed.map) {

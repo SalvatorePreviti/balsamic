@@ -14,6 +14,7 @@ exports.printHelp = function printHelp() {
       '  --version         : Prints esrun and esbuild versions',
       '  --help            : This help screen',
       '  --time            : Measure the process execution time and prints it.',
+      '  --bundle          : Bundles all imports in a single script, alters the way import works but useful to test performance of bundled code',
       '  --require=<glob>  : Adds a file or a glob pattern to require.',
       '  --require=!<glob> : Exclude a set of patterns from require.',
       '  --mocha           : Runs mocha tests. All arguments after this are passed to mocha.',

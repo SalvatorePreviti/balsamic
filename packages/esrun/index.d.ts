@@ -7,10 +7,25 @@ export interface EsrunTransformResult {
   map?: string
 }
 
+export interface TransformModuleInput {
+  source: string | Buffer
+  pathName: string
+  url: string
+  bundle: boolean
+}
+
+export interface TransformCommonJSInput {
+  source: string | Buffer
+  pathName: string
+}
+
 export interface EsrunLoader {
   format: string
-  transformModule?: (source: string, pathName: string) => Promise<EsrunTransformResult> | EsrunTransformResult
-  transformCommonJS?: (source: string, pathName: string) => EsrunTransformResult
+
+  transformModule?: (input: TransformModuleInput) => Promise<EsrunTransformResult> | EsrunTransformResult
+
+  transformCommonJS?: (input: TransformCommonJSInput) => EsrunTransformResult
+
   loadCommonJS?: (modle: Module, pathName: string) => any
 }
 
@@ -71,3 +86,12 @@ export declare function getCallerFileUrl(caller?: Function | null | undefined): 
  * @param caller The optional caller function to use to idenfity the file where this function was called
  */
 export declare function getCallerFilePath(caller?: Function | null | undefined): string | undefined
+
+export interface EvalModuleOptions {
+  format?: string
+  bundle?: boolean
+  extension?: string
+  isMain?: boolean
+}
+
+export declare function esrunEval(sourceCode, options?: EvalModuleOptions): Promise<any>

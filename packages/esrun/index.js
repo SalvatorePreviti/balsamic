@@ -1,6 +1,7 @@
 'use strict'
 
 const vm = require('vm')
+const crypto = require('crypto')
 
 const { pathToFileURL, fileURLToPath } = require('url')
 const errors = require('./errors.js')
@@ -21,6 +22,8 @@ const { stringify: JSONstringify } = JSON
 const _Error = Error
 const { captureStackTrace } = _Error
 const { existsSync: fsExistsSync } = fs
+
+const _posixNodeModulesPath = '/node_modules/'
 
 let _registered = false
 let _sourceMapSupportRegistered = false
@@ -97,18 +100,18 @@ exports.loaders = {
   },
   ts: {
     format: 'module',
-    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'ts'),
-    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'ts')
+    transformModule: (input) => _esrunTranspileModuleAsync(input, 'ts'),
+    transformCommonJS: (input) => _esrunTranspileCjsSync(input, 'ts')
   },
   tsx: {
     format: 'module',
-    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'tsx'),
-    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'tsx')
+    transformModule: (input) => _esrunTranspileModuleAsync(input, 'tsx'),
+    transformCommonJS: (input) => _esrunTranspileCjsSync(input, 'tsx')
   },
   jsx: {
     format: 'module',
-    transformModule: (source, pathName) => _esrunTranspileModuleAsync(source, pathName, 'jsx'),
-    transformCommonJS: (source, pathName) => _esrunTranspileCjsSync(source, pathName, 'jsx')
+    transformModule: (input) => _esrunTranspileModuleAsync(input, 'jsx'),
+    transformCommonJS: (input) => _esrunTranspileCjsSync(input, 'jsx')
   },
   json: {
     format: 'commonjs'
@@ -133,6 +136,71 @@ exports.handleUncaughtError = errors.handleUncaughtError
 
 exports.emitUncaughtError = errors.emitUncaughtError
 
+let _evalModuleCounter = 0
+
+const _evalModuleTemp = new Map()
+
+exports._evalModuleTemp = _evalModuleTemp
+
+exports.esrunEval = async function esrunEval(source, { bundle, extension, format, callerUrl, isMain, isStatic } = {}) {
+  isMain = !!isMain
+  isStatic = isMain || !!isStatic
+  if (!callerUrl) {
+    callerUrl = exports.getCallerFileUrl(exports.esrunEval) || pathToFileURL(pathResolve('index.js')).href
+  }
+  console.log(callerUrl)
+  bundle = !!bundle
+  if (!extension) {
+    extension = '.tsx'
+  }
+  if (!format) {
+    format = 'module'
+  }
+
+  const resolveDir = pathDirname(exports.pathNameFromUrl(callerUrl) || pathResolve('index.js'))
+
+  let filename
+  if (isStatic) {
+    filename = `$esrun-eval-${crypto.createHash('sha256').update(source).digest().toString('hex')}${extension}`
+  } else {
+    filename = `$esrun-eval-${_evalModuleCounter++}${extension}`
+  }
+
+  const pathName = pathResolve(resolveDir, filename)
+
+  if (isStatic) {
+    const found = _evalModuleTemp.get(pathName)
+    if (found !== undefined) {
+      return found.promise
+    }
+  }
+
+  const url = pathToFileURL(pathName).href
+  const evalModule = { source, format, bundle, extension, url, pathName, callerUrl, resolveDir, isMain, isStatic }
+  _evalModuleTemp.set(pathName, evalModule)
+  _evalModuleTemp.set(url, evalModule)
+
+  if (isMain) {
+    exports.addMainEntry(pathName)
+  }
+
+  const promise = import(url)
+  evalModule.promise = promise
+
+  if (isStatic) {
+    return promise
+  }
+
+  try {
+    return await promise
+  } finally {
+    _evalModuleTemp.delete(pathName)
+    _evalModuleTemp.delete(url)
+    _sourceMaps.delete(pathName)
+    _sourceMaps.delete(url)
+  }
+}
+
 exports.registerSourceMapSupport = function registerSourceMapSupport() {
   if (_sourceMapSupportRegistered) {
     return false
@@ -142,6 +210,10 @@ exports.registerSourceMapSupport = function registerSourceMapSupport() {
     environment: 'node',
     handleUncaughtExceptions: false,
     hookRequire: true,
+    retrieveFile: (path) => {
+      const found = _evalModuleTemp.get(path)
+      return found ? found.source : null
+    },
     retrieveSourceMap: (source) => _sourceMaps.get(source) || null
   })
   _sourceMapSupportRegistered = true
@@ -279,6 +351,16 @@ exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
     id = `${id}`
   }
 
+  const evalModule = _evalModuleTemp.get(id)
+  if (evalModule !== undefined) {
+    return evalModule.url || id
+  }
+
+  const sourceEvalModule = _evalModuleTemp.get(sourcefile)
+  if (sourceEvalModule) {
+    sourcefile = sourceEvalModule.callerUrl
+  }
+
   sourcefile = pathNameFromUrl(sourcefile)
 
   const builtin = _builtinModules.get(id)
@@ -338,12 +420,12 @@ function _registerCommonjsLoader(extension, loader) {
   }
 
   if (loader.transformCommonJS) {
-    Module._extensions[extension] = (mod, filename) => {
+    Module._extensions[extension] = (mod, pathName) => {
       const compile = mod._compile
-      mod._compile = function _compile(code) {
+      mod._compile = function _compile(source) {
         mod._compile = compile
-        const newCode = loader.transformCommonJS(code, filename)
-        return mod._compile(newCode, filename)
+        const newCode = loader.transformCommonJS({ source, pathName })
+        return mod._compile(newCode, pathName)
       }
       mod.loaded = true
     }
@@ -358,8 +440,8 @@ function _registerCommonjsLoader(extension, loader) {
   }
 }
 
-function _esrunTranspileCjsSync(input, pathName, parser) {
-  const output = _getEsBuild().transformSync(_cleanupText(input), {
+function _esrunTranspileCjsSync({ source, pathName }, parser) {
+  const output = _getEsBuild().transformSync(_cleanupText(source), {
     charset: 'utf8',
     sourcefile: pathName,
     format: 'cjs',
@@ -372,8 +454,60 @@ function _esrunTranspileCjsSync(input, pathName, parser) {
   return { source: output.code, map: output.map }
 }
 
-async function _esrunTranspileModuleAsync(input, pathName, parser) {
-  const output = await _getEsBuild().transform(_cleanupText(input), {
+async function _esrunTranspileModuleAsync({ source, pathName, bundle }, parser) {
+  const code = _cleanupText(source)
+
+  if (bundle) {
+    const bundled = await _getEsBuild().build({
+      stdin: { contents: code, loader: parser, sourcefile: pathName, resolveDir: pathDirname(pathName) },
+      write: false,
+      bundle: true,
+      charset: 'utf8',
+      format: 'esm',
+      legalComments: 'none',
+      platform: 'node',
+      target: _nodeTargetVersion,
+      mainFields: _mainFields,
+      resolveExtensions: _extensionlessLoaders,
+      sourcemap: 'external',
+      outdir: pathDirname(pathName),
+      sourcesContent: false,
+      plugins: [
+        {
+          name: 'esrun-bundle',
+          setup(build) {
+            build.onResolve(_allFilesFilter, async ({ path, resolveDir }) => {
+              const resolved = await exports.resolveEs6Module(path, pathJoin(resolveDir, 'index.js'))
+              const resolvedPath = exports.pathNameFromUrl(resolved)
+              if (!resolvedPath) {
+                return undefined
+              }
+              const external =
+                resolvedPath === __filename ||
+                resolvedPath.indexOf('@balsamic/esrun') > 0 ||
+                (!resolvedPath.endsWith('.tsx') &&
+                  !resolvedPath.endsWith('.ts') &&
+                  !resolvedPath.endsWith('.jsx') &&
+                  resolved.indexOf(_posixNodeModulesPath) >= 0)
+              return { path: resolvedPath, external }
+            })
+          }
+        }
+      ],
+      define: {
+        __filename: JSONstringify(pathName),
+        __dirname: JSONstringify(pathDirname(pathName))
+      }
+    })
+
+    if (bundled.outputFiles.length === 1) {
+      return { source: bundled.outputFiles[0].text }
+    }
+
+    return { source: bundled.outputFiles[1].text, map: bundled.outputFiles[0].text }
+  }
+
+  const output = await _getEsBuild().transform(code, {
     charset: 'utf8',
     sourcefile: pathName,
     format: 'esm',
@@ -433,16 +567,16 @@ async function _esbuildBuildResolve(cacheKey, id, resolveDir) {
       bundle: true,
       sourcemap: false,
       charset: 'utf8',
-      platform: 'node',
       format: 'esm',
       logLevel: 'silent',
+      platform: 'node',
       target: _nodeTargetVersion,
       mainFields: _mainFields,
       resolveExtensions: _extensionlessLoaders,
       stdin: { contents: `import ${JSONstringify(id)}`, loader: 'ts', resolveDir },
       plugins: [
         {
-          name: '-',
+          name: 'esrun-resolve',
           setup(build) {
             build.onLoad(_allFilesFilter, (x) => {
               loaded = x
