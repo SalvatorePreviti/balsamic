@@ -175,9 +175,9 @@ function addDependencies(project, { hasGitHooks }) {
   }
 
   if (hasGitHooks) {
-    addDevDependency('husky', '^6.0.0')
-    addDevDependency('lint-staged', '^11.0.0')
-    addDevDependency('pretty-quick', '^3.1.0')
+    addDevDependency('husky', '^7.0.1')
+    addDevDependency('lint-staged', '^11.1.0')
+    addDevDependency('pretty-quick', '^3.1.1')
   }
 
   if (existingDeps.react) {
@@ -189,14 +189,14 @@ function addDependencies(project, { hasGitHooks }) {
 
   if (existingDeps.mocha) {
     addDevDependency('eslint-plugin-mocha', '^9.0.0')
-    addDevDependency('@types/mocha', '^8.2.2')
+    addDevDependency('@types/mocha', '^9.0.0')
     addDevDependency('chai', '^4.3.4')
     hasChai = true
   }
 
   if (hasChai) {
     addDevDependency('eslint-plugin-chai-expect', '^2.2.0')
-    addDevDependency('@types/chai', '^4.2.18')
+    addDevDependency('@types/chai', '^4.2.21')
   }
 
   if (dependenciesAdded.length !== 0) {
