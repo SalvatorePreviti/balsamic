@@ -160,11 +160,11 @@ function addDependencies(project, { hasGitHooks }) {
   const dependenciesUpdated = []
   const existingDeps = getAllProjectDependencies(project)
 
-  const extraDependencies = require('./extra-packages/package.json').devDependencies
+  const extraDependencies = getAllProjectDependencies(require('./extra-packages/package.json'))
   extraDependencies[manifest.name] = `^${manifest.version}`
-  for (const [k, v] of manifest.peerDependencies) {
+  for (const [k, v] of Object.entries(manifest.peerDependencies)) {
     if (!extraDependencies[k]) {
-      extraDependencies[k] = v.replace('>=', '^')
+      extraDependencies[k] = v
     }
   }
 
@@ -172,9 +172,13 @@ function addDependencies(project, { hasGitHooks }) {
   const dependencies = sortObjectKeys(project.dependencies) || {}
 
   const addDevDependency = (key, value) => {
+    if (typeof value !== 'string' || !value.length) {
+      return false
+    }
+    value = value.replace('>=', '^')
     if (!existingDeps[key] && !devDependencies[key]) {
       dependenciesAdded.push(key)
-    } else if (semverCompare(existingDeps[key], value) < 0) {
+    } else if (isSemverBetter(existingDeps[key], value)) {
       dependenciesUpdated.push(key)
     } else {
       return false
@@ -192,8 +196,16 @@ function addDependencies(project, { hasGitHooks }) {
 
   addDevDependency(manifest.name, `^${manifest.version}`)
 
+  for (const key of Object.keys(dependencies)) {
+    addDevDependency(key, extraDependencies[key])
+  }
+
+  for (const key of Object.keys(devDependencies)) {
+    addDevDependency(key, extraDependencies[key])
+  }
+
   for (const [key, value] of Object.entries(sortObjectKeys(manifest.peerDependencies))) {
-    addDevDependency(key, value.replace('>=', '^'))
+    addDevDependency(key, value)
   }
 
   if (hasGitHooks) {
@@ -223,7 +235,7 @@ function addDependencies(project, { hasGitHooks }) {
     addDevDependency('chai', extraDependencies.chai)
   }
 
-  if (Object.keys(devDependencies).length === 0) {
+  if (Object.keys(devDependencies).length) {
     if (JSON.stringify(project.devDependencies || null) !== JSON.stringify(devDependencies)) {
       project.devDependencies = devDependencies
     }
@@ -268,8 +280,12 @@ function getAllProjectDependencies(project) {
   return result
 }
 
-function semverCompare(a, b) {
-  console.log(a, b)
+function isSemverBetter(a, b) {
+  a = typeof a === 'string' ? a : ''
+  b = typeof b === 'string' ? b : ''
+  if (a.includes(':') || b.includes(':')) {
+    return false
+  }
   a = (typeof a === 'string' && a.replace(/[^0-9*.]/g, '')) || ''
   b = (typeof b === 'string' && b.replace(/[^0-9*.]/g, '')) || ''
   const pa = a.split('.')
@@ -278,17 +294,17 @@ function semverCompare(a, b) {
     const na = Number.parseInt(pa[i])
     const nb = Number.parseInt(pb[i])
     if (na > nb) {
-      return 1
+      return false
     }
     if (nb > na) {
-      return -1
+      return true
     }
     if (!isNaN(na) && isNaN(nb)) {
-      return 1
+      return false
     }
     if (isNaN(na) && !isNaN(nb)) {
-      return -1
+      return false
     }
   }
-  return 0
+  return false
 }
