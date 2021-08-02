@@ -1,0 +1,16 @@
+{
+  "name": "@balsamic/eslint-config-extra-packages",
+  "private": true,
+  "devDependencies": {
+    "husky": "^7.0.1",
+    "lint-staged": "^11.1.1",
+    "pretty-quick": "^3.1.1",
+    "eslint-plugin-react": "^7.24.0",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "eslint-plugin-mocha": "^9.0.0",
+    "@types/mocha": "^9.0.0",
+    "chai": "^4.3.4",
+    "eslint-plugin-chai-expect": "^2.2.0",
+    "@types/chai": "^4.2.21"
+  }
+}

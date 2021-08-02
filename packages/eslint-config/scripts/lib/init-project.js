@@ -162,7 +162,7 @@ function addDependencies(project, { hasGitHooks }) {
   const devDependencies = sortObjectKeys(project.devDependencies) || {}
 
   const addDevDependency = (key, value) => {
-    if (!existingDeps[key] && !devDependencies[key]) {
+    if ((!existingDeps[key] && !devDependencies[key]) || semverCompare(existingDeps[key], devDependencies[key]) < 0) {
       dependenciesAdded.push(key)
       devDependencies[key] = value
     }
@@ -174,29 +174,31 @@ function addDependencies(project, { hasGitHooks }) {
     addDevDependency(key, value.replace('>=', '^'))
   }
 
+  const extraDependencies = require('./extra-packages/package.json').devDependencies
+
   if (hasGitHooks) {
-    addDevDependency('husky', '^7.0.1')
-    addDevDependency('lint-staged', '^11.1.0')
-    addDevDependency('pretty-quick', '^3.1.1')
+    addDevDependency('husky', extraDependencies.husky)
+    addDevDependency('lint-staged', extraDependencies['lint-staged'])
+    addDevDependency('pretty-quick', extraDependencies['pretty-quick'])
   }
 
   if (existingDeps.react) {
-    addDevDependency('eslint-plugin-react', '^7.24.0')
-    addDevDependency('eslint-plugin-react-hooks', '^4.2.0')
+    addDevDependency('eslint-plugin-react', extraDependencies['eslint-plugin-react'])
+    addDevDependency('eslint-plugin-react-hooks', extraDependencies['eslint-plugin-react-hooks'])
   }
 
   let hasChai = !!existingDeps.chai
 
   if (existingDeps.mocha) {
-    addDevDependency('eslint-plugin-mocha', '^9.0.0')
-    addDevDependency('@types/mocha', '^9.0.0')
-    addDevDependency('chai', '^4.3.4')
+    addDevDependency('eslint-plugin-mocha', extraDependencies['eslint-plugin-mocha'])
+    addDevDependency('@types/mocha', extraDependencies['@types/mocha'])
+    addDevDependency('chai', extraDependencies.chai)
     hasChai = true
   }
 
   if (hasChai) {
-    addDevDependency('eslint-plugin-chai-expect', '^2.2.0')
-    addDevDependency('@types/chai', '^4.2.21')
+    addDevDependency('eslint-plugin-chai-expect', extraDependencies['eslint-plugin-chai-expect'])
+    addDevDependency('@types/chai', extraDependencies['@types/chai'])
   }
 
   if (dependenciesAdded.length !== 0) {
@@ -220,4 +222,28 @@ function getAllProjectDependencies(project) {
     }
   }
   return result
+}
+
+function semverCompare(a, b) {
+  a = (typeof a === 'string' && a.replace(/[^0-9*.]/g, '')) || ''
+  b = (typeof b === 'string' && b.replace(/[^0-9*.]/g, '')) || ''
+  const pa = a.split('.')
+  const pb = b.split('.')
+  for (let i = 0; i < 3; i++) {
+    const na = Number.parseInt(pa[i])
+    const nb = Number.parseInt(pb[i])
+    if (na > nb) {
+      return 1
+    }
+    if (nb > na) {
+      return -1
+    }
+    if (!isNaN(na) && isNaN(nb)) {
+      return 1
+    }
+    if (isNaN(na) && !isNaN(nb)) {
+      return -1
+    }
+  }
+  return 0
 }
