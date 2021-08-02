@@ -157,15 +157,37 @@ function fixProjectFields(project) {
 
 function addDependencies(project, { hasGitHooks }) {
   const dependenciesAdded = []
+  const dependenciesUpdated = []
   const existingDeps = getAllProjectDependencies(project)
 
+  const extraDependencies = require('./extra-packages/package.json').devDependencies
+  extraDependencies[manifest.name] = `^${manifest.version}`
+  for (const [k, v] of manifest.peerDependencies) {
+    if (!extraDependencies[k]) {
+      extraDependencies[k] = v.replace('>=', '^')
+    }
+  }
+
   const devDependencies = sortObjectKeys(project.devDependencies) || {}
+  const dependencies = sortObjectKeys(project.dependencies) || {}
 
   const addDevDependency = (key, value) => {
-    if ((!existingDeps[key] && !devDependencies[key]) || semverCompare(existingDeps[key], devDependencies[key]) < 0) {
+    if (!existingDeps[key] && !devDependencies[key]) {
       dependenciesAdded.push(key)
+    } else if (semverCompare(existingDeps[key], value) < 0) {
+      dependenciesUpdated.push(key)
+    } else {
+      return false
+    }
+    if (devDependencies[key] && dependencies[key]) {
+      delete devDependencies[key]
+    }
+    if (dependencies[key]) {
+      dependencies[key] = value
+    } else {
       devDependencies[key] = value
     }
+    return true
   }
 
   addDevDependency(manifest.name, `^${manifest.version}`)
@@ -173,8 +195,6 @@ function addDependencies(project, { hasGitHooks }) {
   for (const [key, value] of Object.entries(sortObjectKeys(manifest.peerDependencies))) {
     addDevDependency(key, value.replace('>=', '^'))
   }
-
-  const extraDependencies = require('./extra-packages/package.json').devDependencies
 
   if (hasGitHooks) {
     addDevDependency('husky', extraDependencies.husky)
@@ -192,6 +212,7 @@ function addDependencies(project, { hasGitHooks }) {
   if (existingDeps.mocha) {
     addDevDependency('eslint-plugin-mocha', extraDependencies['eslint-plugin-mocha'])
     addDevDependency('@types/mocha', extraDependencies['@types/mocha'])
+    addDevDependency('mocha', extraDependencies.mocha)
     addDevDependency('chai', extraDependencies.chai)
     hasChai = true
   }
@@ -199,11 +220,34 @@ function addDependencies(project, { hasGitHooks }) {
   if (hasChai) {
     addDevDependency('eslint-plugin-chai-expect', extraDependencies['eslint-plugin-chai-expect'])
     addDevDependency('@types/chai', extraDependencies['@types/chai'])
+    addDevDependency('chai', extraDependencies.chai)
   }
 
-  if (dependenciesAdded.length !== 0) {
-    project.devDependencies = devDependencies
-    logging.progress('added dependencies:', dependenciesAdded)
+  if (Object.keys(devDependencies).length === 0) {
+    if (JSON.stringify(project.devDependencies || null) !== JSON.stringify(devDependencies)) {
+      project.devDependencies = devDependencies
+    }
+  } else {
+    delete project.devDependencies
+  }
+
+  if (Object.keys(dependencies).length) {
+    if (JSON.stringify(project.dependencies || null) !== JSON.stringify(dependencies)) {
+      project.dependencies = dependencies
+    }
+  } else {
+    delete project.dependencies
+  }
+
+  const loggingArgs = []
+  if (dependenciesAdded.length) {
+    dependenciesAdded.push('added dependencies:', dependenciesAdded)
+  }
+  if (dependenciesUpdated.length) {
+    loggingArgs.push('updated dependencies:', dependenciesUpdated)
+  }
+  if (loggingArgs.length) {
+    logging.progress(...loggingArgs)
   } else {
     logging.skip('no dependencies to add')
   }
@@ -225,6 +269,7 @@ function getAllProjectDependencies(project) {
 }
 
 function semverCompare(a, b) {
+  console.log(a, b)
   a = (typeof a === 'string' && a.replace(/[^0-9*.]/g, '')) || ''
   b = (typeof b === 'string' && b.replace(/[^0-9*.]/g, '')) || ''
   const pa = a.split('.')
