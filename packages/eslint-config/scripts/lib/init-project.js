@@ -290,20 +290,20 @@ function isSemverBetter(a, b) {
   b = (typeof b === 'string' && b.replace(/[^0-9*.]/g, '')) || ''
   const pa = a.split('.')
   const pb = b.split('.')
+  if (pa.length !== 3 || pb.length !== 3) {
+    return false
+  }
   for (let i = 0; i < 3; i++) {
     const na = Number.parseInt(pa[i])
     const nb = Number.parseInt(pb[i])
+    if (isNaN(na) || isNaN(nb)) {
+      return false
+    }
     if (na > nb) {
       return false
     }
     if (nb > na) {
       return true
-    }
-    if (!isNaN(na) && isNaN(nb)) {
-      return false
-    }
-    if (isNaN(na) && !isNaN(nb)) {
-      return false
     }
   }
   return false
