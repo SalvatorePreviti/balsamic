@@ -36,7 +36,8 @@ function initClangFormat() {
 async function initProject() {
   logging.banner('project initialization')
 
-  if (!findDirectoryInParents('.git')) {
+  const gitDirectory = findDirectoryInParents('.git')
+  if (!gitDirectory) {
     if (await logging.askConfirmation(`.git not found. Do you want to run ${chalk.yellow('git init')}?`)) {
       await runAsync('git', ['init'])
     }
@@ -61,7 +62,7 @@ async function initProject() {
   createProjectFiles()
   fixProjectFields(project)
 
-  const hasGitHooks = initGitHooks(project)
+  const hasGitHooks = initGitHooks(project, gitDirectory)
 
   addDependencies(project, { hasGitHooks })
 
@@ -94,24 +95,26 @@ function createProjectFiles() {
   copyProjectFile('.vscode/extensions.json')
 }
 
-function initGitHooks(project) {
-  if (!findDirectoryInParents('.git')) {
+function initGitHooks(project, gitDirectory) {
+  if (!gitDirectory) {
     logging.skip('git hooks skipped, not a git repo')
     return false
   }
 
-  createProjectFile('.husky/pre-commit', 'npm run precommit\n')
+  const huskyPath = path.join(path.relative(path.dirname(gitDirectory), process.cwd()), '.husky').replace(/\\/g, '/')
+
+  createProjectFile(path.posix.join(huskyPath, 'pre-commit'), 'npm run precommit\n')
   try {
-    fs.chmodSync('.husky/pre-commit', '755')
+    fs.chmodSync(path.join(huskyPath, 'pre-commit'), '755')
   } catch (_) {
     // Ignore error
   }
 
-  createProjectFile('.husky/.gitignore', '_\n')
+  createProjectFile(path.join(huskyPath, '.gitignore'), '_\n')
   const scripts = project.scripts || (project.scripts = {})
 
   const precommitScript = 'lint-staged && pretty-quick --staged'
-  const postInstallScript = 'husky install'
+  const postInstallScript = `husky install ${huskyPath}`
 
   if (!project['int-staged']) {
     project['lint-staged'] = {
