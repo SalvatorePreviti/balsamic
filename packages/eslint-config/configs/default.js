@@ -377,7 +377,7 @@ const jsRules = {
     1,
     'always',
     {
-      line: { markers: ['*package', '!', '/', ',', '=', '*', '@', '#'] },
+      line: { markers: ['*package', '!', '/', ',', '=', '*', '@', '#'], exceptions: ['/', '*', '+', '-', '=', '_'] },
       block: {
         balanced: true,
         markers: ['*package', '!', ',', ':', '::', 'flow-include'],
