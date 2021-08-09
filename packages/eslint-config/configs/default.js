@@ -374,11 +374,25 @@ const jsRules = {
   'node/no-path-concat': 2,
   'prefer-promise-reject-errors': 2,
   'spaced-comment': [
-    2,
+    1,
     'always',
     {
-      line: { markers: ['*package', '!', '/', ',', '='] },
-      block: { balanced: true, markers: ['*package', '!', ',', ':', '::', 'flow-include'], exceptions: ['*'] }
+      line: { markers: ['*package', '!', '/', ',', '=', '*', '@', '#'] },
+      block: {
+        balanced: true,
+        markers: ['*package', '!', ',', ':', '::', 'flow-include'],
+        exceptions: [
+          '*',
+          '@',
+          '#',
+          '@__INLINE__',
+          '@__NOINLINE__',
+          '@__PURE__',
+          '#__INLINE__',
+          '#__NOINLINE__',
+          '#__PURE__'
+        ]
+      }
     }
   ],
   'use-isnan': [2, { enforceForSwitchCase: true, enforceForIndexOf: true }],

@@ -102,6 +102,9 @@ function initGitHooks(project, gitDirectory) {
   }
 
   const huskyPath = path.join(path.relative(path.dirname(gitDirectory), process.cwd()), '.husky').replace(/\\/g, '/')
+  if (huskyPath !== '.husky') {
+    logging.skip('git hooks skipped, cannot be installed in the parent folder')
+  }
 
   createProjectFile(path.posix.join(huskyPath, 'pre-commit'), 'npm run precommit\n')
   try {
@@ -114,7 +117,7 @@ function initGitHooks(project, gitDirectory) {
   const scripts = project.scripts || (project.scripts = {})
 
   const precommitScript = 'lint-staged && pretty-quick --staged'
-  const postInstallScript = `husky install ${huskyPath}`
+  const postInstallScript = 'husky install' // ${huskyPath}
 
   if (!project['int-staged']) {
     project['lint-staged'] = {
