@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/esrun",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "transpiles and run typescript and jsx files using esbuild and native es6 modules",
   "main": "index.js",
   "types": "index.d.ts",
