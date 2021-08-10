@@ -68,11 +68,21 @@ async function initProject() {
 
   rewritePackageJson('package.json', project)
 
+  logging.footer('Initialization completed.')
+
+  logging.log(chalk.greenBright('IMPORTANT:'))
+
   if (getPackageManager() === 'yarn') {
-    logging.footer('Initialization completed. run `yarn` to complete initialization.')
+    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright('yarn')}\` to install all packages.`))
   } else {
-    logging.footer('Initialization completed. run `npm i` to complete initialization.')
+    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright('npm i')}\` to install all packages.`))
   }
+
+  if (hasGitHooks) {
+    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright('husky install')}\` to initialize git hooks.`))
+  }
+
+  logging.log('')
 }
 
 function createProjectFiles() {
@@ -117,7 +127,6 @@ function initGitHooks(project, gitDirectory) {
   const scripts = project.scripts || (project.scripts = {})
 
   const precommitScript = 'lint-staged && pretty-quick --staged'
-  const postInstallScript = 'husky install' // ${huskyPath}
 
   if (!project['int-staged']) {
     project['lint-staged'] = {
@@ -134,14 +143,6 @@ function initGitHooks(project, gitDirectory) {
     logging.skip('precommit script already present')
   }
 
-  if (!scripts.postinstall) {
-    logging.progress('adding postinstall script ...')
-    scripts.postinstall = postInstallScript
-  } else if (scripts.postinstall !== postInstallScript) {
-    logging.skip('postinstall script already present, skipping', postInstallScript)
-  } else {
-    logging.skip('postinstall script already present')
-  }
   return true
 }
 
