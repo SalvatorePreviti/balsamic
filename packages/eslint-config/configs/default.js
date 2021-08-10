@@ -523,7 +523,8 @@ const typescriptRules = {
   'no-unused-expressions': [0, ...jsRules['no-unused-expressions'].slice(1)],
   'space-before-function-paren': [0, ['always']],
   'no-unused-vars': [0, ...jsRules['no-unused-vars'].slice(1)],
-  'no-use-before-define': [0, ...jsRules['no-use-before-define'].slice(1)]
+  'no-use-before-define': [0, ...jsRules['no-use-before-define'].slice(1)],
+  'no-dupe-class-members': 0
 }
 
 const tsProjectRules = {
