@@ -643,7 +643,7 @@ const eslintConfig = {
     'import/external-module-folders': ['node_modules', 'node_modules/@types', 'dist'],
     'import/parsers': { '@typescript-eslint/parser': patterns.sourceExtensions },
     'import/resolver': {
-      node: { extensions: patterns.importableExtensions }
+      [require.resolve('../lib/import-resolver.js')]: {}
     }
   }
 }

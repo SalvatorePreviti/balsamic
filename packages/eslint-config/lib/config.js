@@ -3,7 +3,7 @@ const { readFileSync: fsReadFileSync } = require('fs')
 const { findFileInParents } = require('./utils')
 const Module = require('module')
 
-const sourceExtensions = ['.ts', '.tsx', '.jsx', '.js', '.mjs', '.cjs', '._js', '.es', '.es6']
+const sourceNodeExtensions = ['.ts', '.tsx', '.jsx', '.js', '.mjs', '.cjs']
 
 /** @type {string[]} */
 let _ignorePatterns
@@ -11,8 +11,8 @@ let _ignorePatterns
 let _tsConfigPath = ''
 
 module.exports = {
-  sourceExtensions,
-  importableExtensions: [...sourceExtensions, '.json'],
+  sourceExtensions: [...sourceNodeExtensions, '._js', '.es', '.es6'],
+  importableExtensions: [...sourceNodeExtensions, '.json', '.node'],
   server: ['**/server/**/*', '**/dev-server/**/*'],
   bin: ['**/bin/**/*', '**/.bin/**/*'],
   dist: [
