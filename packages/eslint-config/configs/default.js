@@ -381,17 +381,7 @@ const jsRules = {
       block: {
         balanced: true,
         markers: ['*package', '!', ',', ':', '::', 'flow-include'],
-        exceptions: [
-          '*',
-          '@',
-          '#',
-          '@__INLINE__',
-          '@__NOINLINE__',
-          '@__PURE__',
-          '#__INLINE__',
-          '#__NOINLINE__',
-          '#__PURE__'
-        ]
+        exceptions: ['*', '@', '#']
       }
     }
   ],
