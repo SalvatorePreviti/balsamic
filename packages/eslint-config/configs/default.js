@@ -84,8 +84,9 @@ const jsRules = {
     0,
     { devDependencies: true, optionalDependencies: false, peerDependencies: true }
   ],
-  'import/no-named-as-default': 1,
-  'import/no-named-as-default-member': 1,
+  'import/default': 0, // TOO SLOW!
+  'import/no-named-as-default': 0, // TOO SLOW!
+  'import/no-named-as-default-member': 0, // TOO SLOW!
   'import/no-self-import': 2,
   'import/no-unresolved': [2, { commonjs: true, caseSensitive: true }],
   'import/no-useless-path-segments': [1, { noUselessIndex: false }],
@@ -621,14 +622,15 @@ const eslintConfig = {
     _testOverrides
   ],
   parserOptions: {
-    ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false },
+    ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false, warnOnUnsupportedTypeScriptVersion: false },
     ecmaVersion: 2021,
     project: tsConfigPath
   },
   plugins: ['node', 'import', '@typescript-eslint', 'quick-prettier'],
   rules: { ...jsRules, ...typescriptRules },
   settings: {
-    'import/core-modules': ['electron', 'aws-sdk'],
+    'import/ignore:': ['node_modules'],
+    'import/core-modules': ['electron', 'aws-sdk', 'typescript'],
     'import/extensions': patterns.importableExtensions,
     'import/external-module-folders': ['node_modules', 'node_modules/@types', 'dist'],
     'import/parsers': { '@typescript-eslint/parser': patterns.sourceExtensions },
