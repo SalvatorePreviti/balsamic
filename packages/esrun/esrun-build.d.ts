@@ -11,6 +11,7 @@ export declare function compileDtsFiles(params: { files: string[]; cwd?: string 
 export declare function compileSourceFiles(params: {
   mjs?: boolean
   cjs?: boolean
+  sourcemap?: boolean | 'inline' | 'external' | 'both'
   files: string[]
   cwd?: string
 }): Promise<boolean>

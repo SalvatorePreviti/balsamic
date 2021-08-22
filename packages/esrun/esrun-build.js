@@ -151,6 +151,7 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(),
     let mjs = true
     let dts = false
     let clean = false
+    let sourcemap
     const baner_cjs = []
     const baner_mjs = []
     const inputPatterns = []
@@ -165,6 +166,14 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(),
         dts = true
       } else if (arg === '--no-dts') {
         dts = false
+      } else if (arg === '--sourcemap=false' || arg === '--no-sourcemap') {
+        sourcemap = false
+      } else if (arg === '--sourcemap=inline') {
+        sourcemap = 'inline'
+      } else if (arg === '--sourcemap=external') {
+        sourcemap = 'external'
+      } else if (arg === '--sourcemap=both') {
+        sourcemap = 'both'
       } else if (arg === '--cjs') {
         cjs = true
       } else if (arg === '--no-cjs') {
@@ -223,7 +232,7 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(),
     const promises = []
 
     if (cjs || mjs) {
-      promises.push(compileSourceFiles({ cjs, mjs, files, cwd, baner_mjs, baner_cjs }))
+      promises.push(compileSourceFiles({ cjs, mjs, sourcemap, files, cwd, baner_mjs, baner_cjs }))
     }
 
     if (dts) {
@@ -272,6 +281,7 @@ async function cleanOutputFiles({ files, cwd = process.cwd(), extensions = ['.d.
 async function compileSourceFiles({
   cjs = true,
   mjs = true,
+  sourcemap = 'external',
   files,
   cwd = process.cwd(),
   baner_mjs = [],
@@ -292,7 +302,7 @@ async function compileSourceFiles({
         bundle: false,
         charset: 'utf8',
         format: 'esm',
-        sourcemap: 'inline',
+        sourcemap,
         sourcesContent: false,
         target,
         entryPoints: files,
@@ -313,7 +323,7 @@ async function compileSourceFiles({
         bundle: false,
         charset: 'utf8',
         format: 'cjs',
-        sourcemap: 'inline',
+        sourcemap,
         sourcesContent: false,
         target,
         entryPoints: files,

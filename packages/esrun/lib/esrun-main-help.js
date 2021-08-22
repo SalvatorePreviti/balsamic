@@ -31,6 +31,7 @@ exports.printHelp = function printHelp() {
       '  --dts                : Generates also .d.ts files (very slow).',
       '  --workspaces         : Looks for .ts files in project workspaces in package.json.',
       '  --clean              : Delete all compiled files (ignores all other options)',
+      '  --sourcemap=<value>  : Accepted values are external, inline, both, false. Default is external',
       ''
     ].join('\n')
   )
