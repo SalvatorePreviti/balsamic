@@ -1,44 +1,54 @@
-import chalk from 'chalk'
-import util from 'util'
-import path from 'path'
+const path = require('path')
+const util = require('util')
+const chalk = require('chalk')
 
-export const INSPECT_DEPTH = Math.max(8, util.inspect.defaultOptions.depth || 0)
+exports.chalk = chalk
 
-export const DEV_ICON_ERROR = '❌'
+exports.INSPECT_DEPTH = Math.max(8, util.inspect.defaultOptions.depth || 0)
 
-export const DEV_ICON_WARNING = '⚠️ '
+exports.DEV_ICON_ERROR = '❌'
 
-export const DEV_ICO_INFO = 'ℹ️ '
+exports.DEV_ICON_WARNING = '⚠️ '
 
-export const devColorWarning = chalk.rgb(200, 200, 50)
+exports.DEV_ICO_INFO = 'ℹ️ '
 
-export const devColorRedOrange = chalk.rgb(255, 150, 50)
+exports.devColorWarning = chalk.rgb(200, 200, 50)
 
-export function devLogException(...args) {
-  devLogError(...args)
+exports.devColorRedOrange = chalk.rgb(255, 150, 50)
+
+exports.devLogException = function devLogException(...args) {
+  return exports.devLogError(...args)
 }
 
-export function devLogError(...args) {
-  console.error(chalk.redBright(`${DEV_ICON_ERROR} ${chalk.underline('ERROR')}: ${devInspectForLogging(...args)}`))
+exports.devLogError = function devLogError(...args) {
+  console.error(
+    chalk.redBright(`${exports.DEV_ICON_ERROR} ${chalk.underline('ERROR')}: ${exports.devInspectForLogging(...args)}`)
+  )
 }
 
-export function devLogWarning(...args) {
+exports.devLogWarning = function devLogWarning(...args) {
   console.warn(
-    devColorWarning(
-      `${chalk.yellowBright(`${DEV_ICON_WARNING}  ${chalk.underline('WARNING')}:`)} ${devInspectForLogging(...args)}`
+    exports.devColorWarning(
+      `${chalk.yellowBright(
+        `${exports.DEV_ICON_WARNING}  ${chalk.underline('WARNING')}:`
+      )} ${exports.devInspectForLogging(...args)}`
     )
   )
 }
 
-export function devLogInfo(...args) {
+exports.devLogInfo = function devLogInfo(...args) {
   console.info(
-    chalk.cyan(`${chalk.cyanBright(`${DEV_ICO_INFO} ${chalk.underline('INFO')}:`)} ${devInspectForLogging(...args)}`)
+    chalk.cyan(
+      `${chalk.cyanBright(`${exports.DEV_ICO_INFO} ${chalk.underline('INFO')}:`)} ${exports.devInspectForLogging(
+        ...args
+      )}`
+    )
   )
 }
 
-export function devRunMain(main) {
+exports.devRunMain = function devRunMain(main) {
   const _unhandledError = (error) => {
-    devLogException(devColorRedOrange('Unhandled'), error)
+    exports.devLogException(exports.devColorRedOrange('Unhandled'), error)
     if (!process.exitCode) {
       process.exitCode = 1
     }
@@ -46,7 +56,7 @@ export function devRunMain(main) {
     return undefined
   }
   try {
-    devInitErrorHandling()
+    exports.devInitErrorHandling()
     console.log()
     const result = main()
     if (typeof result === 'object' && result !== null) {
@@ -63,7 +73,7 @@ export function devRunMain(main) {
   return Promise.resolve(undefined)
 }
 
-export function devGetError(error, caller) {
+exports.devGetError = function devGetError(error, caller) {
   if (!(error instanceof Error)) {
     error = new Error(error)
     Error.captureStackTrace(error, typeof caller === 'function' ? caller : devGetError)
@@ -90,20 +100,20 @@ export function devGetError(error, caller) {
 
 const _devInspectOptions = {
   colors: !!chalk.supportsColor && chalk.supportsColor.hasBasic,
-  depth: INSPECT_DEPTH
+  depth: exports.INSPECT_DEPTH
 }
 
-export function devInspect(what) {
+exports.devInspect = function devInspect(what) {
   return what instanceof Error && what.showStack === false ? `${what}` : util.inspect(what, _devInspectOptions)
 }
 
-export function devInspectForLogging(...args) {
-  return args.map((what) => (typeof what === 'string' ? what : devInspect(what))).join(' ')
+exports.devInspectForLogging = function devInspectForLogging(...args) {
+  return args.map((what) => (typeof what === 'string' ? what : exports.devInspect(what))).join(' ')
 }
 
 let _devProcessStartTime
 
-export function devInitErrorHandling() {
+exports.devInitErrorHandling = function devInitErrorHandling() {
   if (_devProcessStartTime) {
     return false
   }
@@ -113,12 +123,12 @@ export function devInitErrorHandling() {
     Error.stackTraceLimit = 10
   }
 
-  if (!util.inspect.defaultOptions.depth || util.inspect.defaultOptions.depth < INSPECT_DEPTH) {
-    util.inspect.defaultOptions.depth = INSPECT_DEPTH
+  if (!util.inspect.defaultOptions.depth || util.inspect.defaultOptions.depth < exports.INSPECT_DEPTH) {
+    util.inspect.defaultOptions.depth = exports.INSPECT_DEPTH
   }
 
   process.on('unhandledRejection', (error) => {
-    devLogWarning(devColorRedOrange('Unhandled rejection'), error)
+    exports.devLogWarning(exports.devColorRedOrange('Unhandled rejection'), error)
   })
 
   const handleExit = () => {
@@ -135,23 +145,29 @@ export function devInitErrorHandling() {
   return true
 }
 
-export function devPrintOutputFileWritten(outputFilePath, content) {
+exports.devPrintOutputFileWritten = function devPrintOutputFileWritten(outputFilePath, content) {
   outputFilePath = path.resolve(outputFilePath)
   console.log(
-    `${chalk.greenBright('💾 file')} ${chalk.rgb(200, 255, 240)(makePathRelative(outputFilePath))} ${chalk.greenBright(
-      'written'
-    )}  ${chalk.rgb(80, 200, 100)(prettySize(content))}`
+    `${chalk.greenBright('💾 file')} ${chalk.rgb(
+      200,
+      255,
+      240
+    )(exports.makePathRelative(outputFilePath))} ${chalk.greenBright('written')}  ${chalk.rgb(
+      80,
+      200,
+      100
+    )(exports.prettySize(content))}`
   )
 }
 
 /** Gets a size in bytes in an human readable form. */
-export function prettySize(bytes, options) {
+exports.prettySize = function prettySize(bytes, options) {
   if (bytes === null || bytes === undefined) {
     bytes = 0
   }
   const appendBytes = !options || options.appendBytes === undefined || options.appendBytes
   if (typeof bytes === 'object' || typeof bytes === 'string') {
-    bytes = utf8ByteLength(bytes)
+    bytes = exports.utf8ByteLength(bytes)
   }
   bytes = bytes < 0 ? Math.floor(bytes) : Math.ceil(bytes)
   let s
@@ -170,7 +186,7 @@ export function prettySize(bytes, options) {
   return s
 }
 
-export function makePathRelative(filePath, cwd) {
+exports.makePathRelative = function makePathRelative(filePath, cwd) {
   if (!filePath) {
     return './'
   }
@@ -185,7 +201,7 @@ export function makePathRelative(filePath, cwd) {
   }
 }
 
-export function utf8ByteLength(b) {
+exports.utf8ByteLength = function utf8ByteLength(b) {
   if (b === null || b === undefined) {
     return 0
   }
@@ -195,7 +211,7 @@ export function utf8ByteLength(b) {
   return typeof b === 'string' ? Buffer.byteLength(b, 'utf8') : b.length
 }
 
-export function bufferToUtf8(b) {
+exports.bufferToUtf8 = function bufferToUtf8(b) {
   if (typeof b === 'string') {
     return b
   }
@@ -203,4 +219,25 @@ export function bufferToUtf8(b) {
     return b.toString('utf8')
   }
   return Buffer.from(b).toString('utf8')
+}
+
+exports.handleUncaughtError = (error) => {
+  if (!process.exitCode) {
+    process.exitCode = 1
+  }
+  exports.devLogError('Uncaught', error)
+}
+
+exports.emitUncaughtError = (error) => {
+  try {
+    if (process.listenerCount('uncaughtException') === 0) {
+      process.once('uncaughtException', exports.handleUncaughtError)
+    }
+    process.emit('uncaughtException', error)
+  } catch (emitError) {
+    console.error(emitError)
+    try {
+      exports.handleUncaughtError(error)
+    } catch (_) {}
+  }
 }

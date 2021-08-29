@@ -1,3 +1,5 @@
+const chalk = require('chalk')
+
 exports.printVersion = function printVersion() {
   console.info(getVersion())
 }
@@ -6,11 +8,11 @@ exports.printHelp = function printHelp() {
   console.error(
     [
       '',
-      getVersion(),
+      chalk.greenBright(getVersion()),
       '',
       'To execute ts, tsx, es6 modules:',
       '',
-      'esrun <file or glob pattern to run> [arguments]',
+      chalk.greenBright('esrun <file or glob pattern to run> [arguments]'),
       '  --version         : Prints esrun and esbuild versions',
       '  --help            : This help screen',
       '  --time            : Measure the process execution time and prints it.',
@@ -21,7 +23,7 @@ exports.printHelp = function printHelp() {
       '',
       'To build projects:',
       '',
-      'esrun --build [directories, files or globs pattern to build]',
+      chalk.greenBright('esrun --build [directories, files or globs pattern to build]'),
       '  --version            : Prints esrun and esbuild versions',
       '  --help               : This help screen',
       '  --no-cjs             : Does not generate cjs files',

@@ -1,5 +1,9 @@
 /// <reference types="node" />
-import chalk from 'chalk'
+import _chalk from 'chalk'
+
+export declare type chalk = _chalk.Chalk
+
+export declare const chalk: typeof _chalk
 
 export declare const INSPECT_DEPTH: number
 
@@ -9,9 +13,9 @@ export declare const DEV_ICON_WARNING = '\u26A0\uFE0F '
 
 export declare const DEV_ICO_INFO = '\u2139\uFE0F '
 
-export declare const devColorWarning: chalk.Chalk
+export declare const devColorWarning: chalk
 
-export declare const devColorRedOrange: chalk.Chalk
+export declare const devColorRedOrange: chalk
 
 export declare function devLogException(...args: unknown[]): void
 
@@ -54,3 +58,7 @@ export declare function makePathRelative(filePath: string, cwd?: string): string
 export declare function utf8ByteLength(b: Uint8Array | Buffer | string | number | null | undefined): number
 
 export declare function bufferToUtf8(b: Uint8Array | Buffer | string): string
+
+export declare function handleUncaughtError(error: any): void
+
+export declare function emitUncaughtError(error: any): void
