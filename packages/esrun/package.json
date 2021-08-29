@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/esrun",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "transpiles and run typescript and jsx files using esbuild and native es6 modules",
   "main": "index.js",
   "types": "index.d.ts",
@@ -27,6 +27,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "chalk": "^4.1.2",
     "es-module-lexer": "^0.7.1",
     "fast-glob": "^3.2.7",
     "source-map-support": "^0.5.19",
