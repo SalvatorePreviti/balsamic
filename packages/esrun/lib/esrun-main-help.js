@@ -25,6 +25,7 @@ exports.printHelp = function printHelp() {
       '',
       chalk.greenBright('esrun --build [directories, files or globs pattern to build]'),
       '  --version            : Prints esrun and esbuild versions',
+      '  --outdir=<directory> : Output directory. If not specified, files are compiled alongside source',
       '  --help               : This help screen',
       '  --no-cjs             : Does not generate cjs files',
       '  --no-mjs             : Does not generate mjs files',

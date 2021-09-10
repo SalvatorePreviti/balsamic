@@ -264,6 +264,10 @@ async function _parseArgv(esrun) {
       measureTime = true
     } else if (arg === '--no-time') {
       measureTime = false
+    } else if (arg === '--no-dotenv') {
+      process.env.DOTENV_DISABLED = '1'
+    } else if (arg === '--no-no-dotenv') {
+      process.env.DOTENV_DISABLED = '0'
     } else if (arg === '--mocha') {
       mocha = true
       ++i

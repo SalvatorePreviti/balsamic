@@ -74,33 +74,36 @@ const forcedTypescriptCompilerOptions = {
   skipLibCheck: true,
   noEmitOnError: false,
   composite: false,
-  declarationDir: undefined,
   forceConsistentCasingInFileNames: true,
   out: undefined,
-  outDir: undefined,
   outFile: undefined,
   project: undefined,
   mapRoot: undefined,
   inlineSourceMap: false,
   inlineSources: false,
   traceResolution: false,
-  rootDir: undefined,
-  rootDirs: undefined,
   sourceRoot: undefined
 }
 
-function generateTypescriptOptions(cwd) {
+function generateTypescriptOptions(cwd, outdir, outbase) {
   const configFile = ts.findConfigFile(cwd, ts.sys.fileExists, 'tsconfig.json')
   const projectConfig = configFile && ts.readConfigFile(configFile, ts.sys.readFile)
+
+  const compilerOptions = (projectConfig && projectConfig.config && projectConfig.config.compilerOptions) || {}
 
   const parsed = ts.parseJsonConfigFileContent(
     {
       ...projectConfig.config,
       compilerOptions: {
         ...defaultTypescriptCompilerOptions,
-        ...((projectConfig && projectConfig.config && projectConfig.config.compilerOptions) || undefined),
-        incremental: false,
-        tsBuildInfoFile: undefined
+        ...compilerOptions,
+        incremental: !!compilerOptions.incremental,
+        tsBuildInfoFile: compilerOptions.incremental
+          ? compilerOptions.tsBuildInfoFile || path.resolve(outdir, '.tsbuildinfo')
+          : undefined,
+        declarationDir: outdir,
+        baseUrl: compilerOptions.outbase || outbase,
+        outdir
       },
       compileOnSave: false,
       watchOptions: undefined,
@@ -111,11 +114,16 @@ function generateTypescriptOptions(cwd) {
     cwd
   )
 
-  return { ...parsed.options, ...forcedTypescriptCompilerOptions }
+  const result = { ...parsed.options, ...forcedTypescriptCompilerOptions }
+
+  if (!result.rootDir && !result.rootDirs) {
+    result.rootDir = outbase
+  }
+  return result
 }
 
-async function buildDts({ files, cwd }) {
-  const options = generateTypescriptOptions(cwd, files)
+async function buildDts({ files, cwd, outdir, outbase }) {
+  const options = generateTypescriptOptions(cwd, outdir, outbase || cwd)
 
   const inputFilesCache = new Map()
   const inputDirectoriesCache = new Set()

@@ -17,6 +17,15 @@ export declare const devColorWarning: chalk
 
 export declare const devColorRedOrange: chalk
 
+/** True if running inside Continuous Integration */
+export declare let isCI: boolean
+
+/** Gets isCI property. Returns true if running inside Continuous Integration */
+export declare function getIsCI(): boolean
+
+/** Sets isCI property. */
+export declare function setIsCI(value: unknown): void
+
 export declare function devLogException(...args: unknown[]): void
 
 export declare function devLogError(...args: unknown[]): void
@@ -62,3 +71,36 @@ export declare function bufferToUtf8(b: Uint8Array | Buffer | string): string
 export declare function handleUncaughtError(error: any): void
 
 export declare function emitUncaughtError(error: any): void
+
+export declare function pathNameFromUrl(fileOrUrl: string | URL | null | undefined): string | undefined
+
+export declare function pathNameToUrl(fileOrUrl: string | URL | null | undefined): string | undefined
+
+/**
+ * Gets the url of the file where this function was called.
+ * @param caller The optional caller function to use to idenfity the file where this function was called
+ */
+export declare function getCallerFileUrl(caller?: Function | null | undefined): string | undefined
+
+/**
+ * Gets the full path of the file where this function was called.
+ * @param caller The optional caller function to use to idenfity the file where this function was called
+ */
+export declare function getCallerFilePath(caller?: Function | null | undefined): string | undefined
+
+/**
+ * Check wether if the given module is the main module
+ * @param url String url, Module or import.meta
+ * @returns True if the given url, Module or import.meta is the main running module
+ */
+export declare function isMainModule(
+  url: string | { filename: string } | { id: string } | { href: string } | { url: string } | URL | null | undefined
+): boolean
+
+export declare function addMainEntry(pathName: string | Module): void
+
+/** Converts a value to boolean */
+export declare function toBoolean(value: unknown): boolean
+
+/** Returns true if the given value is a valid JS identifier string */
+export declare function isValidIdentifier(value: unknown): value is string

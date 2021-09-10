@@ -522,6 +522,7 @@ const typescriptRules = {
 const tsProjectRules = {
   '@typescript-eslint/adjacent-overload-signatures': 1,
   '@typescript-eslint/await-thenable': 2,
+  '@typescript-eslint/consistent-type-imports': [1, { prefer: 'type-imports', disallowTypeAnnotations: false }],
   '@typescript-eslint/dot-notation': [2, { allowKeywords: true }],
   '@typescript-eslint/no-extra-non-null-assertion': 2,
   '@typescript-eslint/no-floating-promises': 2,

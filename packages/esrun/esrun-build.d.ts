@@ -1,8 +1,10 @@
 export declare function getTsPatterns(args: {
-  addWorkspaces?: boolean
+  workspaceDirectories?: string[] | boolean
   input?: string[]
   cwd?: string
 }): Promise<string[]>
+
+export declare function getWorkspaceDirectories(cwd?: string): string[]
 
 export declare function getTsFiles(params: { patterns: string[]; cwd?: string }): Promise<string[]>
 

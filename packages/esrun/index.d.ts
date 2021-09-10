@@ -43,15 +43,6 @@ export declare function register(): boolean
 
 export declare function isRegistered(): boolean
 
-/**
- * Check wether if the given module is the main module
- * @param url String url, Module or import.meta
- * @returns True if the given url, Module or import.meta is the main running module
- */
-export declare function isMainModule(
-  url: string | { filename: string } | { id: string } | { href: string } | { url: string } | URL | null | undefined
-): boolean
-
 export declare function setFileSourceMap(url: string, sourcePath: string | null, map: string): void
 
 export interface RegisterLoaderArgument {
@@ -95,3 +86,17 @@ export interface EvalModuleOptions {
 }
 
 export declare function esrunEval(sourceCode, options?: EvalModuleOptions): Promise<any>
+
+export declare function makePathRelative(filePath: string, cwd?: string): string
+
+/** Converts a value to boolean */
+export declare function toBoolean(value: unknown): boolean
+
+/** True if running inside Continuous Integration */
+export declare let isCI: boolean
+
+/** Gets isCI property */
+export declare function getIsCI(): boolean
+
+/** Sets isCI property */
+export declare function setIsCI(value: unknown): void

@@ -1,6 +1,7 @@
 import { extname } from 'path'
 
 import esrun from './index.js'
+import dev from './dev.js'
 import { Module } from 'module'
 import { readFile } from 'fs/promises'
 import { init as esModuleLexerInit, parse as esModuleLexerParse } from 'es-module-lexer'
@@ -9,7 +10,6 @@ const { isArray } = Array
 const { stringify: JSONstringify } = JSON
 const { getOwnPropertyNames, getPrototypeOf } = Object
 
-const _validIdentifierSpecialsRegex = /[\s!%^&*(){}[\]?~`\-+=:'|/<>,.;"']/g
 const _fileIsCjsModuleCache = new Map()
 let _esModuleLexerInitialized = false
 
@@ -112,7 +112,7 @@ function _esrunTransformCjsModule(pathName, exports) {
         if (
           typeof prop === 'string' &&
           !keysSet.has(prop) &&
-          _isValidIdentifier(prop) &&
+          dev.isValidIdentifier(prop) &&
           !prop.startsWith('__$esrun__')
         ) {
           keysSet.add(prop)
@@ -139,24 +139,6 @@ function _esrunTransformCjsModule(pathName, exports) {
   }
 
   return source
-}
-
-function _isValidIdentifier(name) {
-  if (
-    typeof name !== 'string' ||
-    name.length === 0 ||
-    name.length > 100 ||
-    _validIdentifierSpecialsRegex.test(name) ||
-    name === '__proto__'
-  ) {
-    return false
-  }
-  try {
-    // eslint-disable-next-line no-new-func,no-new
-    new Function(name, `var ${name}`)
-    return true
-  } catch (_) {}
-  return false
 }
 
 async function _fileIsEsModule(filename) {

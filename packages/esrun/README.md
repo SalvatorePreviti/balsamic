@@ -18,6 +18,7 @@ esrun <file or glob pattern to run> [arguments]
   --require=<glob>  : Adds a file or a glob pattern to require.
   --require=!<glob> : Exclude a set of patterns from require.
   --mocha           : Runs mocha tests. All arguments after this are passed to mocha.
+  --no-dotenv       : Does not load .env file
 ```
 
 ## command line interface for esrun --build

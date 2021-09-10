@@ -1,26 +1,24 @@
 'use strict'
 
+const os = require('os')
 const vm = require('vm')
 const crypto = require('crypto')
-
-const { pathToFileURL, fileURLToPath } = require('url')
-const errors = require('./errors.js')
+const { pathToFileURL } = require('url')
+const dev = require('./dev.js')
 const Module = require('module')
 const {
   dirname: pathDirname,
   resolve: pathResolve,
   join: pathJoin,
   extname: pathExtname,
-  sep: pathSep,
   isAbsolute: pathIsAbsolute
 } = require('path')
 const fs = require('fs')
 
 const { isArray } = Array
 const { isBuffer } = Buffer
+const { defineProperty } = Reflect
 const { stringify: JSONstringify } = JSON
-const _Error = Error
-const { captureStackTrace } = _Error
 const { existsSync: fsExistsSync } = fs
 
 const _posixNodeModulesPath = '/node_modules/'
@@ -30,7 +28,6 @@ let _sourceMapSupportRegistered = false
 
 const _mainFields = ['source', 'module', 'main']
 
-const _mainEntries = new Set()
 const _resolveCache = new Map()
 const _builtinModules = new Map()
 const _sourceMaps = new Map()
@@ -39,6 +36,102 @@ const _extensionlessLoaders = []
 const _emptyContents = { contents: '' }
 const _allFilesFilter = { filter: /.*/ }
 const _nodeTargetVersion = `node${process.version.slice(1)}`
+
+exports.toBoolean = dev.toBoolean
+
+exports.pathNameToUrl = dev.pathNameToUrl
+
+exports.pathNameFromUrl = dev.pathNameFromUrl
+
+Reflect.defineProperty(exports, 'isCI', {
+  get: () => dev.getIsCI(),
+  set: (value) => {
+    dev.setIsCI(value)
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'setIsCI', {
+  get: () => dev.setIsCI,
+  set: (value) => {
+    dev.setIsCI = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'getIsCI', {
+  get: () => dev.getIsCI,
+  set: (value) => {
+    dev.getIsCI = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'isMainModule', {
+  get: () => dev.isMainModule,
+  set: (value) => {
+    dev.isMainModule = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'addMainEntry', {
+  get: () => dev.addMainEntry,
+  set: (value) => {
+    dev.addMainEntry = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'handleUncaughtError', {
+  get: () => dev.handleUncaughtError,
+  set: (value) => {
+    dev.handleUncaughtError = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'emitUncaughtError', {
+  get: () => dev.emitUncaughtError,
+  set: (value) => {
+    dev.emitUncaughtError = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'getCallerFileUrl', {
+  get: () => dev.getCallerFileUrl,
+  set: (value) => {
+    dev.getCallerFileUrl = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'getCallerFilePath', {
+  get: () => dev.getCallerFilePath,
+  set: (value) => {
+    dev.getCallerFilePath = value
+  },
+  configurable: true,
+  enumerable: true
+})
+
+defineProperty(exports, 'makePathRelative', {
+  get: () => dev.makePathRelative,
+  set: (value) => {
+    dev.makePathRelative = value
+  },
+  configurable: true,
+  enumerable: true
+})
 
 /** @returns {import('esbuild')} */
 let _getEsBuild = () => {
@@ -57,12 +150,22 @@ let _getSourceMapSupport = () => {
 let _getLoaders = () => {
   _getLoaders = () => _loaders
 
-  const __filenameUrl = pathToFileURL(__filename).href
-  _resolveCache.set(__filename, __filenameUrl)
-  _resolveCache.set(__dirname, __filenameUrl)
-  _resolveCache.set('@balsamic/esrun/index.js', __filenameUrl)
-  _resolveCache.set('@balsamic/esrun/index', __filenameUrl)
-  _resolveCache.set('@balsamic/esrun', __filenameUrl)
+  const filenameUrl = pathToFileURL(__filename).href
+  _resolveCache.set(__dirname, filenameUrl)
+  _resolveCache.set(__filename, filenameUrl)
+  _resolveCache.set(filenameUrl, filenameUrl)
+  _resolveCache.set('@balsamic/esrun/index.js', filenameUrl)
+  _resolveCache.set('@balsamic/esrun/index/', filenameUrl)
+  _resolveCache.set('@balsamic/esrun/index', filenameUrl)
+  _resolveCache.set('@balsamic/esrun', filenameUrl)
+
+  const devFilenameUrl = pathToFileURL(dev.__filename).href
+  _resolveCache.set(dev.__filename, devFilenameUrl)
+  _resolveCache.set(devFilenameUrl, devFilenameUrl)
+  _resolveCache.set('@balsamic/esrun/dev.js', devFilenameUrl)
+  _resolveCache.set('@balsamic/esrun/dev/', devFilenameUrl)
+  _resolveCache.set('@balsamic/esrun/dev', devFilenameUrl)
+
   const resolvedEsrunCjs = pathJoin(__dirname, 'esrun.js')
   _resolveCache.set(resolvedEsrunCjs, pathToFileURL(resolvedEsrunCjs).href)
 
@@ -86,9 +189,16 @@ let _getLoaders = () => {
   return _loaders
 }
 
-Reflect.defineProperty(module.exports, '__esModule', { value: true })
+defineProperty(exports, '__esModule', { value: true })
+defineProperty(exports, 'default', { value: exports, configurable: true, enumerable: false, writable: false })
 
 exports.isRegistered = () => _registered
+
+defineProperty(exports.isRegistered, 'valueOf', {
+  get: exports.isRegistered,
+  configurable: true,
+  enumerable: false
+})
 
 exports.loaders = {
   default: null,
@@ -126,16 +236,6 @@ exports.loaders = {
   }
 }
 
-exports.addMainEntry = (pathName) => {
-  if (pathName) {
-    _mainEntries.add(exports.pathNameFromUrl(pathName) || pathName)
-  }
-}
-
-exports.handleUncaughtError = errors.handleUncaughtError
-
-exports.emitUncaughtError = errors.emitUncaughtError
-
 let _evalModuleCounter = 0
 
 const _evalModuleTemp = new Map()
@@ -146,7 +246,7 @@ exports.esrunEval = async function esrunEval(source, { bundle, extension, format
   isMain = !!isMain
   isStatic = isMain || !!isStatic
   if (!callerUrl) {
-    callerUrl = exports.getCallerFileUrl(exports.esrunEval) || pathToFileURL(pathResolve('index.js')).href
+    callerUrl = dev.getCallerFileUrl(exports.esrunEval) || pathToFileURL(pathResolve('index.js')).href
   }
   console.log(callerUrl)
   bundle = !!bundle
@@ -157,7 +257,7 @@ exports.esrunEval = async function esrunEval(source, { bundle, extension, format
     format = 'module'
   }
 
-  const resolveDir = pathDirname(exports.pathNameFromUrl(callerUrl) || pathResolve('index.js'))
+  const resolveDir = pathDirname(dev.pathNameFromUrl(callerUrl) || pathResolve('index.js'))
 
   let filename
   if (isStatic) {
@@ -206,6 +306,10 @@ exports.registerSourceMapSupport = function registerSourceMapSupport() {
     return false
   }
 
+  if (!dev._wrapCallSite) {
+    dev._wrapCallSite = (entry, state) => _getSourceMapSupport().wrapCallSite(entry, state)
+  }
+
   _getSourceMapSupport().install({
     environment: 'node',
     handleUncaughtExceptions: false,
@@ -225,12 +329,14 @@ exports.register = function register() {
     return false
   }
 
-  Reflect.defineProperty(global, '__esrun_module', {
+  defineProperty(global, '__esrun_module', {
     value: module,
     configurable: false,
     enumerable: false,
     writable: false
   })
+
+  _loadDotEnv()
 
   const _emitWarning = process.emitWarning
 
@@ -256,40 +362,11 @@ exports.register = function register() {
   return true
 }
 
-/**
- * Check wether if the given module is the main module
- * @param url String url, Module or import.meta
- * @returns True if the given url, Module or import.meta is the main running module
- */
-exports.isMainModule = function isMainModule(url) {
-  if (typeof url === 'object') {
-    if (url === require.main) {
-      return true
-    }
-    url = url.filename || url.id || url.href || url.url
-  }
-
-  url = exports.pathNameFromUrl(url) || url
-
-  if (!url || typeof url !== 'string') {
-    return false
-  }
-
-  if (url.startsWith(pathSep)) {
-    try {
-      url = fileURLToPath(url)
-    } catch (_) {}
-  }
-
-  const indexOfQuestionMark = url.indexOf('?')
-  if (indexOfQuestionMark >= 0) {
-    url = url.slice(0, indexOfQuestionMark - 1)
-  }
-
-  return _mainEntries.has(url)
-}
-
 exports.setFileSourceMap = function setFileSourceMap(url, sourcePath, map) {
+  if (!_sourceMapSupportRegistered) {
+    exports.registerSourceMapSupport()
+  }
+
   _sourceMaps.set(url, { url: sourcePath, map })
 }
 
@@ -345,7 +422,7 @@ exports.registerLoader = function registerLoader(arg) {
 }
 
 exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
-  id = pathNameFromUrl(id) || id
+  id = dev.pathNameFromUrl(id) || id
 
   if (typeof id === 'object' && id !== null) {
     id = `${id}`
@@ -361,7 +438,7 @@ exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
     sourcefile = sourceEvalModule.callerUrl
   }
 
-  sourcefile = pathNameFromUrl(sourcefile)
+  sourcefile = dev.pathNameFromUrl(sourcefile)
 
   const builtin = _builtinModules.get(id)
   if (builtin !== undefined) {
@@ -478,7 +555,7 @@ async function _esrunTranspileModuleAsync({ source, pathName, bundle }, parser) 
           setup(build) {
             build.onResolve(_allFilesFilter, async ({ path, resolveDir }) => {
               const resolved = await exports.resolveEs6Module(path, pathJoin(resolveDir, 'index.js'))
-              const resolvedPath = exports.pathNameFromUrl(resolved)
+              const resolvedPath = dev.pathNameFromUrl(resolved)
               if (!resolvedPath) {
                 return undefined
               }
@@ -634,42 +711,6 @@ for (const m of Module.builtinModules) {
   _builtinModules.set(solved, solved)
 }
 
-exports.pathNameToUrl = function pathNameToUrl(file) {
-  if (!file) {
-    return undefined
-  }
-  if (typeof file === 'object') {
-    file = `${file}`
-  }
-  if (file.indexOf('://') < 0) {
-    try {
-      return pathToFileURL(file).href
-    } catch (_) {}
-  }
-  return file
-}
-
-function pathNameFromUrl(url) {
-  if (!url) {
-    return undefined
-  }
-  if (url.startsWith('node:')) {
-    return undefined
-  }
-  if (url.indexOf('://') < 0) {
-    const indexOfQuestionMark = url.indexOf('?')
-    return indexOfQuestionMark > 0 ? url.slice(0, indexOfQuestionMark - 1) : url
-  }
-  if (url.startsWith('file://')) {
-    try {
-      return fileURLToPath(url)
-    } catch (_) {}
-  }
-  return undefined
-}
-
-exports.pathNameFromUrl = pathNameFromUrl
-
 /** Node does ot pass a default implementation of importModuleDynamically in vm script functions. Fix this behavior */
 function _fixVm() {
   const { compileFunction, runInContext, runInNewContext, runInThisContext, Script: VmScript } = vm
@@ -720,62 +761,42 @@ function _fixVm() {
   }
 }
 
-const _parseStackTraceRegex =
-  /^\s*at (?:((?:\[object object\])?[^\\/]+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i
+const REGEX_NEWLINE = '\n'
+const REGEX_NEWLINES = /\\n/g
+const REGEX_NEWLINES_MATCH = /\r\n|\n|\r/
+const REGEX_INI_KEY_VAL = /^\s*([\w.-]+)\s*=\s*(.*)?\s*$/
 
-const _convertStackToFileUrl = (stack) => {
-  if (isArray(stack)) {
-    const state = { nextPosition: null, curPosition: null }
-    for (let i = 0; i < stack.length; ++i) {
-      const entry = _getSourceMapSupport().wrapCallSite(stack[i], state)
-      if (entry) {
-        const file = exports.pathNameToUrl(
-          entry.getFileName() || entry.getScriptNameOrSourceURL() || (entry.isEval() && entry.getEvalOrigin())
-        )
-        if (file) {
-          return file
+function _loadDotEnv() {
+  try {
+    if (!dev.toBoolean(process.env.DOTENV_DISABLED)) {
+      let dotenvPath = process.env.DOTENV_CONFIG_PATH || pathResolve(process.cwd(), '.env')
+      dotenvPath = dotenvPath.startsWith('~')
+        ? pathResolve(os.homedir(), dotenvPath.slice(dotenvPath.startsWith('/') || dotenvPath.startsWith('\\') ? 2 : 1))
+        : dotenvPath
+      for (const line of fs.readFileSync(dotenvPath, 'utf8').split(REGEX_NEWLINES_MATCH)) {
+        // matching "KEY' and 'VAL' in 'KEY=VAL'
+        const keyValueArr = line.match(REGEX_INI_KEY_VAL)
+        // matched?
+        if (keyValueArr !== null) {
+          const key = keyValueArr[1]
+          let val = (keyValueArr[2] || '').trim()
+          const singleQuoted = val.startsWith("'") && val.endsWith("'")
+          const doubleQuoted = val.startsWith('"') && val.endsWith('"')
+          if (singleQuoted || doubleQuoted) {
+            val = val.substring(1, val.length - 1)
+            if (doubleQuoted) {
+              val = val.replace(REGEX_NEWLINES, REGEX_NEWLINE)
+            }
+          }
+          if (!Object.prototype.hasOwnProperty.call(process.env, key)) {
+            process.env[key] = val
+          }
         }
       }
+      return true
     }
-  } else if (typeof stack === 'string') {
-    stack = stack.split('\n')
-    for (let i = 0; i < stack.length; ++i) {
-      const parts = _parseStackTraceRegex.exec(stack[i])
-      const file = parts && exports.pathNameToUrl(parts[2])
-      if (file) {
-        return file
-      }
-    }
+  } catch (_e) {
+    // Do nothing
   }
-  return undefined
-}
-
-/**
- * Gets the file url of the caller
- * @param {Function} [caller] The caller function.
- * @returns
- */
-exports.getCallerFileUrl = function getCallerFileUrl(caller) {
-  const oldStackTraceLimit = _Error.stackTraceLimit
-  const oldPrepare = _Error.prepareStackTrace
-  try {
-    const e = {}
-    _Error.stackTraceLimit = 3
-    _Error.prepareStackTrace = (_, clallSites) => clallSites
-    captureStackTrace(e, typeof caller === 'function' ? caller : exports.getCallerFileUrl)
-    const stack = e.stack
-    return (stack && _convertStackToFileUrl(stack)) || undefined
-  } catch (_) {
-    // Ignore error
-  } finally {
-    _Error.prepareStackTrace = oldPrepare
-    _Error.stackTraceLimit = oldStackTraceLimit
-  }
-  return undefined
-}
-
-exports.getCallerFilePath = function getCallerFilePath(caller) {
-  return exports.pathNameFromUrl(
-    exports.getCallerFileUrl(typeof caller === 'function' ? caller : exports.getCallerFilePath)
-  )
+  return false
 }

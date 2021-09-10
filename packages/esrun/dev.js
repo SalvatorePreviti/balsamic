@@ -1,8 +1,93 @@
+'use strict'
+
 const path = require('path')
 const util = require('util')
 const chalk = require('chalk')
+const { pathToFileURL, fileURLToPath } = require('url')
+
+const { defineProperty } = Reflect
+const { isArray } = Array
+const _Error = Error
+const { captureStackTrace } = _Error
+
+const _mainEntries = new Set()
 
 exports.chalk = chalk
+
+defineProperty(exports, '__esModule', { value: true })
+defineProperty(exports, 'default', { value: exports, configurable: true, enumerable: false, writable: false })
+
+const _toBooleanFalse = {
+  '': false,
+  false: false,
+  False: false,
+  FALSE: false,
+  off: false,
+  OFF: false,
+  Off: false,
+  no: false,
+  No: false,
+  NO: false,
+  F: false,
+  f: false,
+  n: false,
+  N: false,
+  0: false
+}
+
+function toBoolean(value) {
+  if (!value) {
+    return false
+  }
+  if (value === true) {
+    return true
+  }
+  if (typeof value === 'number') {
+    return value > 0
+  }
+  if (_toBooleanFalse[value] === false) {
+    return false
+  }
+  if (
+    typeof value === 'string' &&
+    (value.startsWith(' ') || value.endsWith(' ')) &&
+    _toBooleanFalse[value.trim()] === false
+  ) {
+    return false
+  }
+  return !!value
+}
+
+exports.toBoolean = toBoolean
+
+let _isCI
+
+exports.setIsCI = (value) => {
+  value = toBoolean(value)
+
+  if (_isCI !== value) {
+    _isCI = value
+
+    if (value) {
+      process.env.CI = 'true'
+    } else {
+      delete process.env.CI
+    }
+  }
+
+  return value
+}
+
+exports.getIsCI = () => (_isCI !== undefined ? _isCI : (_isCI = toBoolean(process.env.CI)))
+
+defineProperty(exports, 'isCI', {
+  get: () => exports.getIsCI(),
+  set: (value) => {
+    exports.setIsCI(value)
+  },
+  configurable: true,
+  enumerable: true
+})
 
 exports.INSPECT_DEPTH = Math.max(8, util.inspect.defaultOptions.depth || 0)
 
@@ -80,7 +165,7 @@ exports.devGetError = function devGetError(error, caller) {
   }
   if (error.watchFiles) {
     // Hide this from console logging because is not helpful and noisy
-    Reflect.defineProperty(error, 'watchFiles', {
+    defineProperty(error, 'watchFiles', {
       value: error.watchFiles,
       configurable: true,
       enumerable: false,
@@ -88,7 +173,7 @@ exports.devGetError = function devGetError(error, caller) {
     })
   }
   if ('codeFrame' in error) {
-    Reflect.defineProperty(error, 'codeFrame', {
+    defineProperty(error, 'codeFrame', {
       value: error.codeFrame,
       configurable: true,
       enumerable: false,
@@ -240,4 +325,163 @@ exports.emitUncaughtError = (error) => {
       exports.handleUncaughtError(error)
     } catch (_) {}
   }
+}
+
+/**
+ * Gets the file url of the caller
+ * @param {Function} [caller] The caller function.
+ * @returns
+ */
+exports.getCallerFileUrl = function getCallerFileUrl(caller) {
+  const oldStackTraceLimit = _Error.stackTraceLimit
+  const oldPrepare = _Error.prepareStackTrace
+  try {
+    const e = {}
+    _Error.stackTraceLimit = 3
+    _Error.prepareStackTrace = (_, clallSites) => clallSites
+    captureStackTrace(e, typeof caller === 'function' ? caller : exports.getCallerFileUrl)
+    const stack = e.stack
+    return (stack && _convertStackToFileUrl(stack)) || undefined
+  } catch (_) {
+    // Ignore error
+  } finally {
+    _Error.prepareStackTrace = oldPrepare
+    _Error.stackTraceLimit = oldStackTraceLimit
+  }
+  return undefined
+}
+
+exports.getCallerFilePath = function getCallerFilePath(caller) {
+  return exports.pathNameFromUrl(
+    exports.getCallerFileUrl(typeof caller === 'function' ? caller : exports.getCallerFilePath)
+  )
+}
+
+exports._wrapCallSite = null
+
+const _parseStackTraceRegex =
+  /^\s*at (?:((?:\[object object\])?[^\\/]+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i
+
+function _convertStackToFileUrl(stack) {
+  if (isArray(stack)) {
+    const state = { nextPosition: null, curPosition: null }
+    for (let i = 0; i < stack.length; ++i) {
+      const entry = exports._wrapCallSite ? exports._wrapCallSite(stack[i], state) : stack[i]
+      if (entry) {
+        const file = exports.pathNameToUrl(
+          entry.getFileName() || entry.getScriptNameOrSourceURL() || (entry.isEval() && entry.getEvalOrigin())
+        )
+        if (file) {
+          return file
+        }
+      }
+    }
+  } else if (typeof stack === 'string') {
+    stack = stack.split('\n')
+    for (let i = 0; i < stack.length; ++i) {
+      const parts = _parseStackTraceRegex.exec(stack[i])
+      const file = parts && exports.pathNameToUrl(parts[2])
+      if (file) {
+        return file
+      }
+    }
+  }
+  return undefined
+}
+
+exports.pathNameToUrl = function pathNameToUrl(file) {
+  if (!file) {
+    return undefined
+  }
+  if (typeof file === 'object') {
+    file = `${file}`
+  }
+  if (file.indexOf('://') < 0) {
+    try {
+      return pathToFileURL(file).href
+    } catch (_) {}
+  }
+  return file
+}
+
+exports.pathNameFromUrl = function pathNameFromUrl(url) {
+  if (!url) {
+    return undefined
+  }
+  if (url.startsWith('node:')) {
+    return undefined
+  }
+  if (url.indexOf('://') < 0) {
+    const indexOfQuestionMark = url.indexOf('?')
+    return indexOfQuestionMark > 0 ? url.slice(0, indexOfQuestionMark - 1) : url
+  }
+  if (url.startsWith('file://')) {
+    try {
+      return fileURLToPath(url)
+    } catch (_) {}
+  }
+  return undefined
+}
+
+/**
+ * Check wether if the given module is the main module
+ * @param url String url, Module or import.meta
+ * @returns True if the given url, Module or import.meta is the main running module
+ */
+exports.isMainModule = function isMainModule(url) {
+  if (typeof url === 'object') {
+    if (url === require.main) {
+      return true
+    }
+    url = url.filename || url.id || url.href || url.url
+  }
+
+  url = exports.pathNameFromUrl(url) || url
+
+  if (!url || typeof url !== 'string') {
+    return false
+  }
+
+  if (url.startsWith(path.sep)) {
+    try {
+      url = fileURLToPath(url)
+    } catch (_) {}
+  }
+
+  const indexOfQuestionMark = url.indexOf('?')
+  if (indexOfQuestionMark >= 0) {
+    url = url.slice(0, indexOfQuestionMark - 1)
+  }
+
+  return _mainEntries.has(url)
+}
+
+exports.addMainEntry = (pathName) => {
+  if (pathName) {
+    _mainEntries.add(exports.pathNameFromUrl(pathName) || pathName)
+  }
+}
+
+exports.__filename = __filename
+
+exports.__dirname = __dirname
+
+const _validIdentifierSpecialsRegex = /[\s!%^&*(){}[\]?~`\-+=:'|/<>,.;"']/g
+
+exports.isValidIdentifier = function isValidIdentifier(name) {
+  if (
+    typeof name !== 'string' ||
+    name.length === 0 ||
+    name.length > 100 ||
+    _validIdentifierSpecialsRegex.test(name) ||
+    name === '__proto__'
+  ) {
+    return false
+  }
+  try {
+    // eslint-disable-next-line no-new-func,no-new
+    new Function(name, `var ${name}`)
+    return true
+  } catch (_) {}
+  return false
 }
