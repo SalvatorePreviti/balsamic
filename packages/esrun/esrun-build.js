@@ -7,19 +7,22 @@ const fastglob = require('fast-glob')
 const esbuild = require('esbuild')
 const dev = require('./dev.js')
 
+Reflect.defineProperty(exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, 'default', { value: exports })
+
 const defaultIgnores = ['**/node_modules/**', '**/.*/**', '**/*.d.ts']
 
-module.exports = {
-  getWorkspaceDirectories,
-  getTsPatterns,
-  getTsFiles,
-  compileDtsFiles,
-  compileSourceFiles,
-  esrunBuildMain,
-  cleanOutputFiles
-}
+exports.getWorkspaceDirectories = getWorkspaceDirectories
 
-Reflect.defineProperty(module.exports, '__esModule', { value: true })
+exports.getTsPatterns = getTsPatterns
+
+exports.getTsFiles = getTsFiles
+
+exports.compileDtsFiles = compileDtsFiles
+
+exports.esrunBuildMain = esrunBuildMain
+
+exports.cleanOutputFiles = cleanOutputFiles
 
 class SearchDirectories {
   constructor(patterns, workspaces) {
@@ -562,6 +565,6 @@ function commonPathPrefix(paths) {
   return prefix.endsWith(sep) ? prefix : prefix + sep
 }
 
-if (require.main === module) {
+if (dev.isMainModule(module)) {
   esrunBuildMain()
 }

@@ -53,14 +53,12 @@ export interface RegisterLoaderArgument {
 
 export declare function registerLoader(arg: Readonly<RegisterLoaderArgument> | Readonly<RegisterLoaderArgument>[]): void
 
-export declare function resolveEs6Module(
+export declare function resolveEsModule(
   id: string | URL,
   sourcefile?: string | URL | null | undefined
 ): string | Promise<string>
 
-export declare namespace resolveEs6Module {
-  var clearCache: () => void
-}
+export declare function clearResolveEsModuleCache()
 
 export declare function pathNameFromUrl(fileOrUrl: string | URL | null | undefined): string | undefined
 

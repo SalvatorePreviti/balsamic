@@ -15,7 +15,7 @@ const _mainEntries = new Set()
 exports.chalk = chalk
 
 defineProperty(exports, '__esModule', { value: true })
-defineProperty(exports, 'default', { value: exports, configurable: true, enumerable: false, writable: false })
+defineProperty(exports, 'default', { value: exports })
 
 const _toBooleanFalse = {
   '': false,
@@ -43,7 +43,7 @@ function toBoolean(value) {
     return true
   }
   if (typeof value === 'number') {
-    return value > 0
+    return !(value === 0)
   }
   if (_toBooleanFalse[value] === false) {
     return false

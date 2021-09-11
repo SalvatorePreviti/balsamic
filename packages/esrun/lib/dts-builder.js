@@ -1,10 +1,11 @@
+'use strict'
+
 const path = require('path')
 const ts = require('typescript')
 const fs = require('fs')
 
-module.exports = {
-  buildDts
-}
+Reflect.defineProperty(exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, 'default', { value: exports })
 
 const defaultTypescriptCompilerOptions = {
   allowJs: true,
@@ -122,7 +123,7 @@ function generateTypescriptOptions(cwd, outdir, outbase) {
   return result
 }
 
-async function buildDts({ files, cwd, outdir, outbase }) {
+exports.buildDts = async function buildDts({ files, cwd, outdir, outbase }) {
   const options = generateTypescriptOptions(cwd, outdir, outbase || cwd)
 
   const inputFilesCache = new Map()

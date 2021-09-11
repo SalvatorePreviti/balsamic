@@ -17,7 +17,8 @@ let _getFastGlob = () => {
   return result
 }
 
-Reflect.defineProperty(module.exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, 'default', { value: exports })
 
 exports.esrunMain = function esrunMain() {
   const esrun = require('./index.js')
@@ -176,11 +177,11 @@ async function _resolveEntries(esrun, entry, resolveDir) {
 async function _resolveEntryModule(esrun, entry, resolveDir) {
   if (!entry.startsWith('./') && !entry.startsWith('.\\') && !entry.startsWith('/') && !entry.startsWith('\\')) {
     try {
-      return await esrun.resolveEs6Module(`./${entry}`, pathJoin(resolveDir, 'index.js'))
+      return await esrun.resolveEsModule(`./${entry}`, pathJoin(resolveDir, 'index.js'))
     } catch (_) {}
   }
   try {
-    return await esrun.resolveEs6Module(entry, pathJoin(resolveDir, 'index.js'))
+    return await esrun.resolveEsModule(entry, pathJoin(resolveDir, 'index.js'))
   } catch (_) {}
   return entry
 }

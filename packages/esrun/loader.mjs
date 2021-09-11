@@ -17,7 +17,7 @@ esrun.register()
 
 export async function resolve(specifier, context, defaultResolve) {
   try {
-    const resolved = await esrun.resolveEs6Module(specifier, context.parentURL)
+    const resolved = await esrun.resolveEsModule(specifier, context.parentURL)
     if (resolved) {
       return { url: resolved }
     }

@@ -189,8 +189,8 @@ let _getLoaders = () => {
   return _loaders
 }
 
-defineProperty(exports, '__esModule', { value: true })
-defineProperty(exports, 'default', { value: exports, configurable: true, enumerable: false, writable: false })
+Reflect.defineProperty(exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, 'default', { value: exports })
 
 exports.isRegistered = () => _registered
 
@@ -421,7 +421,7 @@ exports.registerLoader = function registerLoader(arg) {
   }
 }
 
-exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
+exports.resolveEsModule = function resolveEsModule(id, sourcefile) {
   id = dev.pathNameFromUrl(id) || id
 
   if (typeof id === 'object' && id !== null) {
@@ -487,7 +487,7 @@ exports.resolveEs6Module = function resolveEs6Module(id, sourcefile) {
   return result
 }
 
-exports.resolveEs6Module.clearCache = () => {
+exports.clearResolveEsModuleCache = () => {
   _resolveCache.clear()
 }
 
@@ -554,7 +554,7 @@ async function _esrunTranspileModuleAsync({ source, pathName, bundle }, parser) 
           name: 'esrun-bundle',
           setup(build) {
             build.onResolve(_allFilesFilter, async ({ path, resolveDir }) => {
-              const resolved = await exports.resolveEs6Module(path, pathJoin(resolveDir, 'index.js'))
+              const resolved = await exports.resolveEsModule(path, pathJoin(resolveDir, 'index.js'))
               const resolvedPath = dev.pathNameFromUrl(resolved)
               if (!resolvedPath) {
                 return undefined
@@ -727,7 +727,7 @@ function _fixVm() {
         options = {
           ...options,
           async importModuleDynamically(url) {
-            return import(await exports.resolveEs6Module(url, filename))
+            return import(await exports.resolveEsModule(url, filename))
           }
         }
       }

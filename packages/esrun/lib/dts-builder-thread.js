@@ -1,3 +1,5 @@
+'use strict'
+
 const { parentPort, workerData } = require('worker_threads')
 require('v8-compile-cache')
 

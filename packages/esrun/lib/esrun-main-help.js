@@ -1,4 +1,9 @@
+'use strict'
+
 const chalk = require('chalk')
+
+Reflect.defineProperty(exports, '__esModule', { value: true })
+Reflect.defineProperty(exports, 'default', { value: exports })
 
 exports.printVersion = function printVersion() {
   console.info(getVersion())
