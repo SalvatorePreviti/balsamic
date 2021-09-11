@@ -4,29 +4,6 @@
 .env.test
 *.pem
 
-# test files
-*.test.*
-*.spec.*
-**/test/**/*
-**/tests/**/*
-**/*-test/**/*
-**/*-tests/**/*
-**/__mocks__/**/*
-**/__specs__/**/*
-**/__tests__/**/*
-**/__mock__/**/*
-**/__spec__/**/*
-**/__test__/**/*
-**/.mocharc.*
-
-# CI
-CI/
-Jenkinsfile
-.gitignore
-.travis.*
-.nvmrc
-.github
-
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -88,11 +65,6 @@ pids
 *.pid.lock
 .eslintcache
 .prettiercache
-.git
-.tmp
-.temp
-.cache
-.fuse_hidden*
 
 # Test coverage
 lib-cov
@@ -140,3 +112,5 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+/test
