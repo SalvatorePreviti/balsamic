@@ -1,7 +1,6 @@
 import { extname } from 'path'
 
 import esrun from './index.js'
-import dev from './dev.js'
 import { Module } from 'module'
 import { readFile } from 'fs/promises'
 import { init as esModuleLexerInit, parse as esModuleLexerParse } from 'es-module-lexer'
@@ -13,7 +12,7 @@ const { getOwnPropertyNames, getPrototypeOf } = Object
 const _fileIsCjsModuleCache = new Map()
 let _esModuleLexerInitialized = false
 
-esrun.register()
+esrun.esrunRegister()
 
 export async function resolve(specifier, context, defaultResolve) {
   try {
@@ -112,7 +111,7 @@ function _esrunTransformCjsModule(pathName, exports) {
         if (
           typeof prop === 'string' &&
           !keysSet.has(prop) &&
-          dev.isValidIdentifier(prop) &&
+          esrun.isValidIdentifier(prop) &&
           !prop.startsWith('__$esrun__')
         ) {
           keysSet.add(prop)

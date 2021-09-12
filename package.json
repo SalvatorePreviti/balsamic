@@ -17,7 +17,7 @@
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git"
   },
   "engines": {
-    "node": ">=14.17.0",
+    "node": ">=16.9.0",
     "npm": ">=7.0.0"
   },
   "workspaces": [
@@ -31,10 +31,6 @@
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix --max-warnings=0"
     ]
-  },
-  "dependencies": {
-    "@balsamic/eslint-config": "file:packages/eslint-config",
-    "@balsamic/esrun": "file:packages/esrun"
   },
   "devDependencies": {
     "@types/chai": "^4.2.21",

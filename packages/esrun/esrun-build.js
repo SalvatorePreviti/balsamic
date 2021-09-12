@@ -3,32 +3,27 @@
 
 const path = require('path')
 const fs = require('fs')
-const fastglob = require('fast-glob')
 const esbuild = require('esbuild')
-const dev = require('./dev.js')
+const esrun = require('./index.js')
+const fastglob = require('fast-glob')
 
 Reflect.defineProperty(exports, '__esModule', { value: true })
 Reflect.defineProperty(exports, 'default', { value: exports })
 
+const { isArray, from: arrayFrom } = Array
+
 const defaultIgnores = ['**/node_modules/**', '**/.*/**', '**/*.d.ts']
-
-exports.getWorkspaceDirectories = getWorkspaceDirectories
-
-exports.getTsPatterns = getTsPatterns
-
-exports.getTsFiles = getTsFiles
 
 exports.compileDtsFiles = compileDtsFiles
 
 exports.esrunBuildMain = esrunBuildMain
 
-exports.cleanOutputFiles = cleanOutputFiles
+exports.compileSourceFiles = compileSourceFiles
 
-class SearchDirectories {
-  constructor(patterns, workspaces) {
+class TsFilesSearcher {
+  constructor(patterns) {
     this.patterns = new Set()
     this.hasSearchPatterns = false
-    this.workspaces = workspaces
     this.add(patterns)
   }
 
@@ -37,7 +32,7 @@ class SearchDirectories {
       return
     }
     if (typeof pattern !== 'string') {
-      if (Array.isArray(pattern)) {
+      if (isArray(pattern)) {
         for (const item of pattern) {
           this.add(item)
         }
@@ -50,9 +45,7 @@ class SearchDirectories {
       pattern = pattern.substr(negations[0].length)
     }
 
-    if (this.workspaces) {
-      pattern = pattern.replace(/^\/+/, '')
-    } else if (!pattern.endsWith('.ts') && !pattern.endsWith('.tsx') && !pattern.endsWith('/')) {
+    if (!pattern.endsWith('.ts') && !pattern.endsWith('.tsx') && !pattern.endsWith('/')) {
       pattern += '/'
     }
 
@@ -66,7 +59,7 @@ class SearchDirectories {
 }
 
 async function getTsPatterns({ workspaceDirectories, input = [], cwd = process.cwd() }) {
-  const inputPatterns = new SearchDirectories(input, false)
+  const inputPatterns = new TsFilesSearcher(input)
   if (workspaceDirectories === true) {
     workspaceDirectories = await exports.getWorkspaceDirectories(cwd)
   }
@@ -145,10 +138,9 @@ async function compileDtsFiles({ files, cwd, outdir, outbase }) {
 }
 
 async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(), isMain = true) {
-  let timing = false
   try {
     if (isMain) {
-      process.on('uncaughtException', dev.handleUncaughtError)
+      esrun.esrunRegister({ errors: true, exit: true })
     }
 
     let addWorkspaces = false
@@ -225,15 +217,17 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(),
       return false
     }
 
-    const workspaceDirectories = addWorkspaces ? await getWorkspaceDirectories(cwd) : []
-
-    console.time('esrun-build')
-    timing = true
+    let workspaceDirectories = []
+    if (addWorkspaces) {
+      const workspaces = await esrun.loadNpmWorkspace(cwd)
+      if (workspaces) {
+        workspaceDirectories = workspaces.workspaces.map((workspace) => workspace.directory)
+      }
+    }
 
     let result = false
 
     const patterns = await getTsPatterns({ workspaceDirectories, cwd, input: inputPatterns })
-
     const files = patterns && patterns.length && (await getTsFiles({ patterns, cwd }))
 
     if (!files || !files.length) {
@@ -300,13 +294,9 @@ async function esrunBuildMain(args = process.argv.slice(2), cwd = process.cwd(),
     return result
   } catch (error) {
     if (isMain) {
-      dev.emitUncaughtError(error)
+      esrun.emitUncaughtException(error)
     } else {
       throw error
-    }
-  } finally {
-    if (timing) {
-      console.timeEnd('esrun-build')
     }
   }
 
@@ -414,7 +404,7 @@ function groupFilesByWorkspace({ workspaceDirectories, files, outdir, cwd }) {
     }
   }
 
-  const entries = Array.from(result.values())
+  const entries = arrayFrom(result.values())
   for (const entry of entries) {
     if (!entry.outbase) {
       entry.outbase = commonPathPrefix(entry.files) || entry.basedir
@@ -495,50 +485,6 @@ async function compileSourceFiles({
   return true
 }
 
-async function getWorkspaceDirectories(cwd) {
-  const packageJson = await findPackageJson(cwd)
-  if (packageJson && Array.isArray(packageJson.manifest.workspaces)) {
-    const searcher = new SearchDirectories(packageJson.manifest.workspaces, true)
-    if (searcher.hasSearchPatterns) {
-      return fastglob(Array.from(searcher.patterns), {
-        ignore: defaultIgnores,
-        cwd: packageJson.dir,
-        absolute: true,
-        followSymbolicLinks: true,
-        markDirectories: true,
-        suppressErrors: true,
-        onlyDirectories: true,
-        unique: true
-      })
-    }
-  }
-  return []
-}
-
-async function findPackageJson(curentFolder) {
-  let dir = curentFolder ? path.resolve(curentFolder) : process.cwd()
-  dir = await fs.promises.realpath(dir)
-  for (;;) {
-    const found = path.join(dir, 'package.json')
-    if (fs.existsSync(found)) {
-      try {
-        let content = await fs.promises.readFile(found, 'utf8')
-        if (content.charCodeAt(0) === 0xfeff) {
-          content = content.slice(1)
-        }
-        const manifest = JSON.parse(content)
-        if (typeof manifest === 'object' && manifest !== null && !Array.isArray(manifest)) {
-          return { dir, manifest }
-        }
-      } catch (error) {
-        if (error.code !== 'EISDIR') {
-          throw error
-        }
-      }
-    }
-  }
-}
-
 function commonPathPrefix(paths) {
   const [first = '', ...remaining] = paths
   if (remaining.length === 0) {
@@ -565,6 +511,6 @@ function commonPathPrefix(paths) {
   return prefix.endsWith(sep) ? prefix : prefix + sep
 }
 
-if (dev.isMainModule(module)) {
+if (esrun.isMainModule(module)) {
   esrunBuildMain()
 }

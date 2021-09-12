@@ -1,19 +1,13 @@
-export declare function getTsPatterns(args: {
-  workspaceDirectories?: string[] | boolean
-  input?: string[]
-  cwd?: string
-}): Promise<string[]>
-
-export declare function getWorkspaceDirectories(cwd?: string): string[]
-
-export declare function getTsFiles(params: { patterns: string[]; cwd?: string }): Promise<string[]>
-
 export declare function compileDtsFiles(params: { files: string[]; cwd?: string }): Promise<boolean>
 
 export declare function compileSourceFiles(params: {
+  outbase?: string
+  outdir?: string
   mjs?: boolean
   cjs?: boolean
   sourcemap?: boolean | 'inline' | 'external' | 'both'
+  baner_mjs?: string[]
+  baner_cjs?: string[]
   files: string[]
   cwd?: string
 }): Promise<boolean>

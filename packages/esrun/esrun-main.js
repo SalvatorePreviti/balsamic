@@ -25,11 +25,11 @@ exports.esrunMain = function esrunMain() {
 
   process.on('uncaughtException', esrun.handleUncaughtError)
 
-  esrun.register()
-
   if (!_hasLoader()) {
     return _forkRestart()
   }
+
+  esrun.esrunRegister()
 
   _fixEnv()
 
@@ -47,13 +47,7 @@ async function _esrun(esrun) {
 
     const { measureTime, main, includes, bundle } = options
 
-    if (measureTime) {
-      console.time('esrun execution')
-      process.once('exit', () => {
-        console.timeEnd('esrun execution')
-        console.log()
-      })
-    }
+    esrun.esrunRegister({ errors: true, exit: measureTime })
 
     const resolveDir = process.cwd()
     const mainEntries = await _resolveEntries(esrun, main, resolveDir)
@@ -68,7 +62,7 @@ async function _esrun(esrun) {
     }
 
     for (const mainEntry of mainEntries) {
-      esrun.addMainEntry(mainEntry)
+      esrun.addMainModule(mainEntry)
     }
 
     if (bundle) {
@@ -91,7 +85,7 @@ async function _esrun(esrun) {
       }
     }
   } catch (error) {
-    esrun.emitUncaughtError(error)
+    esrun.emitUncaughtException(error)
   }
 }
 
@@ -265,10 +259,6 @@ async function _parseArgv(esrun) {
       measureTime = true
     } else if (arg === '--no-time') {
       measureTime = false
-    } else if (arg === '--no-dotenv') {
-      process.env.DOTENV_DISABLED = '1'
-    } else if (arg === '--no-no-dotenv') {
-      process.env.DOTENV_DISABLED = '0'
     } else if (arg === '--mocha') {
       mocha = true
       ++i

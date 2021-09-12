@@ -4,4 +4,4 @@ const esrun = require('./index.js')
 
 module.exports = esrun
 
-esrun.register()
+esrun.esrunRegister()
