@@ -1,7 +1,4 @@
 import path from 'path'
-import { fileURLToPath } from 'url'
-import _resolvePackagePath from 'resolve-package-path'
-import Module from 'module'
 
 export const initialCwd = process.cwd()
 
@@ -111,45 +108,6 @@ export function prettySize(
     s = `${options.fileType} ${s}`
   }
   return s
-}
-
-export function resolveModulePackageJson(moduleId: string, cwd?: string | URL | null | undefined): string | null {
-  if (!cwd) {
-    cwd = process.cwd()
-  } else if (typeof cwd !== 'string') {
-    cwd = path.resolve(fileURLToPath(cwd))
-  } else {
-    cwd = path.resolve(cwd)
-  }
-  return _resolvePackagePath(moduleId, cwd)
-}
-
-resolveModulePackageJson.resolveModuleBin = function resolveModuleBin(
-  moduleId: string,
-  executableId: string,
-  cwd: string | URL = initialCwd
-): string {
-  const packageJsonPath = resolveModulePackageJson.forced(moduleId, cwd)
-  const req = Module.createRequire(packageJsonPath)
-  const { bin } = req(packageJsonPath)
-  if (bin) {
-    const binFile = bin[executableId]
-    if (binFile) {
-      return req.resolve(path.resolve(path.dirname(packageJsonPath), binFile))
-    }
-  }
-  return req(`${moduleId}/${executableId}`)
-}
-
-resolveModulePackageJson.forced = (moduleId: string, cwd?: string | URL | null | undefined): string => {
-  const resolved = resolveModulePackageJson(moduleId, cwd)
-  if (!resolved) {
-    const error = new Error(`Cannot find module '${moduleId}'`)
-    error.code = 'MODULE_NOT_FOUND'
-    error.requireStack = []
-    throw error
-  }
-  return resolved
 }
 
 /** Makes an utf8 string. Removes UTF8 BOM header if present. */

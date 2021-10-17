@@ -1,17 +1,21 @@
 import type { PackageJson } from './types'
-import { resolveModulePackageJson, toUTF8 } from './utils'
+import { toUTF8 } from './utils'
 import fs from 'fs'
 import path from 'path'
+import { resolveModulePackageJson } from './resolve'
 
 export interface GetPackagesFoldersOptions {
-  /** True if entries will be sorted by name and path. Default is true. */
-  sort?: boolean
-
-  /** True if the entries that are hosted inside a package node_modules should be returned or not. Default is true. */
+  /** If true, packages hosted inside a package node_modules will not be returned. Default is true. */
   topLevelOnly?: boolean
+
+  /** If true, modules with the same id will be unified. Useful for building an hoisted node_modules folder. Default is false. */
+  unique?: boolean
+
+  /** List of package names or full path to exclude. If a package is excluded, its dependencies are not processed as well. Default is empty. */
+  exclude?: Iterable<string> | string | null | undefined
 }
 
-export interface GetPackageFoldersItem {
+export interface PackagesFolderInput {
   /** The path of the package (or package.json file) */
   path: string
 
@@ -37,7 +41,7 @@ export interface GetPackageFoldersItem {
   bundledDependencies?: boolean
 }
 
-export interface GetPackageFoldersResultItem {
+export interface PackagesFoldersEntry {
   /** Path of the directory of the package */
   directory: string
 
@@ -51,21 +55,15 @@ export interface GetPackageFoldersResultItem {
   parent?: string
 }
 
-export interface GetPackageFoldersResult {
-  /** Input passed to getPackagesFolders function */
-  input: GetPackageFoldersItem[]
+export interface PackagesFolderResult {
+  /** Input provided */
+  input: Required<PackagesFolderInput>[]
 
   /** Options passed to getPackagesFolders function */
-  options: GetPackagesFoldersOptions & { sort: boolean; topLevelOnly: boolean }
+  options: Required<GetPackagesFoldersOptions>
 
   /** List of packages */
-  items: GetPackageFoldersResultItem[]
-
-  /** Total number of packages processed */
-  processedCount: number
-
-  /** Total number of non top-level packages */
-  nonTopLevelCount: number
+  items: PackagesFoldersEntry[]
 }
 
 /**
@@ -75,14 +73,14 @@ export interface GetPackageFoldersResult {
  * @returns An object that contains a list of packages and their manifest
  */
 export function getPackagesFolders(
-  input: GetPackageFoldersItem[],
+  input: string | Readonly<PackagesFolderInput> | Iterable<PackagesFolderInput | string | null | undefined>,
   options: GetPackagesFoldersOptions = {}
-): GetPackageFoldersResult {
+): PackagesFolderResult {
   interface Package {
     directory: string
-    include: boolean
     name: string
     manifest: any
+    include: number
   }
 
   interface QueueEntry {
@@ -98,14 +96,25 @@ export function getPackagesFolders(
   let requiredQueuePosition: number = 0
   let optionalQueuePosition: number = 0
 
-  const getPackage = (packageJsonPath: string) => {
+  const exclusion = new Set<string>()
+  if (options.exclude) {
+    if (typeof options.exclude === 'string') {
+      exclusion.add(options.exclude)
+    } else {
+      for (const item of options.exclude) {
+        exclusion.add(item)
+      }
+    }
+  }
+
+  const getPackage = (packageJsonPath: string): Package => {
     let folder = packageFolders.get(packageJsonPath)
     if (folder === undefined) {
       folder = {
         directory: path.dirname(packageJsonPath),
         manifest: undefined,
         name: '',
-        include: true
+        include: 1
       }
       packageFolders.set(packageJsonPath, folder)
     }
@@ -130,6 +139,12 @@ export function getPackagesFolders(
       }
       pkg.manifest = manifest
       pkg.name = (typeof manifest.name === 'string' ? manifest.name : '') || pkg.name || path.basename(pkg.directory)
+      if (
+        pkg.include !== -1 &&
+        (exclusion.has(pkg.name) || exclusion.has(manifestPath) || exclusion.has(pkg.directory))
+      ) {
+        pkg.include = -1
+      }
     }
     return pkg.manifest
   }
@@ -138,7 +153,7 @@ export function getPackagesFolders(
     if (typeof dependencies !== 'object' || dependencies === null || Array.isArray(dependencies)) {
       return
     }
-    for (const id of Object.keys(dependencies)) {
+    for (const id of Object.keys(dependencies).sort()) {
       const key = id
       let entry = queueEntries.get(key)
       if (entry) {
@@ -154,42 +169,72 @@ export function getPackagesFolders(
     }
   }
 
-  const inputPackages = new Map<Package, GetPackageFoldersItem>()
-  for (const inputItem of input) {
+  const inputPackages = new Map<Package, Required<PackagesFolderInput>>()
+
+  const addInput = (inputItem: string | Readonly<PackagesFolderInput>) => {
+    if (typeof inputItem === 'string') {
+      inputItem = { path: inputItem }
+    }
+
     let packageJsonPath = path.resolve(inputItem.path)
     if (path.basename(packageJsonPath).toLowerCase() !== 'package.json') {
       packageJsonPath = path.resolve(packageJsonPath, 'package.json')
     }
     const folder = getPackage(packageJsonPath)
+
     if (!inputPackages.has(folder)) {
-      folder.include = !!inputItem.include
-      inputPackages.set(folder, inputItem)
-      getManifest(folder, inputItem.required === undefined || !!inputItem.required)
+      const inputEntry: Required<PackagesFolderInput> = {
+        path: folder.directory,
+        required: !!inputItem.required || inputItem.required === undefined,
+        include: !!inputItem.include,
+        dependencies: !!inputItem.dependencies || inputItem.dependencies === undefined,
+        bundledDependencies: inputItem.bundledDependencies || inputItem.bundledDependencies === undefined,
+        devDependencies: !!inputItem.devDependencies,
+        peerDependencies: !!inputItem.peerDependencies || inputItem.peerDependencies === undefined,
+        optionalDependencies: !!inputItem.optionalDependencies || inputItem.optionalDependencies === undefined
+      }
+
+      folder.include = inputEntry.include ? 1 : 0
+      inputPackages.set(folder, inputEntry)
+      getManifest(folder, inputEntry.required)
     }
   }
-  for (const [folder, inputItem] of inputPackages) {
-    if (folder.manifest && (inputItem.dependencies || inputItem.dependencies === undefined)) {
+
+  if (typeof input === 'string') {
+    addInput(input)
+  } else if (Symbol.iterator in input) {
+    for (const inputItem of input as Iterable<string | Readonly<PackagesFolderInput>>) {
+      if (inputItem !== null && inputItem !== undefined) {
+        addInput(inputItem)
+      }
+    }
+  } else {
+    addInput(input as string | Readonly<PackagesFolderInput>)
+  }
+
+  for (const [folder, inputEntry] of inputPackages) {
+    if (folder.manifest && inputEntry.dependencies) {
       enqueueManifestDependencies(folder, folder.manifest.dependencies, true)
     }
   }
-  for (const [folder, inputItem] of inputPackages) {
-    if (folder.manifest && (inputItem.bundledDependencies || inputItem.bundledDependencies === undefined)) {
+  for (const [folder, inputEntry] of inputPackages) {
+    if (folder.manifest && inputEntry.bundledDependencies) {
       enqueueManifestDependencies(folder, folder.manifest.bundledDependencies, true)
       enqueueManifestDependencies(folder, folder.manifest.bundleDependencies, true)
     }
   }
-  for (const [folder, inputItem] of inputPackages) {
-    if (folder.manifest && inputItem.devDependencies) {
+  for (const [folder, inputEntry] of inputPackages) {
+    if (folder.manifest && inputEntry.devDependencies) {
       enqueueManifestDependencies(folder, folder.manifest.devDependencies, true)
     }
   }
-  for (const [folder, inputItem] of inputPackages) {
-    if (folder.manifest && (inputItem.peerDependencies || inputItem.peerDependencies === undefined)) {
+  for (const [folder, inputEntry] of inputPackages) {
+    if (folder.manifest && inputEntry.peerDependencies) {
       enqueueManifestDependencies(folder, folder.manifest.peerDependencies, false)
     }
   }
-  for (const [folder, inputItem] of inputPackages) {
-    if (folder.manifest && (inputItem.optionalDependencies || inputItem.optionalDependencies === undefined)) {
+  for (const [folder, inputEntry] of inputPackages) {
+    if (folder.manifest && inputEntry.optionalDependencies) {
       enqueueManifestDependencies(folder, folder.manifest.optionalDependencies, false)
     }
   }
@@ -213,7 +258,7 @@ export function getPackagesFolders(
       if (resolvedPackagePath && !packageFolders.has(resolvedPackagePath)) {
         const folder = getPackage(resolvedPackagePath)
         const manifest = getManifest(folder, entry.required)
-        if (manifest) {
+        if (manifest && folder.include >= 0) {
           enqueueManifestDependencies(folder, manifest.dependencies, true)
           enqueueManifestDependencies(folder, manifest.peerDependencies, false)
           enqueueManifestDependencies(folder, manifest.optionalDependencies, false)
@@ -222,14 +267,16 @@ export function getPackagesFolders(
     }
   }
 
-  let result: GetPackageFoldersResultItem[] = []
+  let result: PackagesFoldersEntry[] = []
+
+  const unique = !!options.unique
+  const topLevelOnly = !!options.topLevelOnly || options.topLevelOnly === undefined
+
+  const uniquePackageNames = new Set<string>()
   for (const value of packageFolders.values()) {
-    if (value.manifest && value.include) {
-      result.push({
-        directory: value.directory,
-        name: value.name,
-        manifest: value.manifest
-      })
+    if (value.manifest && value.include > 0 && (!unique || !uniquePackageNames.has(value.name))) {
+      uniquePackageNames.add(value.name)
+      result.push({ directory: value.directory, name: value.name, manifest: value.manifest })
     }
   }
 
@@ -244,38 +291,29 @@ export function getPackagesFolders(
   let nonTopLevelCount = 0
   for (const item of result) {
     if (!item.parent) {
-      let k = path.dirname(item.directory)
-      for (;;) {
-        const prev = path.dirname(k)
-        if (prev === k || k.length < minNodeModulesLength) {
+      for (let current = path.dirname(item.directory); ; ) {
+        const parent = path.dirname(current)
+        if (!parent || parent === current || current.length < minNodeModulesLength) {
           break
         }
-        const found = nodeModulesDirectories.get(k)
+        const found = nodeModulesDirectories.get(current)
         if (found !== undefined) {
           ++nonTopLevelCount
           item.parent = found
           break
         }
-        k = prev
+        current = parent
       }
     }
   }
 
-  const topLevelOnly = !!options.topLevelOnly || options.topLevelOnly === undefined
   if (nonTopLevelCount > 0 && topLevelOnly) {
     result = result.filter((item) => !item.parent)
   }
 
-  const sort = !!options.sort || options.sort === undefined
-  if (sort) {
-    result.sort((a, b) => a.name.localeCompare(b.name) || a.directory.localeCompare(b.directory))
-  }
-
   return {
-    input: [...input],
-    options: { ...options, sort, topLevelOnly },
-    items: result,
-    nonTopLevelCount,
-    processedCount: packageFolders.size
+    input: Array.from(inputPackages.values()),
+    options: { topLevelOnly, unique, exclude: [...exclusion] },
+    items: result
   }
 }

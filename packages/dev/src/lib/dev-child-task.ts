@@ -2,7 +2,7 @@ import child_process from 'child_process'
 import { devError } from './dev-error'
 import { devLog } from './dev-log'
 import type { DevLogTimeOptions } from './dev-log'
-import { resolveModulePackageJson } from './utils'
+import { resolveModuleBin } from './resolve'
 
 export const devChildTask = {
   /** Spawn a new process, redirect stdio and await for completion. */
@@ -57,11 +57,7 @@ export const devChildTask = {
       showStack?: boolean
     } & DevLogTimeOptions = {}
   ) {
-    return devChildTask.fork(
-      resolveModulePackageJson.resolveModuleBin(moduleId, executableId, options.cwd),
-      args,
-      options
-    )
+    return devChildTask.fork(resolveModuleBin(moduleId, executableId, options.cwd), args, options)
   },
 
   /** Executes npm run <command> [args] */

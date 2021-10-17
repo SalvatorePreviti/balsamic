@@ -16,12 +16,13 @@ export {
   initialCwd,
   millisecondsToString,
   makePathRelative,
-  resolveModulePackageJson,
   toUTF8,
   startMeasureTime,
   utf8ByteLength,
   prettySize
 } from './lib/utils'
+
+export { resolveModulePackageJson, resolveModuleBin } from './lib/resolve'
 
 export { loadDotEnv } from './lib/dot-env'
 
@@ -35,11 +36,11 @@ export { asyncDelay, devRunMain, runParallel, runSequential }
 
 export { devChildTask } from './lib/dev-child-task'
 
-export { getPackagesFolders } from './lib/get-package-folders'
+export { getPackagesFolders } from './lib/get-packages-folders'
 
 export type {
-  GetPackageFoldersItem,
-  GetPackageFoldersResult,
-  GetPackageFoldersResultItem,
+  PackagesFolderInput,
+  PackagesFolderResult,
+  PackagesFoldersEntry,
   GetPackagesFoldersOptions
-} from './lib/get-package-folders'
+} from './lib/get-packages-folders'
