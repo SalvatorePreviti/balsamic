@@ -1,6 +1,4 @@
 {
   "extends": "./packages/eslint-config/tsconfig.json",
-  "compilerOptions": {
-    "module": "CommonJS"
-  }
+  "compilerOptions": {}
 }
