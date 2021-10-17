@@ -616,7 +616,7 @@ exports.esrunRegister = function esrunRegister(options) {
       }
 
       process.on('unhandledRejection', (error) => {
-        exports.devLogWarning(exports.devColorRedOrange('Unhandled rejection'), error)
+        exports.devLogWarning(chalk.redBright('Unhandled rejection'), error)
       })
 
       process.on('uncaughtException', exports.handleUncaughtError)
