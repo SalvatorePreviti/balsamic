@@ -70,6 +70,13 @@ function errorOnce(message?: any, error?: any, caller?: any) {
   return err
 }
 
+devLog.printProcessBanner = function printProcessBanner() {
+  const processTitle = getProcessTitle()
+  if (processTitle) {
+    devLog.log(`\n 🐻 ${term.cyanBright.bold(processTitle)}\n`)
+  }
+}
+
 devLog.errorOnce = errorOnce
 
 /** Developer debug log. Appends the line where this function was called. */
@@ -124,6 +131,9 @@ function _extrapolateProcessTitle(
       if (typeof fname !== 'string' || !fname) {
         fname = value.id
       }
+    }
+    if (fname) {
+      value = fname
     }
   }
   if (typeof value !== 'string' || !value || value === '.' || value === './') {
