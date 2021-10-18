@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 declare global {
   export interface Error {
     showStack?: boolean

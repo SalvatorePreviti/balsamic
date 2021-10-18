@@ -112,7 +112,7 @@ devError.emitUncaughtException = (cause: unknown) => {
 }
 
 /** Allow to ignore a warning emitted by NodeJS, so it does not get logged. */
-function ignoreProcessWarning(name: string, value = true): void {
+devError.ignoreProcessWarning = function ignoreProcessWarning(name: string, value = true): void {
   if (value) {
     if (!_ignoredWarnings) {
       _ignoredWarnings = new Set()
@@ -122,8 +122,8 @@ function ignoreProcessWarning(name: string, value = true): void {
         if (typeof a === 'object' && a !== null) {
           a = { ...a, ctor: a.ctor || emitWarning }
           if (
-            (a.type !== undefined && ignoreProcessWarning.isIgnored(a.type)) ||
-            (a.code !== undefined && ignoreProcessWarning.isIgnored(a.code))
+            (a.type !== undefined && devError.isProcessWarningIgnored(a.type)) ||
+            (a.code !== undefined && devError.isProcessWarningIgnored(a.code))
           ) {
             return
           }
@@ -139,7 +139,7 @@ function ignoreProcessWarning(name: string, value = true): void {
             b = emitWarning
           }
         }
-        if (typeof a === 'string' && ignoreProcessWarning.isIgnored(a)) {
+        if (typeof a === 'string' && devError.isProcessWarningIgnored(a)) {
           return
         }
         _emitWarning(warning, a, b)
@@ -152,6 +152,5 @@ function ignoreProcessWarning(name: string, value = true): void {
   }
 }
 
-devError.ignoreProcessWarning = ignoreProcessWarning
-
-ignoreProcessWarning.isIgnored = (name: string) => _ignoredWarnings !== null && _ignoredWarnings.has(name)
+/** True if a warning was ignored using devError.ignoreProcessWarning function */
+devError.isProcessWarningIgnored = (name: string) => _ignoredWarnings !== null && _ignoredWarnings.has(name)
