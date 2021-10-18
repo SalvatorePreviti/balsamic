@@ -16,7 +16,7 @@ npm i
 Install:
 
 ```sh
-npm --save-dev @balsamic/esrun
+npm i --save-dev @balsamic/esrun
 ```
 
 ### Command line interface for esrun

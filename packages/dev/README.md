@@ -5,7 +5,7 @@
 Install:
 
 ```sh
-npm --save-dev @balsamic/dev
+npm i --save-dev @balsamic/dev
 ```
 
 ## License

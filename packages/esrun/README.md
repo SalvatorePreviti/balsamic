@@ -3,7 +3,7 @@
 Install:
 
 ```sh
-npm --save-dev @balsamic/esrun
+npm i --save-dev @balsamic/esrun
 ```
 
 ## command line interface for esrun

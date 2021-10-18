@@ -1,12 +1,12 @@
 import type { Awaited } from './types'
 import util from 'util'
-import chalk from 'chalk'
+import term from 'chalk'
 import { initialCwd, makePathRelative, millisecondsToString, startMeasureTime } from './utils'
 import { fileURLToPath } from 'url'
 import { devError } from './dev-error'
 import readline from 'readline'
 
-export { chalk }
+export { term }
 
 let _logProcessTimeInitialized = false
 const _errorLoggedSet = new WeakSet<any>()
@@ -34,7 +34,7 @@ export function devLog(...args: unknown[]): void {
 
 devLog.inspectOptions = {
   ...util.inspect.defaultOptions,
-  colors: !!chalk.supportsColor && chalk.supportsColor.hasBasic,
+  colors: !!term.supportsColor && term.supportsColor.hasBasic,
   depth: Math.max(8, util.inspect.defaultOptions.depth || 0)
 }
 
@@ -46,7 +46,7 @@ devLog.error = (...args: unknown[]): void => {
   if (args.length === 0) {
     console.error()
   } else {
-    console.error(chalk.redBright(`❌ ${chalk.underline('ERROR')}: ${_devInspectForLogging(args)}`))
+    console.error(term.redBright(`❌ ${term.underline('ERROR')}: ${_devInspectForLogging(args)}`))
   }
 }
 
@@ -90,9 +90,9 @@ devLog.dev = (...args: unknown[]): void => {
     }
   }
   devLog.log(
-    chalk.blueBright(`${chalk.underline('DEV')}: `) +
-      chalk.blueBright(_devInspectForLogging(args)) +
-      (devLine ? `\n     ${chalk.blueBright(devLine)}` : '')
+    term.blueBright(`${term.underline('DEV')}: `) +
+      term.blueBright(_devInspectForLogging(args)) +
+      (devLine ? `\n     ${term.blueBright(devLine)}` : '')
   )
 }
 
@@ -101,11 +101,7 @@ devLog.warn = (...args: unknown[]): void => {
     console.warn()
   } else {
     console.warn(
-      chalk.rgb(
-        200,
-        200,
-        50
-      )(`${chalk.yellowBright(`⚠️  ${chalk.underline('WARNING')}:`)} ${_devInspectForLogging(args)}`)
+      term.rgb(200, 200, 50)(`${term.yellowBright(`⚠️  ${term.underline('WARNING')}:`)} ${_devInspectForLogging(args)}`)
     )
   }
 }
@@ -114,7 +110,7 @@ devLog.info = (...args: unknown[]): void => {
   if (args.length === 0) {
     console.info()
   } else {
-    console.info(chalk.cyan(`${chalk.cyanBright(`ℹ️  ${chalk.underline('INFO')}:`)} ${_devInspectForLogging(args)}`))
+    console.info(term.cyan(`${term.cyanBright(`ℹ️  ${term.underline('INFO')}:`)} ${_devInspectForLogging(args)}`))
   }
 }
 
@@ -163,12 +159,12 @@ devLog.initProcessTime = () => {
     const exitCode = process.exitCode
     if (exitCode) {
       devLog.log(
-        chalk.redBright(
-          `\n😡 ${getProcessTitle()} ${chalk.redBright.bold.underline('FAILED')} in ${elapsed}. exitCode: ${exitCode}\n`
+        term.redBright(
+          `\n😡 ${getProcessTitle()} ${term.redBright.bold.underline('FAILED')} in ${elapsed}. exitCode: ${exitCode}\n`
         )
       )
     } else {
-      devLog.log(chalk.greenBright(`\n✅ ${getProcessTitle()} ${chalk.bold('OK')} ${chalk.green(`in ${elapsed}`)}\n`))
+      devLog.log(term.greenBright(`\n✅ ${getProcessTitle()} ${term.bold('OK')} ${term.green(`in ${elapsed}`)}\n`))
     }
   }
   process.once('exit', handleExit)
@@ -208,7 +204,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
   const isTimed = options.timed === undefined || !!options.timed
   if (isTimed && (options.printStarted === undefined || options.printStarted)) {
     devLog.log()
-    devLog.log(chalk.cyan(`${chalk.cyan('◆')} ${chalk.bold(title)}`) + chalk.gray(' started...'))
+    devLog.log(term.cyan(`${term.cyan('◆')} ${term.bold(title)}`) + term.gray(' started...'))
   }
   const elapsed = startMeasureTime()
   try {
@@ -218,7 +214,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     const result = await fnOrPromise
     if (isTimed) {
       devLog.log()
-      devLog.log(chalk.green(`\n${chalk.green('◆')} ${chalk.bold(title)} OK ${chalk.gray(`in ${elapsed.toString()}`)}`))
+      devLog.log(term.green(`\n${term.green('◆')} ${term.bold(title)} OK ${term.gray(`in ${elapsed.toString()}`)}`))
       devLog.log()
     }
     return result
@@ -226,9 +222,9 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     if (isTimed || options.logError) {
       devLog.error()
       if (options.logError && (typeof error !== 'object' || error === null || !_errorLoggedSet.has(error))) {
-        devLog.error(`${chalk.bold(title)} FAILED in ${elapsed.toString()}`, error)
+        devLog.error(`${term.bold(title)} FAILED in ${elapsed.toString()}`, error)
       } else {
-        devLog.error(chalk.redBright(`${chalk.red('◆')} ${chalk.bold(title)} FAILED in ${elapsed.toString()}`))
+        devLog.error(term.redBright(`${term.red('◆')} ${term.bold(title)} FAILED in ${elapsed.toString()}`))
       }
       devLog.error()
     }
@@ -245,14 +241,14 @@ devLog.askConfirmation = async function askConfirmation(message: string, default
   }
   return new Promise((resolve) => {
     const rl = readline.createInterface(process.stdin, process.stdout)
-    const question = `${chalk.greenBright('?')} ${chalk.whiteBright(message)} ${chalk.gray(
+    const question = `${term.greenBright('?')} ${term.whiteBright(message)} ${term.gray(
       defaultValue ? '(Y/n)' : '(N/y)'
     )} `
     rl.question(question, (answer) => {
       rl.close()
       answer = (answer || '').trim()
       const confirm = /^[yY]/.test(answer || (defaultValue ? 'Y' : 'N'))
-      console.log(confirm ? chalk.greenBright('  Yes') : chalk.redBright('  No'))
+      console.log(confirm ? term.greenBright('  Yes') : term.redBright('  No'))
       console.log()
       resolve(confirm)
     })

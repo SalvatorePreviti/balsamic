@@ -87,6 +87,7 @@ export function getPackagesFolders(
     parent: Package
     id: string
     required: boolean
+    processed: boolean
   }
 
   const packageFolders = new Map<string, Package>()
@@ -162,7 +163,7 @@ export function getPackagesFolders(
           requiredQueue.push(entry)
         }
       } else {
-        entry = { parent: pkg, id, required }
+        entry = { parent: pkg, id, required, processed: false }
         ;(required ? requiredQueue : optionalQueue).push(entry)
         queueEntries.set(key, entry)
       }
@@ -249,6 +250,10 @@ export function getPackagesFolders(
     if (!entry) {
       break
     }
+    if (entry.processed) {
+      continue
+    }
+    entry.processed = true
     const parentPanifest = getManifest(entry.parent, entry.required)
     if (parentPanifest) {
       const resolvedPackagePath = (entry.required ? resolveModulePackageJson.forced : resolveModulePackageJson)(
