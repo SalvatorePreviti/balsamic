@@ -1,5 +1,6 @@
 import { devError } from './dev-error'
 import { devLog, getProcessTitle, setProcessTitle } from './dev-log'
+import { PromiseWithoutError } from './types'
 
 /** Runs lists of functions or promises in sequence */
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
@@ -63,7 +64,7 @@ export const asyncDelay = (ms: number) => new Promise((resolve) => setTimeout(re
 export function devRunMain<T = unknown>(
   main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | T,
   processTitle?: string
-): PromiseLike<T | undefined> {
+): PromiseWithoutError<T | Error> {
   let handledError: Error | undefined
 
   const devRunMainError = (error: any) => {
@@ -71,6 +72,8 @@ export function devRunMain<T = unknown>(
       handledError = error
       error = devError(error, devRunMain)
       devError.handleUncaughtException(error)
+    } else if (!(error instanceof Error)) {
+      error = devError(error, devRunMain)
     }
     return error
   }
@@ -86,6 +89,8 @@ export function devRunMain<T = unknown>(
     } else if (typeof main === 'object' && main !== null && !getProcessTitle.hasProcessTitle()) {
       setProcessTitle(main as any)
     }
+
+    devLog.printProcessBanner()
 
     if (!main) {
       return main as any

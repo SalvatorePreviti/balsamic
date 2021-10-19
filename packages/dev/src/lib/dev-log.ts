@@ -73,7 +73,7 @@ function errorOnce(message?: any, error?: any, caller?: any) {
 devLog.printProcessBanner = function printProcessBanner() {
   const processTitle = getProcessTitle()
   if (processTitle) {
-    devLog.log(`\n 🐻 ${term.cyanBright.bold(processTitle)}\n`)
+    devLog.log(`${term.blueBright('\n▌>')} ${term.rgb(100, 200, 255)(processTitle)}\n`)
   }
 }
 
@@ -213,8 +213,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
   }
   const isTimed = options.timed === undefined || !!options.timed
   if (isTimed && (options.printStarted === undefined || options.printStarted)) {
-    devLog.log()
-    devLog.log(term.cyan(`${term.cyan('◆')} ${term.bold(title)}`) + term.gray(' started...'))
+    devLog.log(term.cyan(`${term.cyan('◆')} ${title}`) + term.gray(' started...'))
   }
   const elapsed = startMeasureTime()
   try {
@@ -223,20 +222,18 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     }
     const result = await fnOrPromise
     if (isTimed) {
-      devLog.log()
-      devLog.log(term.green(`\n${term.green('◆')} ${term.bold(title)} OK ${term.gray(`in ${elapsed.toString()}`)}`))
-      devLog.log()
+      devLog.log(
+        term.green(`\n${term.green('✔')} ${title} ${term.bold('OK')} ${term.gray(`in ${elapsed.toString()}`)}`)
+      )
     }
     return result
   } catch (error) {
     if (isTimed || options.logError) {
-      devLog.error()
       if (options.logError && (typeof error !== 'object' || error === null || !_errorLoggedSet.has(error))) {
-        devLog.error(`${term.bold(title)} FAILED in ${elapsed.toString()}`, error)
+        devLog.error(`${title} FAILED in ${elapsed.toString()}`, error)
       } else {
-        devLog.error(term.redBright(`${term.red('◆')} ${term.bold(title)} FAILED in ${elapsed.toString()}`))
+        devLog.error(term.redBright(`${title} ${term.bold('FAILED')} in ${elapsed.toString()}`))
       }
-      devLog.error()
     }
     throw error
   }

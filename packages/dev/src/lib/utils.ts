@@ -11,7 +11,7 @@ const _timeUnits = [
   { unit: 'ms', amount: 1 / 1000 }
 ]
 
-export function millisecondsToString(milliseconds: number | readonly [number, number]) {
+export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
   if (Array.isArray(milliseconds)) {
     milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6
   }
@@ -37,6 +37,20 @@ export function millisecondsToString(milliseconds: number | readonly [number, nu
   return str.length > 0 ? (isNegative ? '-' : '') + str.trim() : `0ms`
 }
 
+/**
+ * Starts measuring time. Returns a function that when called gets the number of elapsed milliseconds.
+ * Calling toString on the result will get a prettyfied elapsed time string.
+ */
+export function startMeasureTime() {
+  const startTime = process.hrtime()
+  const elapsedMilliseconds = () => {
+    const diff = process.hrtime(startTime)
+    return (diff[0] * 1e9 + diff[1]) * 1e-6
+  }
+  elapsedMilliseconds.toString = () => millisecondsToString(process.hrtime(startTime))
+  return elapsedMilliseconds
+}
+
 /** Makes a path relative and nicely printable */
 export function makePathRelative(filePath: string | null | undefined, cwd?: string) {
   if (!filePath) {
@@ -54,20 +68,6 @@ export function makePathRelative(filePath: string | null | undefined, cwd?: stri
   } catch (_) {
     return filePath
   }
-}
-
-/**
- * Starts measuring time. Returns a function that when called gets the number of elapsed milliseconds.
- * Calling toString on the result will get a prettyfied elapsed time string.
- */
-export function startMeasureTime() {
-  const startTime = process.hrtime()
-  const elapsedMilliseconds = () => {
-    const diff = process.hrtime(startTime)
-    return (diff[0] * 1e9 + diff[1]) * 1e-6
-  }
-  elapsedMilliseconds.toString = () => millisecondsToString(process.hrtime(startTime))
-  return elapsedMilliseconds
 }
 
 /** Gets the length of an UTF8 string */
