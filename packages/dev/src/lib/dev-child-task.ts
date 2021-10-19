@@ -69,7 +69,7 @@ export const devChildTask = {
       showStack?: boolean
     } & DevLogTimeOptions = {}
   ) {
-    return devChildTask.spawn('npm', ['run', command, ...args], options)
+    return devChildTask.spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', command, ...args], options)
   }
 }
 

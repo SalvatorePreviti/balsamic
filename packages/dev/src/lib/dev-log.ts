@@ -42,6 +42,28 @@ devLog.log = (...args: unknown[]): void => {
   console.log(_devInspectForLogging(args))
 }
 
+export type TermBasicColor =
+  | 'black'
+  | 'red'
+  | 'green'
+  | 'yellow'
+  | 'blue'
+  | 'magenta'
+  | 'cyan'
+  | 'white'
+  | 'blackBright'
+  | 'redBright'
+  | 'greenBright'
+  | 'yellowBright'
+  | 'blueBright'
+  | 'magentaBright'
+  | 'cyanBright'
+  | 'whiteBright'
+
+devLog.logColor = (color: TermBasicColor, ...args: unknown[]): void => {
+  console.log(term[color](_devInspectForLogging(args)))
+}
+
 devLog.error = (...args: unknown[]): void => {
   if (args.length === 0) {
     console.error()
