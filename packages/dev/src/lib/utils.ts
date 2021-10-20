@@ -84,12 +84,12 @@ export function utf8ByteLength(b: number | string | Buffer | Uint8Array | null |
 /** Gets a size in bytes in an human readable form. */
 export function prettySize(
   bytes: number | string | Buffer | Uint8Array | null | undefined,
-  options?: { appendBytes?: boolean; fileType?: string | null }
+  options?: { appendBytes?: boolean }
 ) {
   if (bytes === null || bytes === undefined) {
     bytes = 0
   }
-  const appendBytes = !options || options.appendBytes === undefined || options.appendBytes
+  const appendBytes = !!options && options.appendBytes
   if (typeof bytes === 'object' || typeof bytes === 'string') {
     bytes = utf8ByteLength(bytes)
   }
@@ -103,9 +103,6 @@ export function prettySize(
     if (appendBytes) {
       s += `, ${bytes} Bytes`
     }
-  }
-  if (options && options.fileType) {
-    s = `${options.fileType} ${s}`
   }
   return s
 }
