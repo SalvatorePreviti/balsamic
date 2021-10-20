@@ -1,7 +1,8 @@
-import { devGetError } from '../../../esrun'
 import { devError } from './dev-error'
 import { devLog, getProcessTitle, setProcessTitle } from './dev-log'
 import { PromiseWithoutError } from './types'
+
+export const noop = () => {}
 
 export class Deferred<T> {
   public status: 'pending' | 'succeeded' | 'rejected' = 'pending'
@@ -10,6 +11,7 @@ export class Deferred<T> {
   public promise: Promise<T>
   public resolve: T extends undefined ? () => void : (value: T) => void
   public reject: (error: unknown) => void
+  private _unhandledRejectionIgnored?: true
 
   public constructor() {
     this.promise = new Promise<T>((_resolve, _reject) => {
@@ -23,12 +25,20 @@ export class Deferred<T> {
       const reject = (error: unknown) => {
         if (this.status === 'pending') {
           this.status = 'rejected'
-          _reject((this.error = devGetError(error, reject)))
+          _reject((this.error = devError(error, reject)))
         }
       }
       this.resolve = resolve as any
       this.reject = reject
     })
+  }
+
+  public ignoreUnhandledRejection(): this {
+    if (!this._unhandledRejectionIgnored) {
+      this._unhandledRejectionIgnored = true
+      this.promise.catch(noop)
+    }
+    return this
   }
 
   public get isPending() {
