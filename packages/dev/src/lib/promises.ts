@@ -1,6 +1,52 @@
+import { devGetError } from '../../../esrun'
 import { devError } from './dev-error'
 import { devLog, getProcessTitle, setProcessTitle } from './dev-log'
 import { PromiseWithoutError } from './types'
+
+export class Deferred<T> {
+  public status: 'pending' | 'succeeded' | 'rejected' = 'pending'
+  public error: Error | null = null
+  public result: T | undefined = undefined
+  public promise: Promise<T>
+  public resolve: T extends undefined ? () => void : (value: T) => void
+  public reject: (error: unknown) => void
+
+  public constructor() {
+    this.promise = new Promise<T>((_resolve, _reject) => {
+      const resolve = (value: any) => {
+        if (this.status === 'pending') {
+          this.status = 'succeeded'
+          this.result = value
+          _resolve(value)
+        }
+      }
+      const reject = (error: unknown) => {
+        if (this.status === 'pending') {
+          this.status = 'rejected'
+          _reject((this.error = devGetError(error, reject)))
+        }
+      }
+      this.resolve = resolve as any
+      this.reject = reject
+    })
+  }
+
+  public get isPending() {
+    return this.status === 'pending'
+  }
+
+  public get isSettled() {
+    return this.status !== 'pending'
+  }
+
+  public get isSucceeded() {
+    return this.status === 'succeeded'
+  }
+
+  public get isRejected() {
+    return this.status === 'rejected'
+  }
+}
 
 /** Runs lists of functions or promises in sequence */
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {

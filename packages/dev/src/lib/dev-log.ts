@@ -60,9 +60,28 @@ export type TermBasicColor =
   | 'cyanBright'
   | 'whiteBright'
 
-devLog.logColor = (color: TermBasicColor, ...args: unknown[]): void => {
-  console.log(term[color](_devInspectForLogging(args)))
+function logColor(color: TermBasicColor, ...args: unknown[]): void {
+  devLog.log(term[color](_devInspectForLogging(args)))
 }
+
+devLog.logBlack = (...args: unknown[]) => devLog.log(term.black(_devInspectForLogging(args)))
+devLog.logRed = (...args: unknown[]) => devLog.log(term.red(_devInspectForLogging(args)))
+devLog.logGreen = (...args: unknown[]) => devLog.log(term.green(_devInspectForLogging(args)))
+devLog.logYellow = (...args: unknown[]) => devLog.log(term.yellow(_devInspectForLogging(args)))
+devLog.logBlue = (...args: unknown[]) => devLog.log(term.blue(_devInspectForLogging(args)))
+devLog.logMagenta = (...args: unknown[]) => devLog.log(term.magenta(_devInspectForLogging(args)))
+devLog.logCyan = (...args: unknown[]) => devLog.log(term.cyan(_devInspectForLogging(args)))
+devLog.logWhite = (...args: unknown[]) => devLog.log(term.white(_devInspectForLogging(args)))
+devLog.logBlackBright = (...args: unknown[]) => devLog.log(term.blackBright(_devInspectForLogging(args)))
+devLog.logRedBright = (...args: unknown[]) => devLog.log(term.redBright(_devInspectForLogging(args)))
+devLog.logGreenBright = (...args: unknown[]) => devLog.log(term.greenBright(_devInspectForLogging(args)))
+devLog.logYellowBright = (...args: unknown[]) => devLog.log(term.yellowBright(_devInspectForLogging(args)))
+devLog.logBlueBright = (...args: unknown[]) => devLog.log(term.blueBright(_devInspectForLogging(args)))
+devLog.logMagentaBright = (...args: unknown[]) => devLog.log(term.magentaBright(_devInspectForLogging(args)))
+devLog.logCyanBright = (...args: unknown[]) => devLog.log(term.cyanBright(_devInspectForLogging(args)))
+devLog.logWhiteBright = (...args: unknown[]) => devLog.log(term.whiteBright(_devInspectForLogging(args)))
+
+devLog.logColor = logColor
 
 devLog.error = (...args: unknown[]): void => {
   if (args.length === 0) {
