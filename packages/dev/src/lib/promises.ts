@@ -118,10 +118,18 @@ export const asyncDelay = (ms: number) => new Promise((resolve) => setTimeout(re
 
 /** Top level run of functions and promises */
 export function devRunMain<T = unknown>(
-  main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | T,
+  main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
   processTitle?: string
-): PromiseWithoutError<T | Error> {
+): PromiseWithoutError<T | Error>
+
+export function devRunMain<T extends null | false | undefined>(main: T, processTitle?: string): Promise<T>
+
+export function devRunMain<T = unknown>(main: any, processTitle?: string): PromiseWithoutError<T | Error> {
   let handledError: Error | undefined
+
+  if (main === false || main === undefined || main === null) {
+    return Promise.resolve(main)
+  }
 
   const devRunMainError = (error: any) => {
     if (handledError !== error) {
@@ -158,7 +166,7 @@ export function devRunMain<T = unknown>(
       }
     }
 
-    let result
+    let result: any
     if (typeof main === 'function') {
       result = (main as any)()
     }

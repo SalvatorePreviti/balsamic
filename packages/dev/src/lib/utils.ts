@@ -1,4 +1,5 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
 
 export const initialCwd = process.cwd()
 
@@ -124,4 +125,46 @@ export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | b
   return (text[0] === 0xfe && text[1] === 0xff) || (text[0] === 0xff && text[1] === 0xfe)
     ? text.toString('utf8', 2)
     : text.toString()
+}
+
+/** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
+export function isMainModule(
+  module:
+    | string
+    | URL
+    | Partial<Readonly<NodeModule>>
+    | { url?: string }
+    | { filename?: string }
+    | { href?: string }
+    | false
+    | null
+    | undefined
+) {
+  if (!module) {
+    return false
+  }
+  if (process.mainModule === module || require.main === module) {
+    return true
+  }
+  if (typeof module === 'object') {
+    module = (module as any).url || (module as any).href || (module as any).filename || (module as any).id
+  }
+  if (typeof module !== 'string' || !module.length) {
+    return false
+  }
+  if (/^file:\/\//i.test(module)) {
+    if (process.argv[1] === module) {
+      return true
+    }
+    try {
+      module = path.resolve(fileURLToPath(module))
+    } catch (_) {}
+  }
+  const scriptPath = path.resolve(process.argv[1])
+  return module === scriptPath || stripExt(module) === scriptPath
+}
+
+function stripExt(name: string) {
+  const extension = path.extname(name)
+  return extension ? name.slice(0, -extension.length) : name
 }
