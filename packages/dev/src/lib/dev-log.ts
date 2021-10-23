@@ -1,12 +1,12 @@
-import type { Awaited } from './types'
+import type { Awaited } from '../types'
 import util from 'util'
-import term from 'chalk'
+import colors from 'chalk'
 import { initialCwd, makePathRelative, millisecondsToString, startMeasureTime } from './utils'
 import { fileURLToPath } from 'url'
 import { devError } from './dev-error'
 import readline from 'readline'
 
-export { term }
+export { colors }
 
 let _logProcessTimeInitialized = false
 const _errorLoggedSet = new WeakSet<any>()
@@ -34,7 +34,7 @@ export function devLog(...args: unknown[]): void {
 
 devLog.inspectOptions = {
   ...util.inspect.defaultOptions,
-  colors: !!term.supportsColor && term.supportsColor.hasBasic,
+  colors: !!colors.supportsColor && colors.supportsColor.hasBasic,
   depth: Math.max(8, util.inspect.defaultOptions.depth || 0)
 }
 
@@ -60,34 +60,30 @@ export type TermBasicColor =
   | 'cyanBright'
   | 'whiteBright'
 
-function logColor(color: TermBasicColor, ...args: unknown[]): void {
-  devLog.log(term[color](_devInspectForLogging(args)))
-}
+devLog.logBlack = (...args: unknown[]) => devLog.log(colors.black(_devInspectForLogging(args)))
+devLog.logRed = (...args: unknown[]) => devLog.log(colors.red(_devInspectForLogging(args)))
+devLog.logGreen = (...args: unknown[]) => devLog.log(colors.green(_devInspectForLogging(args)))
+devLog.logYellow = (...args: unknown[]) => devLog.log(colors.yellow(_devInspectForLogging(args)))
+devLog.logBlue = (...args: unknown[]) => devLog.log(colors.blue(_devInspectForLogging(args)))
+devLog.logMagenta = (...args: unknown[]) => devLog.log(colors.magenta(_devInspectForLogging(args)))
+devLog.logCyan = (...args: unknown[]) => devLog.log(colors.cyan(_devInspectForLogging(args)))
+devLog.logWhite = (...args: unknown[]) => devLog.log(colors.white(_devInspectForLogging(args)))
+devLog.logBlackBright = (...args: unknown[]) => devLog.log(colors.blackBright(_devInspectForLogging(args)))
+devLog.logRedBright = (...args: unknown[]) => devLog.log(colors.redBright(_devInspectForLogging(args)))
+devLog.logGreenBright = (...args: unknown[]) => devLog.log(colors.greenBright(_devInspectForLogging(args)))
+devLog.logYellowBright = (...args: unknown[]) => devLog.log(colors.yellowBright(_devInspectForLogging(args)))
+devLog.logBlueBright = (...args: unknown[]) => devLog.log(colors.blueBright(_devInspectForLogging(args)))
+devLog.logMagentaBright = (...args: unknown[]) => devLog.log(colors.magentaBright(_devInspectForLogging(args)))
+devLog.logCyanBright = (...args: unknown[]) => devLog.log(colors.cyanBright(_devInspectForLogging(args)))
+devLog.logWhiteBright = (...args: unknown[]) => devLog.log(colors.whiteBright(_devInspectForLogging(args)))
 
-devLog.logBlack = (...args: unknown[]) => devLog.log(term.black(_devInspectForLogging(args)))
-devLog.logRed = (...args: unknown[]) => devLog.log(term.red(_devInspectForLogging(args)))
-devLog.logGreen = (...args: unknown[]) => devLog.log(term.green(_devInspectForLogging(args)))
-devLog.logYellow = (...args: unknown[]) => devLog.log(term.yellow(_devInspectForLogging(args)))
-devLog.logBlue = (...args: unknown[]) => devLog.log(term.blue(_devInspectForLogging(args)))
-devLog.logMagenta = (...args: unknown[]) => devLog.log(term.magenta(_devInspectForLogging(args)))
-devLog.logCyan = (...args: unknown[]) => devLog.log(term.cyan(_devInspectForLogging(args)))
-devLog.logWhite = (...args: unknown[]) => devLog.log(term.white(_devInspectForLogging(args)))
-devLog.logBlackBright = (...args: unknown[]) => devLog.log(term.blackBright(_devInspectForLogging(args)))
-devLog.logRedBright = (...args: unknown[]) => devLog.log(term.redBright(_devInspectForLogging(args)))
-devLog.logGreenBright = (...args: unknown[]) => devLog.log(term.greenBright(_devInspectForLogging(args)))
-devLog.logYellowBright = (...args: unknown[]) => devLog.log(term.yellowBright(_devInspectForLogging(args)))
-devLog.logBlueBright = (...args: unknown[]) => devLog.log(term.blueBright(_devInspectForLogging(args)))
-devLog.logMagentaBright = (...args: unknown[]) => devLog.log(term.magentaBright(_devInspectForLogging(args)))
-devLog.logCyanBright = (...args: unknown[]) => devLog.log(term.cyanBright(_devInspectForLogging(args)))
-devLog.logWhiteBright = (...args: unknown[]) => devLog.log(term.whiteBright(_devInspectForLogging(args)))
-
-devLog.logColor = logColor
+devLog.logColor = (color: TermBasicColor, ...args: unknown[]) => devLog.log(colors[color](_devInspectForLogging(args)))
 
 devLog.error = (...args: unknown[]): void => {
   if (args.length === 0) {
     console.error()
   } else {
-    console.error(term.redBright(`❌ ${term.underline('ERROR')}: ${_devInspectForLogging(args)}`))
+    console.error(colors.redBright(`❌ ${colors.underline('ERROR')}: ${_devInspectForLogging(args)}`))
   }
 }
 
@@ -114,7 +110,7 @@ function errorOnce(message?: any, error?: any, caller?: any) {
 devLog.printProcessBanner = function printProcessBanner() {
   const processTitle = getProcessTitle()
   if (processTitle) {
-    devLog.log(`${term.blueBright('\n▌>')} ${term.rgb(100, 200, 255)(processTitle)}\n`)
+    devLog.log(`${colors.blueBright('\n⬢')} ${colors.rgb(100, 200, 255)(processTitle)}\n`)
   }
 }
 
@@ -138,9 +134,9 @@ devLog.dev = (...args: unknown[]): void => {
     }
   }
   devLog.log(
-    term.blueBright(`${term.underline('DEV')}: `) +
-      term.blueBright(_devInspectForLogging(args)) +
-      (devLine ? `\n     ${term.blueBright(devLine)}` : '')
+    colors.blueBright(`${colors.underline('DEV')}: `) +
+      colors.blueBright(_devInspectForLogging(args)) +
+      (devLine ? `\n     ${colors.blueBright(devLine)}` : '')
   )
 }
 
@@ -149,7 +145,11 @@ devLog.warn = (...args: unknown[]): void => {
     console.warn()
   } else {
     console.warn(
-      term.rgb(200, 200, 50)(`${term.yellowBright(`⚠️  ${term.underline('WARNING')}:`)} ${_devInspectForLogging(args)}`)
+      colors.rgb(
+        200,
+        200,
+        50
+      )(`${colors.yellowBright(`⚠️  ${colors.underline('WARNING')}:`)} ${_devInspectForLogging(args)}`)
     )
   }
 }
@@ -158,7 +158,7 @@ devLog.info = (...args: unknown[]): void => {
   if (args.length === 0) {
     console.info()
   } else {
-    console.info(term.cyan(`${term.cyanBright(`ℹ️  ${term.underline('INFO')}:`)} ${_devInspectForLogging(args)}`))
+    console.info(colors.cyan(`${colors.cyanBright(`ℹ️  ${colors.underline('INFO')}:`)} ${_devInspectForLogging(args)}`))
   }
 }
 
@@ -210,12 +210,16 @@ devLog.initProcessTime = () => {
     const exitCode = process.exitCode
     if (exitCode) {
       devLog.log(
-        term.redBright(
-          `\n😡 ${getProcessTitle()} ${term.redBright.bold.underline('FAILED')} in ${elapsed}. exitCode: ${exitCode}\n`
+        colors.redBright(
+          `\n😡 ${getProcessTitle()} ${colors.redBright.bold.underline(
+            'FAILED'
+          )} in ${elapsed}. exitCode: ${exitCode}\n`
         )
       )
     } else {
-      devLog.log(term.greenBright(`\n✅ ${getProcessTitle()} ${term.bold('OK')} ${term.green(`in ${elapsed}`)}\n`))
+      devLog.log(
+        colors.greenBright(`\n✅ ${getProcessTitle()} ${colors.bold('OK')} ${colors.green(`in ${elapsed}`)}\n`)
+      )
     }
   }
   process.once('exit', handleExit)
@@ -254,7 +258,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
   }
   const isTimed = options.timed === undefined || !!options.timed
   if (isTimed && (options.printStarted === undefined || options.printStarted)) {
-    devLog.log(term.cyan(`${term.cyan('◆')} ${title}`) + term.gray(' started...'))
+    devLog.log(colors.cyan(`${colors.cyan('◆')} ${title}`) + colors.gray(' started...'))
   }
   const elapsed = startMeasureTime()
   try {
@@ -264,7 +268,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     const result = await fnOrPromise
     if (isTimed) {
       devLog.log(
-        term.green(`\n${term.green('✔')} ${title} ${term.bold('OK')} ${term.gray(`in ${elapsed.toString()}`)}`)
+        colors.green(`\n${colors.green('✔')} ${title} ${colors.bold('OK')} ${colors.gray(`in ${elapsed.toString()}`)}`)
       )
     }
     return result
@@ -273,7 +277,7 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
       if (options.logError && (typeof error !== 'object' || error === null || !_errorLoggedSet.has(error))) {
         devLog.error(`${title} FAILED in ${elapsed.toString()}`, error)
       } else {
-        devLog.error(term.redBright(`${title} ${term.bold('FAILED')} in ${elapsed.toString()}`))
+        devLog.error(colors.redBright(`${title} ${colors.bold('FAILED')} in ${elapsed.toString()}`))
       }
     }
     throw error
@@ -289,14 +293,14 @@ devLog.askConfirmation = async function askConfirmation(message: string, default
   }
   return new Promise((resolve) => {
     const rl = readline.createInterface(process.stdin, process.stdout)
-    const question = `${term.greenBright('?')} ${term.whiteBright(message)} ${term.gray(
+    const question = `${colors.greenBright('?')} ${colors.whiteBright(message)} ${colors.gray(
       defaultValue ? '(Y/n)' : '(N/y)'
     )} `
     rl.question(question, (answer) => {
       rl.close()
       answer = (answer || '').trim()
       const confirm = /^[yY]/.test(answer || (defaultValue ? 'Y' : 'N'))
-      console.log(confirm ? term.greenBright('  Yes') : term.redBright('  No'))
+      console.log(confirm ? colors.greenBright('  Yes') : colors.redBright('  No'))
       console.log()
       resolve(confirm)
     })

@@ -1,6 +1,5 @@
 import { devError } from './dev-error'
-import { devLog, getProcessTitle, setProcessTitle } from './dev-log'
-import { PromiseWithoutError } from './types'
+import { devLog } from './dev-log'
 
 export const noop = () => {}
 
@@ -115,75 +114,3 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
 
 /** Asynchronous delay. Returns a promise that is resolved after some time. */
 export const asyncDelay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-/** Top level run of functions and promises */
-export function devRunMain<T = unknown>(
-  main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
-  processTitle?: string
-): PromiseWithoutError<T | Error>
-
-export function devRunMain<T extends null | false | undefined>(main: T, processTitle?: string): Promise<T>
-
-export function devRunMain<T = unknown>(main: any, processTitle?: string): PromiseWithoutError<T | Error> {
-  let handledError: Error | undefined
-
-  if (main === false || main === undefined || main === null) {
-    return Promise.resolve(main)
-  }
-
-  const devRunMainError = (error: any) => {
-    if (handledError !== error) {
-      handledError = error
-      error = devError(error, devRunMain)
-      devError.handleUncaughtException(error)
-    } else if (!(error instanceof Error)) {
-      error = devError(error, devRunMain)
-    }
-    return error
-  }
-
-  let promise: Promise<any> | null = null
-
-  try {
-    devError.initErrorHandling()
-    devLog.initProcessTime()
-
-    if (processTitle) {
-      setProcessTitle(processTitle)
-    } else if (typeof main === 'object' && main !== null && !getProcessTitle.hasProcessTitle()) {
-      setProcessTitle(main as any)
-    }
-
-    devLog.printProcessBanner()
-
-    if (!main) {
-      return main as any
-    }
-
-    if (main !== null && typeof main === 'object') {
-      if ('exports' in main) {
-        main = main.exports
-      }
-    }
-
-    let result: any
-    if (typeof main === 'function') {
-      result = (main as any)()
-    }
-
-    if (typeof result === 'object' && result !== null) {
-      if (typeof result.catch === 'function') {
-        promise = result.catch(devRunMainError)
-      } else if (typeof result.then === 'function') {
-        promise = result.then((x: any) => x, devRunMainError)
-      }
-    }
-    promise = Promise.resolve(result)
-  } catch (error) {
-    if (!promise) {
-      promise = Promise.resolve(devRunMainError(error))
-    }
-  }
-
-  return promise
-}

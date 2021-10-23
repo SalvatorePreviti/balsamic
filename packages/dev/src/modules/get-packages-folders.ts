@@ -1,5 +1,5 @@
-import type { PackageJson } from './types'
-import { toUTF8 } from './utils'
+import type { PackageJson } from '../types'
+import { toUTF8 } from '../lib/utils'
 import fs from 'fs'
 import path from 'path'
 import { resolveModulePackageJson } from './resolve'

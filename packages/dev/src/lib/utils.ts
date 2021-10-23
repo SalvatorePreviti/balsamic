@@ -1,5 +1,6 @@
 import path from 'path'
-import { fileURLToPath } from 'url'
+
+const { round, floor, ceil, min, log, abs } = Math
 
 export const initialCwd = process.cwd()
 
@@ -25,11 +26,7 @@ export function millisecondsToString(milliseconds: number | string | readonly [n
   let n = (isNegative ? -milliseconds : milliseconds) / 1000
   for (const { unit, amount } of _timeUnits) {
     const v =
-      unit === 'ms'
-        ? milliseconds > 500
-          ? Math.round(n / amount)
-          : Math.round((n / amount) * 100) / 100
-        : Math.floor(n / amount)
+      unit === 'ms' ? (milliseconds > 500 ? round(n / amount) : round((n / amount) * 100) / 100) : floor(n / amount)
     if (v) {
       str += `${v}${unit} `
     }
@@ -94,12 +91,12 @@ export function prettySize(
   if (typeof bytes === 'object' || typeof bytes === 'string') {
     bytes = utf8ByteLength(bytes)
   }
-  bytes = bytes < 0 ? Math.floor(bytes) : Math.ceil(bytes)
+  bytes = bytes < 0 ? floor(bytes) : ceil(bytes)
   let s
   if (!isFinite(bytes) || bytes < 1024) {
     s = `${bytes} ${appendBytes ? 'Bytes' : 'B'}`
   } else {
-    const i = Math.min(Math.floor(Math.log(Math.abs(bytes)) / Math.log(1024)), 6)
+    const i = min(floor(log(abs(bytes)) / log(1024)), 6)
     s = `${+(bytes / 1024 ** i).toFixed(2)} ${i ? ' kMGTPE'[i] : ''}`
     if (appendBytes) {
       s += `, ${bytes} Bytes`
@@ -125,46 +122,4 @@ export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | b
   return (text[0] === 0xfe && text[1] === 0xff) || (text[0] === 0xff && text[1] === 0xfe)
     ? text.toString('utf8', 2)
     : text.toString()
-}
-
-/** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
-export function isMainModule(
-  module:
-    | string
-    | URL
-    | Partial<Readonly<NodeModule>>
-    | { url?: string }
-    | { filename?: string }
-    | { href?: string }
-    | false
-    | null
-    | undefined
-) {
-  if (!module) {
-    return false
-  }
-  if (process.mainModule === module || require.main === module) {
-    return true
-  }
-  if (typeof module === 'object') {
-    module = (module as any).url || (module as any).href || (module as any).filename || (module as any).id
-  }
-  if (typeof module !== 'string' || !module.length) {
-    return false
-  }
-  if (/^file:\/\//i.test(module)) {
-    if (process.argv[1] === module) {
-      return true
-    }
-    try {
-      module = path.resolve(fileURLToPath(module))
-    } catch (_) {}
-  }
-  const scriptPath = path.resolve(process.argv[1])
-  return module === scriptPath || stripExt(module) === scriptPath
-}
-
-function stripExt(name: string) {
-  const extension = path.extname(name)
-  return extension ? name.slice(0, -extension.length) : name
 }

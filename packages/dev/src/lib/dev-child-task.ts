@@ -2,7 +2,7 @@ import child_process from 'child_process'
 import { devError } from './dev-error'
 import { devLog } from './dev-log'
 import type { DevLogTimeOptions } from './dev-log'
-import { resolveModuleBin } from './resolve'
+import { resolveModuleBin } from '../modules/resolve'
 
 export const devChildTask = {
   /** Spawn a new process, redirect stdio and await for completion. */
