@@ -152,28 +152,22 @@ export class NodeJsonFile<Type = any> extends NodeFile {
 
   protected loadJSON(): Type | undefined {
     const fullFilePath = this.path
-    const _require = this.require
     const cache = this.resolver.requireCache
     const cached = cache[fullFilePath]
     if (cached) {
       return cached.exports
     }
-    let parsed: any
     try {
-      parsed = _require(fullFilePath)
+      const parsed = JSON.parse(toUTF8(fs.readFileSync(this.path, 'utf8'))) // TODO: parse JSONC
+      const module = new Module(fullFilePath)
+      module.filename = fullFilePath
+      module.loaded = true
+      module.paths = [path.dirname(fullFilePath)]
+      cache[fullFilePath] = module
+      return parsed
     } catch (_) {}
-    if (!parsed) {
-      try {
-        parsed = JSON.parse(toUTF8(fs.readFileSync(this.path, 'utf8'))) // TODO: parse JSONC
-        const module = new Module(fullFilePath)
-        module.filename = fullFilePath
-        module.loaded = true
-        module.paths = [path.dirname(fullFilePath)]
-        cache[fullFilePath] = module
-        return parsed
-      } catch (_) {}
-    }
-    return parsed
+
+    return undefined
   }
 }
 
