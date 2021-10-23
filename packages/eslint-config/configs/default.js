@@ -588,8 +588,7 @@ const eslintConfig = {
     {
       files: ['*.ts', '*.tsx'],
       rules: {
-        'import/export': 0,
-        '@typescript-eslint/explicit-member-accessibility': 1
+        'import/export': 0
       }
     },
     {
@@ -598,7 +597,6 @@ const eslintConfig = {
         'no-var': 0,
         'import/export': 0,
         'import/no-default-export': 0,
-        '@typescript-eslint/explicit-member-accessibility': 0,
         '@typescript-eslint/no-redeclare': 0
       }
     },

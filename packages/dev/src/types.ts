@@ -1,5 +1,49 @@
 /// <reference types="node" />
 
+import type {
+  CompilerOptions as TypescriptCompilerOptions,
+  BuildOptions as TypescriptBuildOptions,
+  TypeAcquisition as TypescriptTypeAcquisition,
+  ProjectReference as TypescriptProjectReference,
+  WatchOptions as TypescriptWatchOptions,
+  CompilerOptionsValue as TypescriptCompilerOptionsValue
+} from 'typescript'
+
+export interface TypescriptTsNodeOptions {
+  transpileOnly?: boolean
+  files?: boolean
+  compilerOptions?: TypescriptCompilerOptions
+  [option: string]: unknown | undefined
+}
+
+export interface TsConfig {
+  extends?: string
+  compilerOptions?: TypescriptCompilerOptions
+  buildOptions?: TypescriptBuildOptions
+  compileOnSave?: boolean
+  typeAcquisition?: TypescriptTypeAcquisition
+  include?: string[]
+  exclude?: string[]
+  files?: string[]
+  references?: TypescriptProjectReference
+  watchOptions?: TypescriptWatchOptions
+  'ts-node'?: TypescriptTsNodeOptions
+  [option: string]:
+    | TypescriptCompilerOptionsValue
+    | TypescriptCompilerOptions
+    | TypescriptProjectReference
+    | TypescriptTsNodeOptions
+    | undefined
+}
+
+export type {
+  TypescriptCompilerOptions,
+  TypescriptBuildOptions,
+  TypescriptTypeAcquisition,
+  TypescriptProjectReference,
+  TypescriptWatchOptions
+}
+
 declare global {
   export interface Error {
     showStack?: boolean

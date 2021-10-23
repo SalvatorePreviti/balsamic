@@ -1,8 +1,6 @@
 import type { PackageJson } from '../types'
-import { toUTF8 } from '../lib/utils'
-import fs from 'fs'
 import path from 'path'
-import { resolveModulePackageJson } from './resolve'
+import { NodeResolver } from './node-resolver'
 
 export interface GetPackagesFoldersOptions {
   /** If true, packages hosted inside a package node_modules will not be returned. Default is true. */
@@ -68,7 +66,8 @@ export interface PackagesFolderResult {
  */
 export function getPackagesFolders(
   input: string | Readonly<PackagesFolderInput> | Iterable<PackagesFolderInput | string | null | undefined>,
-  options: GetPackagesFoldersOptions = {}
+  options: GetPackagesFoldersOptions = {},
+  resolver: NodeResolver = NodeResolver.default
 ): PackagesFolderResult {
   interface Package {
     directory: string
@@ -123,14 +122,14 @@ export function getPackagesFolders(
   }
 
   const loadPackage = (packageJsonPath: string, level: number): Package => {
-    let manifest: PackageJson | null = null
-    try {
-      manifest = JSON.parse(toUTF8(fs.readFileSync(packageJsonPath, 'utf8'))) || null
-    } catch (_) {}
+    const pkgJson = resolver.getPackageJsonFile(packageJsonPath)
+    const manifest = pkgJson ? pkgJson.json || null : null
 
     const directory = path.dirname(packageJsonPath)
     const name =
-      (manifest && typeof manifest.name === 'string' && manifest.name) || getPackageNameFromDirectory(directory)
+      (manifest && typeof manifest.name === 'string' && manifest.name) ||
+      pkgJson?.packageName ||
+      path.basename(packageJsonPath)
 
     const include = !!manifest && !(exclusion.has(name) || exclusion.has(packageJsonPath) || exclusion.has(directory))
 
@@ -157,8 +156,8 @@ export function getPackagesFolders(
   }
 
   const resolvePackage = (parent: Package, id: string): Package | null => {
-    const resolvedPackagePath = resolveModulePackageJson(id, parent.directory)
-    return resolvedPackagePath ? getPackage(resolvedPackagePath, parent.level + 1) : null
+    const resolvedPackagePath = resolver.resolvePackage(id, parent.directory)
+    return resolvedPackagePath ? getPackage(resolvedPackagePath.path, parent.level + 1) : null
   }
 
   const addInput = (inputItem: string | Readonly<PackagesFolderInput>) => {
@@ -315,8 +314,6 @@ export function getPackagesFolders(
   }
 }
 
-function getPackageNameFromDirectory(directory: string): string {
-  const parent = path.dirname(directory)
-  const grandparent = path.dirname(parent)
-  return grandparent !== parent && grandparent.startsWith('@') ? `${grandparent}/${parent}` : parent
-}
+console.time('a')
+console.log(getPackagesFolders({ path: '../../bp/Argand-MMP' }).items.length)
+console.timeEnd('a')

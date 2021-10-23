@@ -2,7 +2,7 @@ import child_process from 'child_process'
 import { devError } from './dev-error'
 import { devLog } from './dev-log'
 import type { DevLogTimeOptions } from './dev-log'
-import { resolveModuleBin } from '../modules/resolve'
+import { NodeResolver } from '..'
 
 export const devChildTask = {
   /** Spawn a new process, redirect stdio and await for completion. */
@@ -57,7 +57,11 @@ export const devChildTask = {
       showStack?: boolean
     } & DevLogTimeOptions = {}
   ) {
-    return devChildTask.fork(resolveModuleBin(moduleId, executableId, options.cwd), args, options)
+    const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd)
+    if (!resolved) {
+      throw new Error(`Could not find ${moduleId}:${executableId}`)
+    }
+    return devChildTask.fork(resolved, args, options)
   },
 
   /** Executes npm run <command> [args] */

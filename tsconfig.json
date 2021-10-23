@@ -1,4 +1,3 @@
 {
-  "extends": "./packages/eslint-config/tsconfig.json",
-  "compilerOptions": {}
+  "extends": "./packages/eslint-config/tsconfig.json"
 }
