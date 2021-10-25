@@ -4,11 +4,19 @@ import { devLog } from './dev-log'
 import type { DevLogTimeOptions } from './dev-log'
 import { resolveModuleBin } from '../modules/resolve'
 
+type DevChildTaskArg = string | null | undefined | number | false
+
+function getDevChildTaskArgs(args: readonly DevChildTaskArg[]) {
+  return args
+    .filter((arg) => arg !== null && arg !== undefined && arg !== false)
+    .map((arg) => (typeof arg !== 'string' ? `${arg}` : arg))
+}
+
 export const devChildTask = {
   /** Spawn a new process, redirect stdio and await for completion. */
   async spawn(
     command: string,
-    args: readonly string[] = [],
+    args: readonly DevChildTaskArg[] = [],
     options?: child_process.SpawnOptions & { title?: string; showStack?: boolean } & DevLogTimeOptions
   ) {
     const cmd = [command, ...args].join(' ')
@@ -19,7 +27,7 @@ export const devChildTask = {
     }
     const spawn = () =>
       _awaitChildProcess(
-        child_process.spawn(command, args, { env: process.env, stdio: 'inherit', ...options }),
+        child_process.spawn(command, getDevChildTaskArgs(args), { env: process.env, stdio: 'inherit', ...options }),
         cmd,
         exitError
       )
@@ -29,7 +37,7 @@ export const devChildTask = {
   /** Forks the node process that runs the given module, redirect stdio and await for completion. */
   async fork(
     moduleId: string,
-    args: readonly string[] = [],
+    args: readonly DevChildTaskArg[] = [],
     options?: child_process.ForkOptions & { title?: string; showStack?: boolean } & DevLogTimeOptions
   ) {
     const cmd = [moduleId, ...args].join(' ')
@@ -40,7 +48,7 @@ export const devChildTask = {
     }
     const fork = () =>
       _awaitChildProcess(
-        child_process.fork(moduleId, args, { env: process.env, stdio: 'inherit', ...options }),
+        child_process.fork(moduleId, getDevChildTaskArgs(args), { env: process.env, stdio: 'inherit', ...options }),
         cmd,
         exitError
       )
@@ -51,7 +59,7 @@ export const devChildTask = {
   async runModuleBin(
     moduleId: string,
     executableId: string,
-    args: readonly string[] = [],
+    args: readonly DevChildTaskArg[] = [],
     options: child_process.ForkOptions & {
       title?: string
       showStack?: boolean
@@ -63,7 +71,7 @@ export const devChildTask = {
   /** Executes npm run <command> [args] */
   async npmRun(
     command: string,
-    args: readonly string[] = [],
+    args: readonly DevChildTaskArg[] = [],
     options: child_process.SpawnOptions & {
       title?: string
       showStack?: boolean

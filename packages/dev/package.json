@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,6 +32,6 @@
     "resolve-package-path": "^4.0.3"
   },
   "devDependencies": {
-    "@types/node": "^16.11.1"
+    "@types/node": "^16.11.4"
   }
 }
