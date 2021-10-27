@@ -91,13 +91,13 @@ export abstract class NodeFsEntry {
 
   /** Resolves the bin executable of the base package.json for this directory */
   public resolvePackageBin(moduleId: string, executableId?: string): string | null {
-    const packageJson = this.packageJson
+    const packageJson = moduleId ? this.resolvePackage(moduleId) : this.packageJson
     if (packageJson) {
       const dir = packageJson.file.parentDirectory
       const content = packageJson.manifest
       if (content) {
         const { bin } = content
-        const binFile = !bin || typeof bin === 'string' ? bin : bin[executableId || this.basename]
+        const binFile = bin ? (typeof bin === 'string' ? bin : bin[executableId || this.basename]) : moduleId
         return (binFile && dir.nodeResolve(path.resolve(dir.path, binFile))) || null
       }
     }
