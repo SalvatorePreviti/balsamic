@@ -1,7 +1,7 @@
 import type { PackageJson } from '../types'
 import path from 'path'
 import { NodeResolver } from './node-resolver'
-import { NodePackageJsonFile } from '.'
+import { NodePackageJson } from '.'
 
 export interface GetPackagesFoldersOptions {
   /** If true, packages hosted inside a package node_modules will not be returned. Default is true. */
@@ -11,7 +11,7 @@ export interface GetPackagesFoldersOptions {
   unique?: boolean
 
   /** An optional callback to check if a package can be included or not. */
-  filter?: (pkg: NodePackageJsonFile) => boolean
+  filter?: (pkg: NodePackageJson) => boolean
 }
 
 export interface PackagesFolderInput {
@@ -65,35 +65,35 @@ export function getPackagesFolders(
   resolver: NodeResolver = NodeResolver.default
 ): PackagesFolderResult {
   interface QueueEntry {
-    parent: NodePackageJsonFile
-    file: NodePackageJsonFile
+    parent: NodePackageJson
+    package: NodePackageJson
   }
 
-  const exclusion = new Set<NodePackageJsonFile>()
-  const packagesLevels = new Map<NodePackageJsonFile, number>()
-  const inputPackages = new Map<NodePackageJsonFile, Required<PackagesFolderInput>>()
+  const exclusion = new Set<NodePackageJson>()
+  const packagesLevels = new Map<NodePackageJson, number>()
+  const inputPackages = new Map<NodePackageJson, Required<PackagesFolderInput>>()
   const queueEntries = new Set<string>()
   const queue: QueueEntry[] = []
   let queuePosition: number = 0
 
   const filter = options.filter
-  const canIncludePackage = (pkg: NodePackageJsonFile): boolean =>
-    !!pkg.json && !exclusion.has(pkg) && (!filter || filter(pkg))
+  const canIncludePackage = (pkg: NodePackageJson): boolean => !exclusion.has(pkg) && (!filter || filter(pkg))
 
-  const enqueueDependency = (parent: NodePackageJsonFile, id: string) => {
-    const key = `${parent.path}*${id}`
+  const enqueueDependency = (parent: NodePackageJson, id: string) => {
+    const dir = parent.file.parentDirectory
+    const key = `${dir.path}\t${id}`
     if (!queueEntries.has(key)) {
       queueEntries.add(key)
       if (packagesLevels.get(parent) === 0 || canIncludePackage(parent)) {
-        const file = parent.resolvePackage(id)
-        if (file) {
-          queue.push({ parent, file })
+        const pkg = dir.resolvePackage(id)
+        if (pkg) {
+          queue.push({ parent, package: pkg })
         }
       }
     }
   }
 
-  const enqueueDependencies = (parent: NodePackageJsonFile, entries: Record<string, unknown> | undefined | false) => {
+  const enqueueDependencies = (parent: NodePackageJson, entries: Record<string, unknown> | undefined | false) => {
     if (typeof entries === 'object' && entries !== null && !Array.isArray(entries)) {
       for (const key of Object.keys(entries).sort()) {
         enqueueDependency(parent, key)
@@ -101,18 +101,18 @@ export function getPackagesFolders(
     }
   }
 
-  const enqueuePackage = (file: NodePackageJsonFile, level: number) => {
-    const oldLevel = packagesLevels.get(file)
+  const enqueuePackage = (pkg: NodePackageJson, level: number) => {
+    const oldLevel = packagesLevels.get(pkg)
     if (oldLevel === undefined) {
-      packagesLevels.set(file, level)
-      const json = file.json
-      if (json && canIncludePackage(file) && level > 0) {
-        enqueueDependencies(file, json.dependencies)
-        enqueueDependencies(file, json.peerDependencies)
-        enqueueDependencies(file, json.optionalDependencies)
+      packagesLevels.set(pkg, level)
+      const content = pkg.manifest
+      if (content && canIncludePackage(pkg) && level > 0) {
+        enqueueDependencies(pkg, content.dependencies)
+        enqueueDependencies(pkg, content.peerDependencies)
+        enqueueDependencies(pkg, content.optionalDependencies)
       }
     } else if (level < oldLevel) {
-      packagesLevels.set(file, level)
+      packagesLevels.set(pkg, level)
     }
   }
 
@@ -120,10 +120,10 @@ export function getPackagesFolders(
     if (typeof inputItem === 'string') {
       inputItem = { path: inputItem }
     }
-    const file = resolver.getPackageJsonFile(inputItem.path)
-    if (file && !inputPackages.has(file)) {
+    const pkg = resolver.getPackageJson(inputItem.path)
+    if (pkg && !inputPackages.has(pkg)) {
       const inputEntry: Required<PackagesFolderInput> = {
-        path: file.parentDirectory.path,
+        path: pkg.file.parentDirectory.path,
         include: !!inputItem.include,
         dependencies: !!inputItem.dependencies || inputItem.dependencies === undefined,
         devDependencies: !!inputItem.devDependencies,
@@ -131,10 +131,10 @@ export function getPackagesFolders(
         optionalDependencies: !!inputItem.optionalDependencies || inputItem.optionalDependencies === undefined
       }
       if (!inputEntry.include) {
-        exclusion.add(file)
+        exclusion.add(pkg)
       }
-      inputPackages.set(file, inputEntry)
-      enqueuePackage(file, 0)
+      inputPackages.set(pkg, inputEntry)
+      enqueuePackage(pkg, 0)
     }
   }
 
@@ -150,23 +150,23 @@ export function getPackagesFolders(
     addInput(input as string | Readonly<PackagesFolderInput>)
   }
 
-  for (const [folder, inputEntry] of inputPackages) {
-    enqueueDependencies(folder, inputEntry.dependencies && folder.json?.dependencies)
+  for (const [pkg, inputEntry] of inputPackages) {
+    enqueueDependencies(pkg, inputEntry.dependencies && pkg.manifest.dependencies)
   }
-  for (const [folder, inputEntry] of inputPackages) {
-    enqueueDependencies(folder, inputEntry.devDependencies && folder.json?.devDependencies)
+  for (const [pkg, inputEntry] of inputPackages) {
+    enqueueDependencies(pkg, inputEntry.devDependencies && pkg.manifest.devDependencies)
   }
-  for (const [folder, inputEntry] of inputPackages) {
-    enqueueDependencies(folder, inputEntry.peerDependencies && folder.json?.peerDependencies)
+  for (const [pkg, inputEntry] of inputPackages) {
+    enqueueDependencies(pkg, inputEntry.peerDependencies && pkg.manifest.peerDependencies)
   }
-  for (const [folder, inputEntry] of inputPackages) {
-    enqueueDependencies(folder, inputEntry.optionalDependencies && folder.json?.optionalDependencies)
+  for (const [pkg, inputEntry] of inputPackages) {
+    enqueueDependencies(pkg, inputEntry.optionalDependencies && pkg.manifest.optionalDependencies)
   }
 
   while (queuePosition < queue.length) {
     while (queuePosition < queue.length) {
       const entry = queue[queuePosition++]
-      enqueuePackage(entry.file, (packagesLevels.get(entry.parent) || 0) + 1)
+      enqueuePackage(entry.package, (packagesLevels.get(entry.parent) || 0) + 1)
     }
 
     for (const pkg of packagesLevels.keys()) {
@@ -181,7 +181,7 @@ export function getPackagesFolders(
   let collectedPackages = Array.from(packagesLevels.keys()).filter(canIncludePackage)
 
   if (options.unique) {
-    const uniqueByName = new Map<string, NodePackageJsonFile>()
+    const uniqueByName = new Map<string, NodePackageJson>()
     for (const pkg of collectedPackages) {
       const found = uniqueByName.get(pkg.packageName)
       if (!found || packagesLevels.get(pkg)! < packagesLevels.get(found)!) {
@@ -192,9 +192,9 @@ export function getPackagesFolders(
   }
 
   let result: PackagesFoldersEntry[] = collectedPackages.map((pkg) => ({
-    directory: pkg.parentDirectory.path,
+    directory: pkg.file.parentDirectory.path,
     name: pkg.packageName,
-    manifest: pkg.json!
+    manifest: pkg.manifest
   }))
 
   const nodeModulesDirectories = new Map<string, string>()

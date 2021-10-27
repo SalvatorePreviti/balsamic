@@ -2,14 +2,16 @@ import Module from 'module'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
-import { PackageJson, TsConfig } from '../types'
+import { PackageJson } from '../types'
 import { toUTF8 } from '../lib/utils'
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i
 
+export type NodeFileOrDirectory = NodeFile | NodeDirectory
+
 export abstract class NodeFsEntry {
-  #stats: fs.Stats | boolean | null
+  #stats: fs.Stats | undefined | null
 
   /** The full absolute path */
   public readonly path: string
@@ -26,53 +28,86 @@ export abstract class NodeFsEntry {
   /** True if this is an instance of NodeFile */
   public abstract get isFile(): boolean
 
-  /** True if this is a NodeJsonFile instance */
-  public abstract get isJSONFile(): boolean
-
-  /** True if this is a NodePackageJsonFile instance */
-  public abstract get isPackageJsonFile(): boolean
-
   /** True if this is an instance of NodeDirectory */
   public abstract get isDirectory(): boolean
 
   /** True if this entry is a root directory (parentDirectory === this) */
   public abstract get isRootDirectory(): boolean
 
-  /** The relative node require for the given directory */
-  public abstract get require(): NodeRequire
+  /** The node require function for the directory, or for the directory that owns this file. */
+  public abstract get nodeRequire(): NodeRequire
 
-  /** Gets the package.json for this or a parent folder of this. */
-  public abstract get packageJsonFile(): NodePackageJsonFile | null
+  /** The path of the directory. If this is a directory, returns this.path, if this is a file, returns this.parentDirectory.path */
+  public abstract get directoryPath(): string
+
+  /** Gets the package.json for this file or a parent folder of this file. */
+  public abstract get packageJson(): NodePackageJson | null
 
   public get stats(): fs.Stats | null {
     const stats = this.#stats
-    return stats === true ? (this.#stats = fs_tryLstatSync(this.path)) : stats === false ? null : stats
+    return stats === undefined ? (this.#stats = fs_tryLstatSync(this.path)) : stats
   }
 
-  public constructor(fileOrDirectoryPath: string, basename: string, stats: fs.Stats | boolean) {
+  protected constructor(fileOrDirectoryPath: string, basename: string, stats: fs.Stats | null | undefined) {
     this.path = fileOrDirectoryPath
     this.basename = basename
     this.#stats = stats
   }
 
+  /** Finds a directory given a relative path */
+  public getDirectory(relativePath: string): NodeDirectory | null {
+    return this.resolver.getDirectory(path.resolve(this.directoryPath, relativePath))
+  }
+
+  /** Finds a file given a relative path */
+  public getFile(relativePath: string): NodeFile | null {
+    return this.resolver.getFile(path.resolve(this.directoryPath, relativePath))
+  }
+
+  /** Finds a directory given a relative path. If not found in the current directory, looks in the parent directories. */
+  public getFileUp(relativePath: string): NodeFile | null {
+    const found = this.getFile(relativePath)
+    return !found && !this.isRootDirectory ? this.parentDirectory.getFileUp(relativePath) : found
+  }
+
+  /** Finds a file given a relative path. If not found in the current directory, looks in the parent directories. */
+  public getDirectoryUp(relativePath: string): NodeDirectory | null {
+    const found = this.getDirectory(relativePath)
+    return !found && !this.isRootDirectory ? this.parentDirectory.getDirectoryUp(relativePath) : found
+  }
+
   /** Resolves a NodeJS module. Returns null if not found. */
-  public resolveCommonJS(id: string): string | null {
+  public nodeResolve(id: string): string | null {
     try {
-      return this.require.resolve(id)
-    } catch (_) {
-      return null
-    }
+      return this.nodeRequire.resolve(id)
+    } catch (_) {}
+    return null
   }
 
   /** Resolves a module package.json from this directory. Returns null if a package is not found. */
-  public abstract resolvePackage(id: string): NodePackageJsonFile | null
+  public resolvePackage(id: string): NodePackageJson | null {
+    return this.parentDirectory.resolvePackage(id)
+  }
+
+  /** Resolves the bin executable of the base package.json for this directory */
+  public resolvePackageBin(moduleId: string, executableId?: string): string | null {
+    const packageJson = this.packageJson
+    if (packageJson) {
+      const dir = packageJson.file.parentDirectory
+      const content = packageJson.manifest
+      if (content) {
+        const { bin } = content
+        const binFile = !bin || typeof bin === 'string' ? bin : bin[executableId || this.basename]
+        return (binFile && dir.nodeResolve(path.resolve(dir.path, binFile))) || null
+      }
+    }
+    return this.nodeResolve(`${moduleId}/${executableId || moduleId}`)
+  }
 
   public toString() {
     return this.path
   }
 }
-
-export type NodeFileOrDirectory = NodeFile | NodeDirectory
 
 export class NodeFile extends NodeFsEntry {
   public readonly parentDirectory: NodeDirectory
@@ -87,16 +122,6 @@ export class NodeFile extends NodeFsEntry {
     return true
   }
 
-  /** True if this is a NodeJsonFile instance */
-  public get isJSONFile(): boolean {
-    return false
-  }
-
-  /** True if this is a NodePackageJsonFile instance */
-  public get isPackageJsonFile(): boolean {
-    return false
-  }
-
   /** Always false, this is a file. */
   public get isDirectory(): false {
     return false
@@ -107,173 +132,44 @@ export class NodeFile extends NodeFsEntry {
     return false
   }
 
+  /** returns this.parentDirectory.path */
+  public get directoryPath(): this['parentDirectory']['path'] {
+    return this.parentDirectory.path
+  }
+
   /** The node require function for the directory that owns this file. */
-  public get require(): NodeRequire {
-    return this.parentDirectory.require
+  public get nodeRequire(): NodeRequire {
+    return this.parentDirectory.nodeRequire
   }
 
-  /** Gets the package.json for this file or a parent folder of this file. */
-  public get packageJsonFile(): NodePackageJsonFile | null {
-    return this.parentDirectory.packageJsonFile
+  /** Gets the package.json for this file, looking in the parent directories. */
+  public get packageJson(): NodePackageJson | null {
+    return this.parentDirectory.packageJson
   }
 
-  public constructor(parentDirectory: NodeDirectory, filePath: string, basename: string, stats: fs.Stats | boolean) {
+  public constructor(
+    parentDirectory: NodeDirectory,
+    filePath: string,
+    basename: string,
+    stats: fs.Stats | null | undefined
+  ) {
     super(filePath, basename, stats)
     this.parentDirectory = parentDirectory
-  }
-
-  /** Resolves a module package.json from this directory. Returns null if a package is not found. */
-  public resolvePackage(id: string): NodePackageJsonFile | null {
-    return this.parentDirectory.resolvePackage(id)
-  }
-}
-
-export class NodeJsonFile<Type = any> extends NodeFile {
-  #json: Type | this | undefined = undefined
-
-  /** Always true */
-  public get isJSONFile(): true {
-    return true
-  }
-
-  /** Gets the content of the deserialized JSON file */
-  public get json(): Type | undefined {
-    let json = this.#json as any
-    if (json === undefined) {
-      json = this.loadJSON() as any
-      this.#json = json
-    }
-    return json === this ? undefined : json
-  }
-
-  public set json(value: Type | undefined) {
-    this.#json = value
-  }
-
-  protected loadJSON(): Type | undefined {
-    const fullFilePath = this.path
-    const cache = this.resolver.requireCache
-    const cached = cache[fullFilePath]
-    if (cached) {
-      return cached.exports
-    }
-    try {
-      const parsed = JSON.parse(toUTF8(fs.readFileSync(this.path, 'utf8'))) // TODO: parse JSONC
-      const module = new Module(fullFilePath)
-      module.filename = fullFilePath
-      module.loaded = true
-      module.paths = [path.dirname(fullFilePath)]
-      cache[fullFilePath] = module
-      return parsed
-    } catch (_) {}
-
-    return undefined
-  }
-}
-
-export class NodePackageJsonFile extends NodeJsonFile<PackageJson> {
-  #packageName: string | undefined = undefined
-
-  /** Gets the parent package.json file of this package.json file */
-  public get parentPackageJsonFile(): NodePackageJsonFile | null {
-    const packageJsonFile = this.parentDirectory.parentDirectory.packageJsonFile
-    return packageJsonFile && packageJsonFile !== this ? packageJsonFile : null
-  }
-
-  /** Always true */
-  public get isPackageJsonFile(): true {
-    return true
-  }
-
-  /** Returns always this. */
-  public get packageJsonFile(): this {
-    return this
-  }
-
-  /** The name of the package. */
-  public get packageName(): string {
-    const json = this.json
-    if (json) {
-      const name = json.name
-      if (name) {
-        return name
-      }
-    }
-    let result = this.#packageName
-    if (result !== undefined) {
-      return result
-    }
-    const p = this.parentDirectory
-    const pp = p.parentDirectory
-    result = p !== pp && pp.basename.startsWith('@') ? `${pp.basename}/${p.basename}` : p.basename
-    this.#packageName = result
-    return result
-  }
-
-  public set packageName(value: string | undefined) {
-    this.#packageName = value
-  }
-
-  /** Resolves the bin executable of a package */
-  public resolvePackageBin(moduleId: string, executableId?: string): string | null {
-    const json = this.json
-    if (json) {
-      const { bin } = json
-      if (bin) {
-        const binFile = typeof bin === 'string' ? bin : bin[executableId || this.basename]
-        if (binFile) {
-          return this.parentDirectory.resolveCommonJS(path.resolve(this.parentDirectory.path, binFile))
-        }
-      }
-    }
-    return this.parentDirectory.resolveCommonJS(`${moduleId}/${executableId}`)
-  }
-
-  protected loadJSON(): PackageJson | undefined {
-    const result = super.loadJSON()
-    return typeof result === 'object' && result !== null && !Array.isArray(result) ? result : undefined
-  }
-}
-
-export class NodeTsconfigFile extends NodeJsonFile<TsConfig> {
-  protected loadJSON(): TsConfig | undefined {
-    const result = super.loadJSON()
-    return typeof result === 'object' && result !== null && !Array.isArray(result) ? result : undefined
   }
 }
 
 export class NodeDirectory extends NodeFsEntry {
+  /** The resolver instance that owns this directory */
   public readonly resolver: NodeResolver
+
+  /** The parent directory. Is itself for a root. */
   public readonly parentDirectory: NodeDirectory
 
   #require: NodeRequire | null = null
-  #packageJsonFile: NodePackageJsonFile | null | undefined = undefined
-  #tsconfigFile: NodeTsconfigFile | null | undefined = undefined
-
-  public constructor(
-    resolver: NodeResolver,
-    parentDirectory: NodeDirectory | null,
-    directoryPath: string,
-    basename: string,
-    stats: fs.Stats | boolean
-  ) {
-    super(directoryPath, basename, stats)
-    this.resolver = resolver
-    this.parentDirectory = parentDirectory || this
-  }
+  #packageJson: NodePackageJson | null | undefined = undefined
 
   /** Always false, this is a directory, not a file. */
   public get isFile(): false {
-    return false
-  }
-
-  /** Always false, this is a directory, not a file. */
-  public get isPackageJsonFile(): false {
-    return false
-  }
-
-  /** Always false, this is a directory, not a JSON file. */
-  public get isJSONFile(): false {
     return false
   }
 
@@ -287,106 +183,162 @@ export class NodeDirectory extends NodeFsEntry {
     return this.parentDirectory === this
   }
 
-  /** Finds a file given a relative path */
-  public getFile(relativePath: string, options?: { findInParents?: boolean }): NodeFile | null {
-    const found = this.resolver.getFile(path.resolve(this.path, relativePath))
-    return !found && options && options.findInParents && !this.isRootDirectory
-      ? this.parentDirectory.getFile(relativePath, options)
-      : found
+  /** returns this.path */
+  public get directoryPath(): this['path'] {
+    return this.path
+  }
+
+  public constructor(
+    resolver: NodeResolver,
+    parentDirectory: NodeDirectory | null | undefined,
+    directoryPath: string,
+    basename: string,
+    stats: fs.Stats | null | undefined
+  ) {
+    super(directoryPath, basename, stats)
+    this.resolver = resolver
+    this.parentDirectory = parentDirectory || this
   }
 
   /** Gets the package.json for this or a parent folder of this folder. */
-  public get packageJsonFile(): NodePackageJsonFile | null {
-    let result = this.#packageJsonFile
+  public get packageJson(): NodePackageJson | null {
+    let result = this.#packageJson
     if (result === undefined) {
+      const file = this.getFile('package.json')
       result =
-        (this.getFile('package.json') as NodePackageJsonFile | null) ||
-        (this.isRootDirectory ? null : this.parentDirectory.packageJsonFile)
-      this.#packageJsonFile = result
-    }
-    return result
-  }
-
-  /** Gets the tsconfig.json for this or a parent folder of this folder. */
-  public get tsconfigFile(): NodeTsconfigFile | null {
-    let result = this.#tsconfigFile
-    if (result === undefined) {
-      result =
-        (this.getFile('package.json') as NodeTsconfigFile | null) ||
-        (this.isRootDirectory ? null : this.parentDirectory.tsconfigFile)
-      this.#tsconfigFile = result
+        (file && new NodePackageJson(file)) ||
+        (this.parentDirectory !== this && this.parentDirectory.packageJson) ||
+        null
+      this.#packageJson = result
     }
     return result
   }
 
   /** The node require function for this directory. */
-  public get require(): NodeRequire {
+  public get nodeRequire(): NodeRequire {
     return this.#require || (this.#require = Module.createRequire(path.join(this.path, '_')))
   }
 
-  /** Resolves a NodeJS module. Returns null if not found. */
-  public resolveCommonJS(id: string): string | null {
-    try {
-      return this.require.resolve(id)
-    } catch (_) {
-      return null
-    }
-  }
-
   /** Resolves a module package.json from this directory. Returns null if a package is not found. */
-  public resolvePackage(id: string): NodePackageJsonFile | null {
-    if (id === '.' || id === '') {
-      return this.packageJsonFile
+  public resolvePackage(id: string): NodePackageJson | null {
+    if (!id || id === '.' || id === './') {
+      return this.packageJson
     }
     if (ABSOLUTE_OR_RELATIVE_PATH_REGEX.test(id)) {
-      const p = path.resolve(this.path, id)
-      return (this.resolver.getFile(path.resolve(p, 'package.json')) ||
-        (path.basename(p) === 'package.json' ? this.resolver.getFile(p) : null)) as NodePackageJsonFile | null
+      const dir = this.getDirectory(id)
+      return dir && dir.packageJson
     }
     let current: NodeDirectory = this
     do {
       const endsWithNodeModules = NODE_MODULES_CASE_INSENSITIVE_REGEX.test(current.basename)
-      const filePath = endsWithNodeModules
-        ? path.join(current.path, id, 'package.json')
-        : path.join(current.path, 'node_modules', id, 'package.json')
-      const packageJson = this.resolver.getFile(filePath)
-      if (packageJson) {
-        return packageJson as NodePackageJsonFile
+      const dir = endsWithNodeModules
+        ? this.getDirectory(path.join(current.path, id))
+        : this.getDirectory(path.join(current.path, 'node_modules', id))
+
+      if (dir) {
+        const pkg = dir.packageJson
+        if (pkg && pkg.packageName === id) {
+          return pkg
+        }
+      }
+      const pkg = current.packageJson
+      if (pkg && pkg.packageName === id) {
+        return pkg
       }
       current = current.parentDirectory
       if (endsWithNodeModules) {
         current = current.parentDirectory
       }
     } while (!current.isRootDirectory)
-    const thisPackage = this.packageJsonFile
-    return thisPackage && thisPackage.packageName === id ? thisPackage : null
+    return null
+  }
+}
+
+export class NodePackageJson {
+  #manifest: PackageJson | undefined = undefined
+  #packageName: string | undefined = undefined
+
+  /** The NodeFile instance of this package.json file */
+  public readonly file: NodeFile
+
+  public constructor(file: NodeFile) {
+    this.file = file
   }
 
-  /** Resolves the bin executable of a package */
-  public resolvePackageBin(moduleId: string, executableId?: string): string | null {
-    const pkg = this.packageJsonFile
-    return pkg ? pkg.resolvePackageBin(moduleId, executableId) : null
+  /** Gets the name of this package */
+  public get packageName(): string {
+    let result = this.#packageName
+    if (result === undefined) {
+      result = this.manifest.name
+      if (typeof result !== 'string' || result.length === 0) {
+        const p = this.file.parentDirectory
+        const pp = p.parentDirectory
+        result = p !== pp && pp.basename.startsWith('@') ? `${pp.basename}/${p.basename}` : p.basename
+      }
+      this.#packageName = result
+    }
+    return result
+  }
+
+  public set packageName(value: string | undefined) {
+    this.#packageName = value
+  }
+
+  /** Gets the content of the deserialized JSON file */
+  public get manifest(): PackageJson {
+    let manifest = this.#manifest as any
+    if (manifest === undefined) {
+      manifest = this.loadManifest() as any
+      this.#manifest = manifest
+    }
+    return manifest === this ? undefined : manifest
+  }
+
+  public set manifest(value: PackageJson) {
+    this.#manifest = value
+  }
+
+  protected loadManifest(): PackageJson {
+    const filePath = this.file.path
+    const cache = this.file.resolver.requireCache
+    const cached = cache && cache[filePath]
+    let manifest: PackageJson | null = null
+    if (cached) {
+      manifest = cached.exports
+    } else {
+      try {
+        manifest = JSON.parse(toUTF8(fs.readFileSync(filePath, 'utf8')))
+        if (cache) {
+          const mod = new Module(filePath)
+          mod.filename = filePath
+          mod.loaded = true
+          mod.paths = [path.dirname(filePath)]
+          cache[filePath] = mod
+        }
+      } catch (_) {}
+    }
+    return typeof manifest === 'object' && manifest !== null && !Array.isArray(manifest) ? manifest : {}
   }
 }
 
 export class NodeResolver {
   public static default: NodeResolver = new NodeResolver()
 
-  readonly #entries = new Map<string, NodeDirectory | NodeFile | null>()
-  #requireCache: Record<string, NodeModule> | null = (Module as any)._cache || Object.create(null)
-
+  #entries = new Map<string, NodeDirectory | NodeFile | null>()
   #projectPath: string
+  #requireCache: Record<string, NodeModule> | null = (Module as any)._cache || null
   #projectDirectory: NodeDirectory | null | undefined = undefined
 
   public constructor(cwd: string = process.cwd()) {
     this.#projectPath = path.resolve(cwd)
   }
 
-  public get requireCache() {
-    return this.#requireCache || (this.#requireCache = (module as any)._cache || Object.create(null))
+  public get requireCache(): Record<string, NodeModule> | null {
+    const result = this.#requireCache
+    return result !== undefined ? result : (this.#requireCache = (module as any)._cache || null)
   }
 
-  public set requireCache(value: Record<string, NodeModule>) {
+  public set requireCache(value: Record<string, NodeModule> | null) {
     this.#requireCache = value
   }
 
@@ -401,26 +353,33 @@ export class NodeResolver {
     this.#projectPath = directory ? directory.path : value
   }
 
+  public get projectPackageJson(): NodePackageJson | null {
+    const dir = this.projectDirectory
+    return dir ? dir.packageJson : null
+  }
+
   public get projectDirectory(): NodeDirectory | null {
     return this.#projectDirectory || (this.#projectDirectory = this.getDirectory(this.projectPath))
   }
 
-  public pathResolve(p: string | URL): string {
+  public clear() {
+    this.#projectDirectory = undefined
+    this.#entries.clear()
+  }
+
+  public resolvePath(p: string | URL): string {
     return path.resolve(this.projectPath, typeof p !== 'string' || /^file:\/\//i.test(p) ? fileURLToPath(p) : p)
   }
 
   public getFileOrDirectory(fileOrDirectoryPath: string | URL): NodeDirectory | NodeFile | null {
-    const unrealpath = this.pathResolve(fileOrDirectoryPath)
-    let result = this.#entries.get(unrealpath)
-    if (result === undefined) {
-      result = this.#loadFileOrDirectory(unrealpath)
-    }
-    return result
+    const resolvedPath = this.resolvePath(fileOrDirectoryPath)
+    const result = this.#entries.get(resolvedPath)
+    return result !== undefined ? result : this.#loadFileOrDirectory(resolvedPath)
   }
 
-  public getPackageJsonFile(fileOrDirectoryPath: string | URL): NodePackageJsonFile | null {
+  public getPackageJson(fileOrDirectoryPath: string | URL): NodePackageJson | null {
     const directory = this.getDirectoryOrFileDirectory(fileOrDirectoryPath)
-    return directory ? directory.packageJsonFile : null
+    return directory ? directory.packageJson : null
   }
 
   public getDirectoryOrFileDirectory(fileOrDirectoryPath: string | URL): NodeDirectory | null {
@@ -443,24 +402,14 @@ export class NodeResolver {
     return fileOrDirectory ? fileOrDirectory.path : null
   }
 
-  public getRealDirectoryPath(directoryPath: string | URL): string | null {
-    const directory = this.getDirectory(directoryPath)
-    return directory ? directory.path : null
-  }
-
-  public getRealFilePath(filePath: string | URL): string | null {
-    const file = this.getFile(filePath)
-    return file ? file.path : null
-  }
-
   /** Resolve the path of commonJS module from the given directory */
   public resolveCommonJS(id: string, cwd?: string | URL | null | undefined): string | null {
     const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory
-    return directory && directory.resolveCommonJS(id)
+    return directory && directory.nodeResolve(id)
   }
 
   /** Resolve the package.json of the given package from the given directory */
-  public resolvePackage(id: string, cwd?: string | URL | null | undefined): NodePackageJsonFile | null {
+  public resolvePackage(id: string, cwd?: string | URL | null | undefined): NodePackageJson | null {
     const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory
     return directory && directory.resolvePackage(id)
   }
@@ -475,69 +424,44 @@ export class NodeResolver {
     return directory ? directory.resolvePackageBin(moduleId, executableId) : null
   }
 
-  #loadFileOrDirectory(
-    unrealpath: string,
-    realpath?: string | null,
-    isDirectory?: boolean
-  ): NodeDirectory | NodeFile | null {
-    realpath = this.requireCache[unrealpath] ? realpath : fs_tryRealpathSync(unrealpath)
-    if (!realpath) {
-      this.#entries.set(unrealpath, null)
+  #loadFileOrDirectory(input: string): NodeDirectory | NodeFile | null {
+    const parentPath = path.dirname(input)
+
+    let parent: NodeDirectory | null = null
+    if (parentPath !== input) {
+      parent = this.getDirectory(parentPath)
+      if (!parent) {
+        this.#entries.set(input, null)
+        return null
+      }
+    }
+
+    const basename = path.basename(input)
+    const inputPath = parent ? (basename ? path.join(parent.path, basename) : parent.path) : input
+
+    const stats = fs_tryLstatSync(inputPath)
+    if (!stats) {
+      this.#entries.set(inputPath, null)
       return null
     }
-    const stats = !!isDirectory || fs_tryLstatSync(realpath)
+
+    const realPath = stats.isSymbolicLink() ? fs_tryRealpathSync(inputPath) : inputPath
+    if (!realPath) {
+      this.#entries.set(inputPath, null)
+      return null
+    }
+
     let result: NodeDirectory | NodeFile | null = null
     if (stats) {
-      let parent: NodeDirectory | null | undefined
-      const parentPath = path.dirname(realpath)
-      if (!parentPath || parentPath === realpath) {
-        parent = null
-      } else {
-        const foundParent = this.#entries.get(parentPath)
-        parent =
-          foundParent && foundParent.isDirectory
-            ? foundParent
-            : (this.#loadFileOrDirectory(parentPath, parentPath, true) as NodeDirectory)
-      }
-      const basename = path.basename(realpath)
-      realpath = path.resolve(parentPath, basename)
-      if (stats === true || stats.isDirectory()) {
-        result = this.newNodeDirectory(parent, realpath, basename, stats)
-      } else if (stats.isFile() && parent) {
-        result = this.newNodeFile(parent, realpath, basename, stats)
+      if (stats.isDirectory()) {
+        result = new NodeDirectory(this, parent, realPath, basename, stats.isSymbolicLink() ? undefined : stats)
+      } else if (parent) {
+        result = new NodeFile(parent, realPath, basename, stats.isSymbolicLink() ? undefined : stats)
       }
     }
-    this.#entries.set(realpath, result)
-    this.#entries.set(unrealpath, result)
+    this.#entries.set(realPath, result)
+    this.#entries.set(inputPath, result)
     return result
-  }
-
-  protected newNodeDirectory(
-    parent: NodeDirectory | null,
-    realDirectoryPath: string,
-    basename: string,
-    stats: fs.Stats | boolean
-  ): NodeDirectory {
-    return new NodeDirectory(this, parent, realDirectoryPath, basename, stats)
-  }
-
-  protected newNodeFile(
-    parent: NodeDirectory,
-    filePath: string,
-    basename: string,
-    stats: fs.Stats | boolean
-  ): NodeFile | null {
-    const name = basename.toLowerCase()
-    if (name === 'package.json') {
-      return new NodePackageJsonFile(parent, filePath, basename, stats)
-    }
-    if (name === 'tsconfig.json') {
-      return new NodeTsconfigFile(parent, filePath, basename, stats)
-    }
-    if (name.endsWith('.json') || name.endsWith('.jsonc')) {
-      return new NodeJsonFile(parent, filePath, basename, stats)
-    }
-    return new NodeFile(parent, filePath, basename, stats)
   }
 }
 
