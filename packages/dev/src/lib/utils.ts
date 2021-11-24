@@ -17,7 +17,9 @@ let _isCI: boolean =
   (!!process.env.CI && process.env.CI !== 'false') || process.env.TF_BUILD === 'True' || process.argv.includes('--ci')
 
 /** Returns true if running inside continuous integration pipeline */
-export const isCI = () => _isCI
+export function isCI() {
+  return _isCI
+}
 
 isCI.set = (value: boolean) => (_isCI = !!value)
 
