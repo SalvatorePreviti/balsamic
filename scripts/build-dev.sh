@@ -2,4 +2,4 @@
 
 set -e
 
-tsc --project packages/dev/tsconfig-build.json
+npx tsc --project packages/dev/tsconfig-build.json
