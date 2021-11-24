@@ -13,6 +13,18 @@ const _timeUnits = [
   { unit: 'ms', amount: 1 / 1000 }
 ]
 
+let _isCI: boolean =
+  (!!process.env.CI && process.env.CI !== 'false') || process.env.TF_BUILD === 'True' || process.argv.includes('--ci')
+
+/** Returns true if running inside continuous integration pipeline */
+export const isCI = () => _isCI
+
+isCI.set = (value: boolean) => (_isCI = !!value)
+
+if (_isCI) {
+  process.env.FORCE_COLOR = '1'
+}
+
 export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
   if (Array.isArray(milliseconds)) {
     milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6

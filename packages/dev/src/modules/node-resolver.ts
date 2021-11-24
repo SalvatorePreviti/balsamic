@@ -45,7 +45,7 @@ export abstract class NodeFsEntry {
 
   public get stats(): fs.Stats | null {
     const stats = this.#stats
-    return stats === undefined ? (this.#stats = fs_tryLstatSync(this.path)) : stats
+    return stats === undefined ? (this.#stats = fs_tryStatSync(this.path)) : stats
   }
 
   protected constructor(fileOrDirectoryPath: string, basename: string, stats: fs.Stats | null | undefined) {
@@ -439,13 +439,13 @@ export class NodeResolver {
     const basename = path.basename(input)
     const inputPath = parent ? (basename ? path.join(parent.path, basename) : parent.path) : input
 
-    const stats = fs_tryLstatSync(inputPath)
+    const stats = fs_tryStatSync(inputPath)
     if (!stats) {
       this.#entries.set(inputPath, null)
       return null
     }
 
-    const realPath = stats.isSymbolicLink() ? fs_tryRealpathSync(inputPath) : inputPath
+    const realPath = fs_tryRealpathSync(inputPath) || inputPath
     if (!realPath) {
       this.#entries.set(inputPath, null)
       return null
@@ -454,9 +454,9 @@ export class NodeResolver {
     let result: NodeDirectory | NodeFile | null = null
     if (stats) {
       if (stats.isDirectory()) {
-        result = new NodeDirectory(this, parent, realPath, basename, stats.isSymbolicLink() ? undefined : stats)
+        result = new NodeDirectory(this, parent, realPath, basename, stats)
       } else if (parent) {
-        result = new NodeFile(parent, realPath, basename, stats.isSymbolicLink() ? undefined : stats)
+        result = new NodeFile(parent, realPath, basename, stats)
       }
     }
     this.#entries.set(realPath, result)
@@ -473,9 +473,9 @@ function fs_tryRealpathSync(unrealpath: string): string | null {
   }
 }
 
-function fs_tryLstatSync(realpath: string): fs.Stats | null {
+function fs_tryStatSync(realpath: string): fs.Stats | null {
   try {
-    return fs.lstatSync(realpath, { bigint: false, throwIfNoEntry: false }) || null
+    return fs.statSync(realpath, { bigint: false, throwIfNoEntry: false }) || null
   } catch (_) {}
   return null
 }
