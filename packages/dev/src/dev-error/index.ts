@@ -58,7 +58,7 @@ function _hideProperty(obj: any, name: string) {
 }
 
 /** Attach unhandledRejection and uncaughtException handlers for logging and process.exitCode */
-devError.initErrorHandling = () => {
+devError.initErrorHandling = function initErrorHandling() {
   if (_devErrorHandlingInitialized) {
     return false
   }
@@ -82,12 +82,12 @@ devError.initErrorHandling = () => {
 }
 
 /** Handler for unhandled rejections (unhandled promise) */
-devError.handleUnhandledRejection = (error: unknown) => {
+devError.handleUnhandledRejection = function handleUnhandledRejection(error: unknown) {
   devLog.warn('Unhandled rejection', error)
 }
 
 /** Handler for unhandled error */
-devError.handleUncaughtException = (error: unknown) => {
+devError.handleUncaughtException = function handleUncaughtException(error: unknown) {
   if (!process.exitCode) {
     process.exitCode =
       error instanceof Error && typeof error.exitCode === 'number' && error.exitCode ? error.exitCode : 1
@@ -153,4 +153,6 @@ devError.ignoreProcessWarning = function ignoreProcessWarning(name: string, valu
 }
 
 /** True if a warning was ignored using devError.ignoreProcessWarning function */
-devError.isProcessWarningIgnored = (name: string) => _ignoredWarnings !== null && _ignoredWarnings.has(name)
+devError.isProcessWarningIgnored = function isProcessWarningIgnored(name: string) {
+  return _ignoredWarnings !== null && _ignoredWarnings.has(name)
+}

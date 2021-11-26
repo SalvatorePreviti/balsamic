@@ -13,7 +13,7 @@ export function isCI() {
 }
 
 /** Changes the value of isCI */
-isCI.set = (value: boolean) => {
+isCI.set = function setIsCI(value: boolean) {
   value = !!value
   if (_isCI !== value) {
     _isCI = !!value
@@ -25,13 +25,10 @@ isCI.set = (value: boolean) => {
   }
 }
 
-const forceNoColors = process.argv.includes('--no-color') || process.argv.includes('--no-colors')
+let supporrtsColorLevel: 0 | 1 | 2 | 3 | undefined
 
-if (
-  forceNoColors ||
-  (!('FORCE_COLOR' in process.env) && !('NO_COLOR' in process.env) && !('NODE_DISABLE_COLORS' in process.env))
-) {
-  const level = forceNoColors
+function loadHasColors(): 0 | 1 | 2 | 3 {
+  return process.argv.includes('--no-color') || process.argv.includes('--no-colors')
     ? 0
     : process.stdout.hasColors(2 ** 24)
     ? 3
@@ -40,20 +37,14 @@ if (
     : process.stdout.hasColors() || isCI()
     ? 1
     : 0
+}
 
-  if (level > 0) {
-    process.env.FORCE_COLOR = level.toString()
-    if ('NODE_DISABLE_COLORS' in process.env) {
-      delete process.env.NODE_DISABLE_COLORS
-    }
-    if ('NO_COLOR' in process.env) {
-      delete process.env.NO_COLOR
-    }
-  } else {
-    process.env.FORCE_COLOR = '0'
-    process.env.NODE_DISABLE_COLORS = '1'
-    process.env.NO_COLOR = '1'
-  }
+function hasColors(): 0 | 1 | 2 | 3 {
+  return supporrtsColorLevel !== undefined ? supporrtsColorLevel : (supporrtsColorLevel = loadHasColors())
+}
+
+hasColors.set = (value: number | boolean) => {
+  supporrtsColorLevel = !value ? 0 : value === true ? 1 : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3)
 }
 
 /** Loads .env file */
@@ -101,7 +92,7 @@ function loadDotEnv(dotenvPath?: string | boolean): boolean {
 let _processTitle: string | undefined
 let _defaultProcessTitle: string | undefined
 
-const getProcessTitle = () => {
+function getProcessTitle() {
   if (_processTitle === undefined) {
     return _defaultProcessTitle !== undefined
       ? _defaultProcessTitle
@@ -116,15 +107,20 @@ const setProcessTitle = (value: string | { filename?: string; id?: string; path?
 
 export const devEnv = {
   initialCwd: process.cwd(),
+  hasColors,
   isCI,
   loadDotEnv,
   getProcessTitle,
   setProcessTitle
 }
 
-getProcessTitle.hasProcessTitle = () => !!_processTitle
-getProcessTitle.set = (value: string | { filename?: string; id?: string; path?: string }) =>
+getProcessTitle.hasProcessTitle = function hasProcessTitle() {
+  return !!_processTitle
+}
+
+getProcessTitle.set = function _setProcessTitle(value: string | { filename?: string; id?: string; path?: string }) {
   devEnv.setProcessTitle(value)
+}
 
 function _extrapolateProcessTitle(
   value: string | { filename?: string; id?: string; path?: string } | null | undefined

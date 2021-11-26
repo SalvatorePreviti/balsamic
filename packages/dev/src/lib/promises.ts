@@ -1,7 +1,7 @@
 import { devError } from '../dev-error'
 import { devLog } from '../dev-log'
 
-export const noop = () => {}
+export function noop() {}
 
 export class Deferred<T> {
   public status: 'pending' | 'succeeded' | 'rejected' = 'pending'
@@ -113,4 +113,6 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
 }
 
 /** Asynchronous delay. Returns a promise that is resolved after some time. */
-export const asyncDelay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+export function asyncDelay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

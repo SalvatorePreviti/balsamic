@@ -62,7 +62,7 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
     return Promise.resolve(main)
   }
 
-  const devRunMainError = (error: any) => {
+  function devRunMainError(error: any) {
     if (handledError !== error) {
       handledError = error
       error = devError(error, devRunMain)
