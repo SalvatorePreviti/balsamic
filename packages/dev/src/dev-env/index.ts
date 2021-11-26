@@ -28,15 +28,24 @@ isCI.set = function setIsCI(value: boolean) {
 let supporrtsColorLevel: 0 | 1 | 2 | 3 | undefined
 
 function loadHasColors(): 0 | 1 | 2 | 3 {
-  return process.argv.includes('--no-color') || process.argv.includes('--no-colors')
-    ? 0
-    : process.stdout.hasColors(2 ** 24)
-    ? 3
-    : process.stdout.hasColors(2 ** 8)
-    ? 2
-    : process.stdout.hasColors() || isCI()
-    ? 1
-    : 0
+  if (process.argv.includes('--no-color') || process.argv.includes('--no-colors')) {
+    return 0
+  }
+
+  if (process.env.NO_COLOR || process.env.FORCE_COLOR === '0') {
+    return 0
+  }
+
+  const stdout = process.stdout
+
+  if (stdout && typeof stdout.hasColors === 'function') {
+    const level = stdout.hasColors(2 ** 24) ? 3 : stdout.hasColors(2 ** 8) ? 2 : stdout.hasColors() ? 1 : 0
+    if (level) {
+      return level
+    }
+  }
+
+  return isCI() ? 1 : 0
 }
 
 function hasColors(): 0 | 1 | 2 | 3 {
