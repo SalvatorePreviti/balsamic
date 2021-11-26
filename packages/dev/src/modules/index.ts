@@ -1,5 +1,3 @@
-export * from './main-module'
-
 export * from './node-resolver'
 
 export * from './get-packages-folders'

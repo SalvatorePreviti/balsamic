@@ -6,8 +6,6 @@ import { devError } from '../dev-error'
 import { colors } from '../colors'
 import type { Awaited } from '../types'
 
-export { colors }
-
 let _logProcessTimeInitialized = false
 const _errorLoggedSet = new WeakSet<any>()
 
