@@ -1,4 +1,4 @@
-import { devLog } from './dev-log'
+import { devLog } from '../dev-log'
 
 let _devErrorHandlingInitialized = false
 let _ignoredWarnings: Set<string> | null = null

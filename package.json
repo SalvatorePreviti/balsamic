@@ -24,6 +24,7 @@
     "packages/*"
   ],
   "scripts": {
+    "test": "./node_modules/.bin/esrun --mocha ./test/**/*.test.ts",
     "precommit": "lint-staged && pretty-quick --staged",
     "postinstall": "husky install .husky"
   },

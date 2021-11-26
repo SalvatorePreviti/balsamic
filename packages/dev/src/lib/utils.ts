@@ -1,5 +1,3 @@
-import path from 'path'
-
 const { round, floor, ceil, min, log, abs } = Math
 
 export const initialCwd = process.cwd()
@@ -12,20 +10,6 @@ const _timeUnits = [
   { unit: 's', amount: 1 },
   { unit: 'ms', amount: 1 / 1000 }
 ]
-
-let _isCI: boolean =
-  (!!process.env.CI && process.env.CI !== 'false') || process.env.TF_BUILD === 'True' || process.argv.includes('--ci')
-
-/** Returns true if running inside continuous integration pipeline */
-export function isCI() {
-  return _isCI
-}
-
-isCI.set = (value: boolean) => (_isCI = !!value)
-
-if (_isCI) {
-  process.env.FORCE_COLOR = '1'
-}
 
 export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
   if (Array.isArray(milliseconds)) {
@@ -61,25 +45,6 @@ export function startMeasureTime() {
   }
   elapsedMilliseconds.toString = () => millisecondsToString(process.hrtime(startTime))
   return elapsedMilliseconds
-}
-
-/** Makes a path relative and nicely printable */
-export function makePathRelative(filePath: string | null | undefined, cwd?: string) {
-  if (!filePath) {
-    return './'
-  }
-  if (!cwd || cwd === '.' || cwd === './') {
-    cwd = process.cwd()
-  }
-  if (filePath.indexOf('\\') >= 0 || cwd.indexOf('\\') >= 0) {
-    return filePath // avoid doing this on windows
-  }
-  try {
-    const relativePath = path.posix.normalize(path.posix.relative(cwd, filePath))
-    return relativePath && relativePath.length < filePath.length ? relativePath : filePath
-  } catch (_) {
-    return filePath
-  }
 }
 
 /** Gets the length of an UTF8 string */

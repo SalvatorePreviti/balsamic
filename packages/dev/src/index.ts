@@ -1,16 +1,18 @@
-/// <reference path="./types.ts" />
+/// <reference path="./types/index.ts" />
 
 export * from './types'
 
+export * from './dev-env'
+
 export * from './lib/utils'
 
-export * from './lib/dot-env'
+export * from './dev-error'
 
-export * from './lib/dev-error'
+export * from './colors'
 
-export * from './lib/dev-log'
+export * from './dev-log'
 
-export * from './lib/dev-child-task'
+export * from './dev-child-task'
 
 export * from './lib/promises'
 

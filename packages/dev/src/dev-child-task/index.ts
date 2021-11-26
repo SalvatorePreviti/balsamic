@@ -1,7 +1,7 @@
 import child_process from 'child_process'
-import { devError } from './dev-error'
-import { devLog } from './dev-log'
-import type { DevLogTimeOptions } from './dev-log'
+import { devError } from '../dev-error'
+import { devLog } from '../dev-log'
+import type { DevLogTimeOptions } from '../dev-log'
 import { NodeResolver } from '..'
 
 type DevChildTaskArg =

@@ -1,5 +1,5 @@
-import { devError } from './dev-error'
-import { devLog } from './dev-log'
+import { devError } from '../dev-error'
+import { devLog } from '../dev-log'
 
 export const noop = () => {}
 

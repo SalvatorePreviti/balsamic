@@ -1,32 +1,15 @@
-import { initialCwd, makePathRelative, millisecondsToString, startMeasureTime } from './utils'
-import type { Awaited } from '../types'
 import util from 'util'
-import colors from 'chalk'
-import { fileURLToPath } from 'url'
-import { devError } from './dev-error'
 import readline from 'readline'
+import { millisecondsToString, startMeasureTime } from '../lib/utils'
+import { devEnv } from '../dev-env'
+import { devError } from '../dev-error'
+import { colors } from '../colors'
+import type { Awaited } from '../types'
 
 export { colors }
 
 let _logProcessTimeInitialized = false
 const _errorLoggedSet = new WeakSet<any>()
-let _processTitle: string | undefined
-let _defaultProcessTitle: string | undefined
-
-export const getProcessTitle = () => {
-  if (_processTitle === undefined) {
-    return _defaultProcessTitle !== undefined
-      ? _defaultProcessTitle
-      : (_defaultProcessTitle = _extrapolateProcessTitle(process.mainModule || process.argv[1]) || 'script')
-  }
-  return _processTitle
-}
-
-getProcessTitle.hasProcessTitle = () => !!_processTitle
-
-export const setProcessTitle = (value: string | { filename?: string; id?: string; path?: string }) => {
-  _processTitle = _extrapolateProcessTitle(value)
-}
 
 export function devLog(...args: unknown[]): void {
   devLog.log(...args)
@@ -108,7 +91,7 @@ function errorOnce(message?: any, error?: any, caller?: any) {
 }
 
 devLog.printProcessBanner = function printProcessBanner() {
-  const processTitle = getProcessTitle()
+  const processTitle = devEnv.getProcessTitle()
   if (processTitle) {
     devLog.log(`${colors.blueBright('\n⬢')} ${colors.rgb(100, 200, 255)(processTitle)}\n`)
   }
@@ -162,33 +145,6 @@ devLog.info = (...args: unknown[]): void => {
   }
 }
 
-function _extrapolateProcessTitle(
-  value: string | { filename?: string; id?: string; path?: string } | null | undefined
-) {
-  if (typeof value === 'object' && value !== null) {
-    let fname = value.filename
-    if (typeof fname !== 'string' || !fname) {
-      fname = value.path
-      if (typeof fname !== 'string' || !fname) {
-        fname = value.id
-      }
-    }
-    if (fname) {
-      value = fname
-    }
-  }
-  if (typeof value !== 'string' || !value || value === '.' || value === './') {
-    return undefined
-  }
-  if (/^file:\/\//i.test(value)) {
-    value = fileURLToPath(value)
-  }
-  if (value.startsWith('/')) {
-    value = makePathRelative(value, initialCwd) || value
-  }
-  return value
-}
-
 devLog.inspect = (what: unknown): string => {
   if (what instanceof Error) {
     if (what.showStack === false) {
@@ -211,14 +167,14 @@ devLog.initProcessTime = () => {
     if (exitCode) {
       devLog.log(
         colors.redBright(
-          `\n😡 ${getProcessTitle()} ${colors.redBright.bold.underline(
+          `\n😡 ${devEnv.getProcessTitle()} ${colors.redBright.bold.underline(
             'FAILED'
           )} in ${elapsed}. exitCode: ${exitCode}\n`
         )
       )
     } else {
       devLog.log(
-        colors.greenBright(`\n✅ ${getProcessTitle()} ${colors.bold('OK')} ${colors.green(`in ${elapsed}`)}\n`)
+        colors.greenBright(`\n✅ ${devEnv.getProcessTitle()} ${colors.bold('OK')} ${colors.green(`in ${elapsed}`)}\n`)
       )
     }
   }
@@ -229,7 +185,9 @@ devLog.initProcessTime = () => {
 export interface DevLogTimeOptions {
   printStarted?: boolean
   logError?: boolean
+  showStack?: boolean
   timed?: boolean
+  indent?: number | string
 }
 
 /** Prints how much time it takes to run something */
@@ -256,9 +214,11 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
   if (!title && typeof fnOrPromise === 'function') {
     title = fnOrPromise.name
   }
+  const indent = _parseIndent(options.indent)
   const isTimed = options.timed === undefined || !!options.timed
-  if (isTimed && (options.printStarted === undefined || options.printStarted)) {
-    devLog.log(colors.cyan(`${colors.cyan('◆')} ${title}`) + colors.gray(' started...'))
+  const printStarted = options.printStarted === undefined || !!options.printStarted
+  if (isTimed && printStarted) {
+    devLog.log(colors.cyan(`${indent}${colors.cyan('◆')} ${title}`) + colors.gray(' started...'))
   }
   const elapsed = startMeasureTime()
   try {
@@ -268,14 +228,18 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     const result = await fnOrPromise
     if (isTimed) {
       devLog.log(
-        colors.green(`\n${colors.green('✔')} ${title} ${colors.bold('OK')} ${colors.gray(`in ${elapsed.toString()}`)}`)
+        colors.green(
+          `${printStarted ? '\n' : ''}${indent}${colors.green('✔')} ${title} ${colors.bold('OK')} ${colors.gray(
+            `in ${elapsed.toString()}`
+          )}`
+        )
       )
     }
     return result
   } catch (error) {
     if (isTimed || options.logError) {
       if (options.logError && (typeof error !== 'object' || error === null || !_errorLoggedSet.has(error))) {
-        devLog.error(`${title} FAILED in ${elapsed.toString()}`, error)
+        devLog.error(`${title} FAILED in ${elapsed.toString()}`, options.showStack !== false ? error : `${error}`)
       } else {
         devLog.error(colors.redBright(`${title} ${colors.bold('FAILED')} in ${elapsed.toString()}`))
       }
@@ -309,4 +273,12 @@ devLog.askConfirmation = async function askConfirmation(message: string, default
 
 function _devInspectForLogging(args: unknown[]) {
   return args.map((what) => (typeof what === 'string' ? what : devLog.inspect(what))).join(' ')
+}
+
+function _parseIndent(value: string | number | undefined | null): string {
+  return typeof value === 'string'
+    ? value
+    : typeof value === 'number' && value > 0
+    ? '  '.repeat((value > 20 ? 20 : value) | 0)
+    : ''
 }

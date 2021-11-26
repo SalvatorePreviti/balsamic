@@ -189,14 +189,22 @@ function _setupMocha(esrun) {
   } catch (e) {
     try {
       mochaRequire = Module.createRequire(require.resolve('mocha/package.json'))
-    } catch (_) {
+    } catch {
       throw e
+    }
+  }
+
+  const mochaTryRequire = (id) => {
+    try {
+      return mochaRequire(id)
+    } catch {
+      return undefined
     }
   }
 
   // Patch mocha to always use esm import
 
-  const esmUtils = mochaRequire('./lib/esm-utils.js')
+  const esmUtils = mochaTryRequire('./lib/esm-utils.js') || mochaRequire('./lib/nodejs/esm-utils.js', false)
   esmUtils.requireOrImport = async (file) => {
     if (file.startsWith('file://')) {
       file = esrun.pathNameFromUrl(file)

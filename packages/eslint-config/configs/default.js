@@ -87,7 +87,7 @@ const jsRules = {
   'import/default': 0, // TOO SLOW!
   'import/no-named-as-default': 0, // TOO SLOW!
   'import/no-named-as-default-member': 0, // TOO SLOW!
-  'import/no-self-import': 2,
+  'import/no-self-import': 0,
   'import/no-unresolved': [2, { commonjs: true, caseSensitive: true }],
   'import/no-useless-path-segments': [1, { noUselessIndex: false }],
   'import/no-webpack-loader-syntax': 2,
@@ -281,7 +281,7 @@ const jsRules = {
   'no-useless-concat': 1,
   'no-useless-constructor': 1,
   'no-useless-escape': 1,
-  'no-useless-rename': [2, { ignoreDestructuring: false, ignoreExport: false, ignoreImport: false }],
+  'no-useless-rename': [1, { ignoreDestructuring: false, ignoreExport: false, ignoreImport: false }],
   'no-useless-return': 1,
   'no-var': 2,
   'no-void': 2,
@@ -314,7 +314,7 @@ const jsRules = {
   'padded-blocks': [0, { blocks: 'never', switches: 'never', classes: 'never' }],
   'padding-line-between-statements': [0, ...paddingLineBetweenStatementsRules],
   'prefer-arrow-callback': [1, { allowNamedFunctions: true, allowUnboundThis: true }],
-  'prefer-const': [1, { destructuring: 'any', ignoreReadBeforeAssign: true }],
+  'prefer-const': [1, { destructuring: 'all', ignoreReadBeforeAssign: true }],
   'prefer-exponentiation-operator': 1,
   'prefer-numeric-literals': 1,
   'prefer-regex-literals': 1,
@@ -468,7 +468,7 @@ const typescriptRules = {
   '@typescript-eslint/no-namespace': 0,
   '@typescript-eslint/no-non-null-assertion': 0,
   '@typescript-eslint/no-parameter-properties': 0,
-  '@typescript-eslint/no-redeclare': [2, { builtinGlobals: false, ignoreDeclarationMerge: true }],
+  '@typescript-eslint/no-redeclare': [0, { builtinGlobals: false, ignoreDeclarationMerge: true }],
   '@typescript-eslint/no-shadow': 1,
   '@typescript-eslint/no-this-alias': 0,
   '@typescript-eslint/no-unsafe-assignment': 0,

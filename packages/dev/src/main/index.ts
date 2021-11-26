@@ -1,7 +1,8 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { devError } from '../lib/dev-error'
-import { devLog, getProcessTitle, setProcessTitle } from '../lib/dev-log'
+import { devEnv } from '../dev-env'
+import { devError } from '../dev-error'
+import { devLog } from '../dev-log'
 import { PromiseWithoutError } from '../types'
 
 /** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
@@ -79,9 +80,9 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
     devLog.initProcessTime()
 
     if (processTitle) {
-      setProcessTitle(processTitle)
-    } else if (typeof main === 'object' && main !== null && !getProcessTitle.hasProcessTitle()) {
-      setProcessTitle(main as any)
+      devEnv.setProcessTitle(processTitle)
+    } else if (typeof main === 'object' && main !== null && !devEnv.getProcessTitle.hasProcessTitle()) {
+      devEnv.setProcessTitle(main as any)
     }
 
     devLog.printProcessBanner()
