@@ -2,15 +2,17 @@
 
 export * from './types'
 
+export { path } from './path'
+
 export * from './dev-env'
+
+export * from './colors'
 
 export * from './lib/utils'
 
 export * from './lib/promises'
 
 export * from './dev-error'
-
-export * from './colors'
 
 export * from './dev-log'
 
