@@ -1,7 +1,6 @@
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
-import tty from 'tty'
 import { fileURLToPath } from 'url'
 import { makePathRelative } from '../path'
 
@@ -26,35 +25,35 @@ isCI.set = (value: boolean) => {
   }
 }
 
-let _colorForcedLoaded = false
-let _noColorForced = false
-let _colorForced = false
-let _supportsBasicColors: boolean | undefined
+const forceNoColors = process.argv.includes('--no-color') || process.argv.includes('--no-colors')
 
-function supportsBasicColors() {
-  if (!_colorForcedLoaded) {
-    _colorForcedLoaded = true
-    if ('NO_COLOR' in process.env || process.argv.includes('--no-color')) {
-      _noColorForced = true
-    } else {
-      _colorForced =
-        'FORCE_COLOR' in process.env || process.argv.includes('--color') || process.argv.includes('--colors')
+if (
+  forceNoColors ||
+  (!('FORCE_COLOR' in process.env) && !('NO_COLOR' in process.env) && !('NODE_DISABLE_COLORS' in process.env))
+) {
+  const level = forceNoColors
+    ? 0
+    : process.stdout.hasColors(2 ** 24)
+    ? 3
+    : process.stdout.hasColors(2 ** 8)
+    ? 2
+    : process.stdout.hasColors() || isCI()
+    ? 1
+    : 0
+
+  if (level > 0) {
+    process.env.FORCE_COLOR = level.toString()
+    if ('NODE_DISABLE_COLORS' in process.env) {
+      delete process.env.NODE_DISABLE_COLORS
     }
+    if ('NO_COLOR' in process.env) {
+      delete process.env.NO_COLOR
+    }
+  } else {
+    process.env.FORCE_COLOR = '0'
+    process.env.NODE_DISABLE_COLORS = '1'
+    process.env.NO_COLOR = '1'
   }
-
-  if (_noColorForced) {
-    return false
-  }
-
-  if (_colorForced) {
-    return true
-  }
-
-  if (_supportsBasicColors === undefined) {
-    _supportsBasicColors = process.platform === 'win32' || (tty.isatty(1) && process.env.TERM !== 'dumb')
-  }
-
-  return _supportsBasicColors || isCI()
 }
 
 /** Loads .env file */
@@ -118,7 +117,6 @@ const setProcessTitle = (value: string | { filename?: string; id?: string; path?
 export const devEnv = {
   initialCwd: process.cwd(),
   isCI,
-  supportsBasicColors,
   loadDotEnv,
   getProcessTitle,
   setProcessTitle

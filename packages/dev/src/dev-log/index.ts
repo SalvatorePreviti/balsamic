@@ -1,9 +1,9 @@
 import util from 'util'
 import readline from 'readline'
+import { colors } from '../colors'
 import { millisecondsToString, startMeasureTime } from '../lib/utils'
 import { devEnv } from '../dev-env'
 import { devError } from '../dev-error'
-import { colors } from '../colors'
 import type { Awaited } from '../types'
 
 let _logProcessTimeInitialized = false
