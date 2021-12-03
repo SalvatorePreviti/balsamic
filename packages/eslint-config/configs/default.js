@@ -75,7 +75,7 @@ const jsRules = {
   'import/export': 2,
   'import/first': 2,
   'import/named': 0,
-  'import/newline-after-import': 0,
+  'import/newline-after-import': 1,
   'import/no-absolute-path': [2, { esmodule: true, commonjs: true, amd: false }],
   'import/no-amd': 2,
   'import/no-anonymous-default-export': 0,
@@ -312,7 +312,7 @@ const jsRules = {
   'operator-assignment': [1, 'always'],
   'operator-linebreak': [0, 'after', { overrides: { '?': 'before', ':': 'before', '|>': 'before' } }],
   'padded-blocks': [0, { blocks: 'never', switches: 'never', classes: 'never' }],
-  'padding-line-between-statements': [0, ...paddingLineBetweenStatementsRules],
+  'padding-line-between-statements': [1, ...paddingLineBetweenStatementsRules],
   'prefer-arrow-callback': [1, { allowNamedFunctions: true, allowUnboundThis: true }],
   'prefer-const': [1, { destructuring: 'all', ignoreReadBeforeAssign: true }],
   'prefer-exponentiation-operator': 1,
@@ -321,16 +321,6 @@ const jsRules = {
   'prefer-rest-params': 1,
   'prefer-spread': 1,
   'prefer-template': 1,
-  'quick-prettier/prettier': [
-    1,
-    {
-      'prettify-package-json': true,
-      rules: {
-        'padding-line-between-statements': [1, ...paddingLineBetweenStatementsRules],
-        'import/newline-after-import': 1
-      }
-    }
-  ],
   'quote-props': [0, 'as-needed', { keywords: false, numbers: false, unnecessary: true }],
   quotes: 0,
   'require-atomic-updates': 0,
@@ -627,7 +617,7 @@ const eslintConfig = {
     ecmaVersion: 2021,
     project: tsConfigPath
   },
-  plugins: ['node', 'import', '@typescript-eslint', 'quick-prettier'],
+  plugins: ['node', 'import', '@typescript-eslint'],
   rules: { ...jsRules, ...typescriptRules },
   settings: {
     'import/ignore:': ['node_modules'],

@@ -5,7 +5,6 @@
 const fs = require('fs')
 const path = require('path')
 const logging = require('./logging')
-const { sortPackageJson } = require('eslint-plugin-quick-prettier/json-utils.js')
 const { spawn } = require('child_process')
 
 const projectRoot = path.dirname(require.resolve('../../package.json'))
@@ -55,14 +54,14 @@ function loadPackageJson(packageJsonPath) {
 }
 
 function rewritePackageJson(packageJsonPath, project) {
-  const stringified = JSON.stringify(sortPackageJson(project), null, 2)
+  const stringified = JSON.stringify(project, null, 2)
   let originalManifest
   try {
     originalManifest = fs.readFileSync(packageJsonPath, 'utf8')
   } catch (_) {}
   let formatted
   try {
-    const prettierInterface = require('eslint-plugin-quick-prettier/prettier-interface')
+    const prettierInterface = require('prettier')
     formatted = prettierInterface.format(stringified, { ignoreErrors: true, parser: 'json-stringify' })
   } catch (_) {}
   formatted = cleanupText(formatted || stringified)

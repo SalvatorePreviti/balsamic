@@ -2,7 +2,6 @@ const path = require('path')
 const manifest = require('../../package.json')
 const logging = require('./logging')
 const fs = require('fs')
-const { sortObjectKeys } = require('eslint-plugin-quick-prettier/json-utils.js')
 const chalk = require('chalk')
 const {
   loadPackageJson,
@@ -160,6 +159,17 @@ function fixProjectFields(project) {
     project.keywords = [project.name]
     logging.progress('added project keywords', project.keywords)
   }
+}
+
+function sortObjectKeys(obj) {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    return obj
+  }
+  const result = {}
+  for (const [k, v] of Object.entries(obj).sort(([a], [b]) => a.localeCompare(b))) {
+    result[k] = v
+  }
+  return result
 }
 
 function addDependencies(project, { hasGitHooks }) {
