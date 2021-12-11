@@ -132,11 +132,22 @@ function _awaitChildProcess(
         }
         error = devError(error, onError)
 
-        let stack = exitError.stack || `${cmd} failed\n`
-        if (exitCode && !stack.includes(' exitCode:')) {
-          stack = stack.replace('\n', ` exitCode:${exitCode}\n`)
+        const message = exitError.message
+        if (typeof message === 'string') {
+          if (exitCode && !message.includes(' exitCode:')) {
+            exitError.message = `${message.endsWith('.') ? message : `${message}.`} exitCode:${exitCode}`
+          }
         }
-        exitError.stack = stack
+
+        const stack = exitError.stack
+        if (typeof stack === 'string') {
+          if (exitCode && !stack.includes(' exitCode:')) {
+            const newStack = stack.replace('\n', ` exitCode:${exitCode}\n`)
+            if (stack !== newStack) {
+              exitError.stack = newStack
+            }
+          }
+        }
 
         error.cmd = cmd
         completed = true
