@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url'
 import { devEnv } from '../dev-env'
 import { devError } from '../dev-error'
 import { devLog } from '../dev-log'
-import { PromiseWithoutError } from '../types'
 
 /** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
 export function isMainModule(
@@ -51,11 +50,11 @@ function stripExt(name: string) {
 export function devRunMain<T = unknown>(
   main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
   processTitle?: string
-): PromiseWithoutError<T | Error>
+): Promise<T | Error>
 
 export function devRunMain<T extends null | false | undefined>(main: T, processTitle?: string): Promise<T>
 
-export function devRunMain<T = unknown>(main: any, processTitle?: string): PromiseWithoutError<T | Error> {
+export function devRunMain<T = unknown>(main: any, processTitle?: string): Promise<T | Error> {
   let handledError: Error | undefined
 
   if (main === false || main === undefined || main === null) {

@@ -4,7 +4,6 @@ import { colors as _colors } from '../colors'
 import { millisecondsToString, startMeasureTime } from '../lib/utils'
 import { devEnv } from '../dev-env'
 import { devError } from '../dev-error'
-import type { Awaited } from '../types'
 
 let _logProcessTimeInitialized = false
 const _errorLoggedSet = new WeakSet<any>()
@@ -160,10 +159,13 @@ devLog.dev = function (...args: unknown[]): void {
     Error.stackTraceLimit = oldStackTraceLimit
   }
   let devLine = ''
-  for (const line of (err.stack || '')?.split('\n')) {
-    if (line.startsWith('    at')) {
-      devLine = line.trim()
-      break
+  const stack = err.stack
+  if (typeof stack === 'string') {
+    for (const line of stack.split('\n')) {
+      if (line.startsWith('    at')) {
+        devLine = line.trim()
+        break
+      }
     }
   }
   devLog.log(
@@ -312,7 +314,7 @@ devLog.askConfirmation = async function askConfirmation(message: string, default
     return true
   }
   return new Promise((resolve) => {
-    const rl = readline.createInterface(process.stdin, process.stdout)
+    const rl = readline.createInterface(process.stdin, process.stdout as any)
     const question = `${devLog.colors.greenBright('?')} ${devLog.colors.whiteBright(message)} ${devLog.colors.gray(
       defaultValue ? '(Y/n)' : '(N/y)'
     )} `

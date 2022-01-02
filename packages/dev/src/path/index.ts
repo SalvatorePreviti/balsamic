@@ -137,12 +137,19 @@ export const {
   globNormalize,
   /** Joins glob paths. The normal join collapses "**\/..", this avoid the issue. */
   globJoin,
+  /** Converts a file:// URL to a path */
   pathFromFileURL,
+  /** Tries to converts a file:// URL to a path. Returns null if failed */
   tryPathFromFileURL,
+  /** Converts an absolute path to a file URL. */
   absolutePathToFileURL,
+  /** Returns true if the given path starts with ./, ../ or / */
   looksLikeAbsoluteOrRelativePath,
+  /** Parses a node package path. Example hello/subpath */
   parseNodePackageName,
+  /** Resolves a file or a directory maintaining the ending slash if present */
   resolveFileOrDirectory,
+  /** Gets the root path of a full path. Since this is posix, root is always "/" */
   getPathRoot
 } = platform() === 'win32' ? _win32 : _posix
 

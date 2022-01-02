@@ -2,9 +2,7 @@
 'use strict'
 
 const patterns = require('../lib/config')
-const serverConfig = require('./server.js')
 const scriptsConfig = require('./scripts.js')
-const binConfig = require('./bin.js')
 const distConfig = require('./dist.js')
 const config = require('../lib/config')
 
@@ -606,9 +604,7 @@ const eslintConfig = {
         }
       }
     },
-    { files: patterns.server, ...serverConfig },
     { files: patterns.scripts, ...scriptsConfig },
-    { files: patterns.bin, ...binConfig },
     { files: patterns.dist, ...distConfig },
     _testOverrides
   ],

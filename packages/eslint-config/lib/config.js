@@ -13,8 +13,6 @@ let _tsConfigPath = ''
 module.exports = {
   sourceExtensions: [...sourceNodeExtensions, '._js', '.es', '.es6'],
   importableExtensions: [...sourceNodeExtensions, '.json', '.node'],
-  server: ['**/server/**/*', '**/dev-server/**/*'],
-  bin: ['**/bin/**/*', '**/.bin/**/*'],
   dist: [
     '**/dist/**/*',
     '**/out/**/*',
