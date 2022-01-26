@@ -1,7 +1,7 @@
-'use strict'
+"use strict";
 
 module.exports = {
   rules: {
-    'global-require': 0
-  }
-}
+    "global-require": 0,
+  },
+};

@@ -1,10 +1,10 @@
-import { platform } from 'os'
-import _posix from './posix'
-import _win32 from './win32'
+import { platform } from "os";
+import _posix from "./posix";
+import _win32 from "./win32";
 
-export type { FormatInputPathObject, ParsedPath } from 'path'
+export type { FormatInputPathObject, ParsedPath } from "path";
 
-export type PlatformPath = typeof _posix | typeof _win32 | typeof import('.')
+export type PlatformPath = typeof _posix | typeof _win32 | typeof import(".");
 
 export const {
   posix,
@@ -150,25 +150,25 @@ export const {
   /** Resolves a file or a directory maintaining the ending slash if present */
   resolveFileOrDirectory,
   /** Gets the root path of a full path. Since this is posix, root is always "/" */
-  getPathRoot
-} = platform() === 'win32' ? _win32 : _posix
+  getPathRoot,
+} = platform() === "win32" ? _win32 : _posix;
 
 /** Makes a path relative and nicely printable */
 export function makePathRelative(filePath: string | null | undefined, cwd?: string) {
   if (!filePath) {
-    return './'
+    return "./";
   }
-  if (!cwd || cwd === '.' || cwd === './') {
-    cwd = process.cwd()
+  if (!cwd || cwd === "." || cwd === "./") {
+    cwd = process.cwd();
   }
   try {
-    const relativePath = normalize(relative(cwd, filePath))
-    return relativePath && relativePath.length < filePath.length ? relativePath : filePath
+    const relativePath = normalize(relative(cwd, filePath));
+    return relativePath && relativePath.length < filePath.length ? relativePath : filePath;
   } catch {
-    return filePath
+    return filePath;
   }
 }
 
-export * as path from '.'
+export * as path from ".";
 
-export * as default from '.'
+export * as default from ".";

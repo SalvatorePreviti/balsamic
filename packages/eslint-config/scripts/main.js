@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-'use strict'
+"use strict";
 
-const { main, handleUncaughtError } = require('./lib/balsamic-eslint')
+const { main, handleUncaughtError } = require("./lib/balsamic-eslint");
 
-main(process.argv).catch(handleUncaughtError)
+main(process.argv).catch(handleUncaughtError);

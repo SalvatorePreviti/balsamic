@@ -1,7 +1,7 @@
-'use strict'
+"use strict";
 
-const esrun = require('./index.js')
+const esrun = require("./index.js");
 
-module.exports = esrun
+module.exports = esrun;
 
-esrun.esrunRegister()
+esrun.esrunRegister();

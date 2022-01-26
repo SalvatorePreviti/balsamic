@@ -1,1 +1,1 @@
-export declare function esrunMain(): Promise<void>
+export declare function esrunMain(): Promise<void>;

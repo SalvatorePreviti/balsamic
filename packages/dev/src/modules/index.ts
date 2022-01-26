@@ -1,3 +1,3 @@
-export * from './node-resolver'
+export * from "./node-resolver";
 
-export * from './get-packages-folders'
+export * from "./get-packages-folders";

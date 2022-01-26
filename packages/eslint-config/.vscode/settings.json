@@ -1,4 +1,8 @@
 {
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
@@ -39,8 +43,10 @@
   },
   "editor.codeActionsOnSave": {
     "source.fixAll": true,
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": true,
+    "source.organizeImports": true
   },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.detectIndentation": false,
   "editor.formatOnSave": true,
   "editor.lineNumbers": "on",
@@ -50,31 +56,21 @@
   "eslint.lintTask.enable": true,
   "eslint.validate": [],
   "javascript.format.enable": true,
-  "javascript.format.semicolons": "remove",
+  "javascript.format.semicolons": "insert",
   "typescript.format.enable": true,
-  "typescript.format.semicolons": "remove",
+  "typescript.format.semicolons": "insert",
   "files.eol": "\n",
-  "files.exclude": {
-    "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
-    "**/CVS": true,
-    "**/.DS_Store": true,
-    "**/.eslintcache": true,
-    "**/.prettiercache": true,
-    "**/.cache": true,
-    "**/.fuse_hidden*": true
-  },
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/bower_components": true,
-    "**/package-lock.json": true,
-    "**/yarn.lock": true,
-    "**/.fusebox/**/*": true,
-    "**/.webpack": true,
-    "**/.dynamodb/**/*": true,
-    "**/*.tsbuildinfo": true,
-    "**/.yarn-integrity": true,
-    "**/.grunt": true
-  }
+  "prettier.enable": true,
+  "prettier.requireConfig": true,
+  "prettier.arrowParens": "always",
+  "prettier.bracketSpacing": true,
+  "prettier.endOfLine": "lf",
+  "prettier.htmlWhitespaceSensitivity": "css",
+  "prettier.jsxSingleQuote": false,
+  "prettier.printWidth": 120,
+  "prettier.semi": true,
+  "prettier.singleQuote": false,
+  "prettier.tabWidth": 2,
+  "prettier.trailingComma": "all",
+  "prettier.useTabs": false
 }
