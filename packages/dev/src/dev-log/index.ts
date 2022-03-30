@@ -8,6 +8,23 @@ import { devError } from "../dev-error";
 let _logProcessTimeInitialized = false;
 const _errorLoggedSet = new WeakSet<any>();
 
+function _errorLoggedSetAdd(error: any) {
+  if (typeof error === "object" && error !== null) {
+    try {
+      _errorLoggedSet.add(error);
+    } catch {}
+  }
+}
+
+function _errorLoggedSetHas(error: any): boolean {
+  if (typeof error === "object" && error !== null) {
+    try {
+      return _errorLoggedSet.has(error);
+    } catch {}
+  }
+  return false;
+}
+
 export namespace devLog {
   export type TermBasicColor =
     | "black"
@@ -126,13 +143,13 @@ function errorOnce(message?: any, error?: any, caller?: any) {
     error = message;
   }
   const err = devError(error, typeof caller === "function" ? caller : devLog.errorOnce);
-  if (typeof error === "object" && error !== null && _errorLoggedSet.has(error)) {
+  if (typeof error === "object" && error !== null && _errorLoggedSetHas(error)) {
     return err;
   }
-  if (!_errorLoggedSet.has(err)) {
-    _errorLoggedSet.add(err);
+  if (!_errorLoggedSetHas(err)) {
+    _errorLoggedSetAdd(err);
     if (typeof error === "object" && error !== null && err !== error) {
-      _errorLoggedSet.add(error);
+      _errorLoggedSetAdd(error);
     }
     devLog.error(err);
   }
@@ -336,8 +353,9 @@ export class DevLogTimed {
     if (elapsed || options.logError) {
       if (
         (options.logError === undefined || options.logError) &&
-        (typeof error !== "object" || error === null || !_errorLoggedSet.has(error))
+        (typeof error !== "object" || error === null || !_errorLoggedSetHas(error))
       ) {
+        _errorLoggedSetAdd(error);
         devLog.error(
           `${this.title} FAILED${elapsed ? ` in ${elapsed.toString()}` : ""}`,
           options.showStack !== false ? error : `${error}`,
