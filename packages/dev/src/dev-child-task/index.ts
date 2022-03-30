@@ -1,10 +1,33 @@
 import child_process from "child_process";
-import { devError } from "../dev-error";
-import { devLog } from "../dev-log";
 import type { DevLogTimeOptions } from "../dev-log";
-import { NodeResolver } from "..";
+import { NodeResolver } from "../modules/node-resolver";
+import { ProcessPromise, ProcessPromiseResult as _ProcessPromiseResult } from "./process-promise";
+
+export { ProcessPromise, _ProcessPromiseResult as ProcessPromiseResult };
+
+const { isArray } = Array;
 
 export namespace devChildTask {
+  export interface CommonOptions extends DevLogTimeOptions {
+    title?: string;
+
+    /** Overrides the showStack property in case of error */
+    showStack?: boolean;
+
+    /** Throws if exitCode is non zero or a signal was raised. Default is true. */
+    throwOnExitCode?: boolean;
+  }
+
+  export interface SpawnOptions extends CommonOptions, child_process.SpawnOptions {}
+
+  export interface ForkOptions extends CommonOptions, child_process.ForkOptions {}
+
+  export type ProcessPromiseResult = _ProcessPromiseResult;
+
+  export type ChildProcess = child_process.ChildProcess;
+
+  export type ChildProcessStartedHandler = (process: ChildProcess) => void;
+
   export type Arg =
     | string
     | null
@@ -12,24 +35,25 @@ export namespace devChildTask {
     | number
     | false
     | readonly (string | null | undefined | number | false)[];
-
-  export interface CommonOptions extends DevLogTimeOptions {
-    title?: string;
-    showStack?: boolean;
-    abort?: AbortSignal | AbortController;
-  }
-
-  export interface SpawnOptions extends CommonOptions, child_process.SpawnOptions {}
-  export interface ForkOptions extends CommonOptions, child_process.ForkOptions {}
 }
 
 export const devChildTask = {
-  normalizeArgs(args: readonly devChildTask.Arg[]): string[] {
+  defaultOptions: {
+    stdio: "inherit",
+    env: process.env,
+    throwOnExitCode: true,
+    timed: true,
+  } as Omit<devChildTask.CommonOptions, "title">,
+
+  normalizeArgs(args: readonly devChildTask.Arg[] | null | undefined): string[] {
+    if (args === null || args === undefined) {
+      return [];
+    }
     const result: string[] = [];
     const append = (array: readonly devChildTask.Arg[], level: number) => {
       for (const arg of array) {
         if (arg !== null && arg !== undefined && arg !== false) {
-          if (Array.isArray(arg)) {
+          if (isArray(arg)) {
             if (level > 8) {
               throw new Error("getDevChildTaskArgs array overflow");
             }
@@ -45,142 +69,87 @@ export const devChildTask = {
   },
 
   /** Spawn a new process, redirect stdio and await for completion. */
-  async spawn(command: string, inputArgs: readonly devChildTask.Arg[] = [], options?: devChildTask.SpawnOptions) {
-    const args = devChildTask.normalizeArgs(inputArgs);
-    const cmd = [command, ...args].join(" ");
-    const title = (options && options.title) || (cmd.length < 40 ? cmd : command);
-    const exitError = new Error(`Child process "${title}" failed`);
-    if (options && options.showStack !== undefined) {
-      exitError.showStack = options.showStack;
+  spawn(
+    command: string,
+    inputArgs?: readonly devChildTask.Arg[],
+    options?: devChildTask.SpawnOptions | null,
+  ): ProcessPromise {
+    try {
+      const args = devChildTask.normalizeArgs(inputArgs);
+      const cmd = [command, ...args].join(" ");
+      const opts = { ...devChildTask.defaultOptions, ...options };
+      if (typeof opts.title !== "string") {
+        opts.title = cmd.length < 40 ? cmd : command;
+      }
+      if (typeof opts.cwd !== "string") {
+        opts.cwd = process.cwd();
+      }
+      return new ProcessPromise(() => child_process.spawn(command, args, opts), opts);
+    } catch (error) {
+      return ProcessPromise.rejectProcessPromise(error);
     }
-    const spawn = () =>
-      _awaitChildProcess(
-        child_process.spawn(command, args, { env: process.env, stdio: "inherit", ...options }),
-        cmd,
-        exitError,
-        options && options.abort,
-      );
-    return devLog.timed(title, spawn, options);
   },
 
   /** Forks the node process that runs the given module, redirect stdio and await for completion. */
-  async fork(moduleId: string, inputArgs: readonly devChildTask.Arg[] = [], options?: devChildTask.ForkOptions) {
-    const args = devChildTask.normalizeArgs(inputArgs);
-    const cmd = [moduleId, ...args].join(" ");
-    const title = (options && options.title) || (cmd.length < 40 ? cmd : moduleId);
-    const exitError = new Error(`Child process "${title}" failed`);
-    if (options && options.showStack !== undefined) {
-      exitError.showStack = options.showStack;
+  fork(
+    moduleId: string,
+    inputArgs?: readonly devChildTask.Arg[],
+    options?: devChildTask.ForkOptions | null,
+  ): ProcessPromise {
+    try {
+      const args = devChildTask.normalizeArgs(inputArgs);
+      const cmd = [moduleId, ...args].join(" ");
+      const opts = { ...devChildTask.defaultOptions, ...options };
+      if (typeof opts.title !== "string") {
+        opts.title = cmd.length < 40 ? cmd : moduleId;
+      }
+      if (typeof opts.cwd !== "string") {
+        opts.cwd = process.cwd();
+      }
+      return new ProcessPromise(() => child_process.fork(moduleId, args, opts), opts);
+    } catch (error) {
+      return ProcessPromise.rejectProcessPromise(error);
     }
-    const fork = () =>
-      _awaitChildProcess(
-        child_process.fork(moduleId, devChildTask.normalizeArgs(args), {
-          env: process.env,
-          stdio: "inherit",
-          ...options,
-        }),
-        cmd,
-        exitError,
-        options && options.abort,
-      );
-    return devLog.timed(title, fork, options);
   },
 
   /** Forks the node process that runs the given bin command for the given package, redirect stdio and await for completion. */
-  async runModuleBin(
+  runModuleBin(
     moduleId: string,
     executableId: string,
     args: readonly devChildTask.Arg[] = [],
-    options: devChildTask.ForkOptions = {},
-  ) {
-    const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd);
-    if (!resolved) {
-      throw new Error(`Could not find ${moduleId}:${executableId}`);
+    options?: devChildTask.ForkOptions,
+  ): ProcessPromise {
+    try {
+      options = { ...options };
+      if (typeof options.title !== "string") {
+        options.title = `${moduleId}:${executableId}`;
+      }
+      const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd);
+      if (!resolved) {
+        return ProcessPromise.rejectProcessPromise(new Error(`Could not find ${moduleId}:${executableId}`));
+      }
+      return devChildTask.fork(resolved, args, options);
+    } catch (error) {
+      return ProcessPromise.rejectProcessPromise(error);
     }
-    return devChildTask.fork(resolved, args, options);
   },
 
   /** Executes npm run <command> [args] */
-  async npmRun(command: string, args: readonly devChildTask.Arg[] = [], options?: devChildTask.SpawnOptions) {
+  npmRun(command: string, args: readonly devChildTask.Arg[] = [], options?: devChildTask.SpawnOptions): ProcessPromise {
+    options = { title: `npm run ${command}`, ...options };
     return devChildTask.spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", command, ...args], options);
   },
+
+  /** Executes npm <command> [args] */
+  npmCommand(
+    command: string,
+    args: readonly devChildTask.Arg[] = [],
+    options?: devChildTask.SpawnOptions,
+  ): ProcessPromise {
+    options = { title: `npm ${command}`, ...options };
+    return devChildTask.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  },
+
+  ProcessPromise,
+  ProcessPromiseResult: _ProcessPromiseResult,
 };
-
-function _awaitChildProcess(
-  childProcess: child_process.ChildProcess,
-  cmd: string,
-  exitError: Error,
-  abortSignal: AbortSignal | AbortController | undefined,
-): Promise<void> {
-  if (abortSignal && "signal" in abortSignal) {
-    abortSignal = abortSignal.signal;
-  }
-
-  const result = new Promise<void>((resolve, reject) => {
-    let completed = false;
-    let abort: false | null | (() => void) = false;
-    let exitCode: string | number | null;
-
-    if (abortSignal) {
-      abort = () => {
-        abort = null;
-        if (!completed) {
-          childProcess.kill("SIGINT");
-        }
-      };
-      (abortSignal as AbortSignal).addEventListener("abort", abort);
-    }
-
-    const onError = (error: any) => {
-      if (!completed) {
-        if (abortSignal && abort) {
-          (abortSignal as AbortSignal).removeEventListener("abort", abort);
-        }
-        error = devError(error, onError);
-
-        const message = exitError.message;
-        if (typeof message === "string") {
-          if (exitCode && !message.includes(" exitCode:")) {
-            exitError.message = `${message.endsWith(".") ? message : `${message}.`} exitCode:${exitCode}`;
-          }
-        }
-
-        const stack = exitError.stack;
-        if (typeof stack === "string") {
-          if (exitCode && !stack.includes(" exitCode:")) {
-            const newStack = stack.replace("\n", ` exitCode:${exitCode}\n`);
-            if (stack !== newStack) {
-              exitError.stack = newStack;
-            }
-          }
-        }
-
-        error.cmd = cmd;
-        completed = true;
-        reject(error);
-      }
-    };
-
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-      if (abortSignal && abort) {
-        (abortSignal as AbortSignal).removeEventListener("abort", abort);
-      }
-      if (!code && !signal && abort === null) {
-        code = null;
-        signal = "SIGINT";
-      }
-      if (code || code === null) {
-        exitCode = code || signal || "FAILED";
-        exitError.exitCode = exitCode;
-        onError(exitError);
-      } else if (!completed) {
-        completed = true;
-        resolve();
-      }
-    };
-    childProcess.on("error", onError);
-    childProcess.on("exit", onExit);
-  });
-
-  return result;
-}

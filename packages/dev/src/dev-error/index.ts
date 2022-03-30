@@ -20,41 +20,32 @@ export function devError<TError, TFields extends {}>(
 
 /** Fixes an error, the return value is always an Error instance */
 export function devError(error?: any, a?: any, b?: any) {
-  if (!(error instanceof Error)) {
-    if (typeof error === "object" && error !== null) {
-      error = Object.assign(new Error(error.message || "Unknown error"), error);
-    } else {
-      error = new Error((error as any) || "Unknown error");
+  try {
+    if (!(error instanceof Error)) {
+      if (typeof error === "object" && error !== null) {
+        error = Object.assign(new Error(error.message || "Unknown error"), error);
+      } else {
+        error = new Error((error as any) || "Unknown error");
+      }
+      if (!("stack" in error)) {
+        Error.captureStackTrace(error, typeof b === "function" ? b : typeof a === "function" ? a : devError);
+      }
     }
-    if (!("stack" in error)) {
-      Error.captureStackTrace(error, typeof b === "function" ? b : typeof a === "function" ? a : devError);
+
+    if ((typeof a === "string" || a instanceof Error) && a !== error) {
+      error.cause = a;
+    } else if (typeof a === "object" && a !== null) {
+      Object.assign(error, a);
     }
-  }
 
-  if ((typeof a === "string" || a instanceof Error) && a !== error) {
-    error.cause = a;
-  } else if (typeof a === "object" && a !== null) {
-    Object.assign(error, a);
-  }
-
-  // Hide some unuseful properties
-  _hideProperty(error, "showStack");
-  _hideProperty(error, "codeFrame");
-  _hideProperty(error, "watchFiles");
-  _hideProperty(error, "response");
+    // Hide some unuseful properties
+    hideProperty(error, "showStack");
+    hideProperty(error, "codeFrame");
+    hideProperty(error, "watchFiles");
+    hideProperty(error, "response");
+  } catch {}
 
   return error;
-}
-
-function _hideProperty(obj: any, name: string) {
-  if (typeof obj === "object" && obj !== null && name in obj) {
-    defineProperty(obj, name, {
-      value: obj[name],
-      configurable: true,
-      enumerable: false,
-      writable: true,
-    });
-  }
 }
 
 /** Attach unhandledRejection and uncaughtException handlers for logging and process.exitCode */
@@ -156,3 +147,26 @@ devError.ignoreProcessWarning = function ignoreProcessWarning(name: string, valu
 devError.isProcessWarningIgnored = function isProcessWarningIgnored(name: string) {
   return _ignoredWarnings !== null && _ignoredWarnings.has(name);
 };
+
+devError.setProperty = function setProperty(error: Error, name: string, value: unknown, enumerable = true) {
+  if (typeof error === "object" && error !== null) {
+    defineProperty(error, name, { value, configurable: true, enumerable, writable: true });
+  }
+};
+
+devError.setShowStack = function setShowStack(error: Error, value: boolean | undefined) {
+  devError.setProperty(error, "showStack", value);
+};
+
+devError.hideProperty = hideProperty;
+
+function hideProperty(error: Error, name: string) {
+  if (typeof error === "object" && error !== null && name in error) {
+    defineProperty(error, name, {
+      value: error[name],
+      configurable: true,
+      enumerable: false,
+      writable: true,
+    });
+  }
+}

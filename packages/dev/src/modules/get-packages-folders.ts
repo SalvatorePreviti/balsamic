@@ -1,6 +1,6 @@
-import type { PackageJson } from "../types";
 import path from "path";
-import { NodeResolver, NodePackageJson } from "./node-resolver";
+import type { PackageJson } from "../types";
+import { type NodePackageJson, NodeResolver } from "./node-resolver";
 
 export interface GetPackagesFoldersOptions {
   /** If true, packages hosted inside a package node_modules will not be returned. Default is true. */

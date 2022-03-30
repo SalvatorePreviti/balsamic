@@ -272,41 +272,86 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
   if (!title && typeof fnOrPromise === "function") {
     title = fnOrPromise.name;
   }
-  const indent = _parseIndent(options.indent);
-  const isTimed = options.timed === undefined || !!options.timed;
-  const printStarted = options.printStarted === undefined || !!options.printStarted;
-  if (isTimed && printStarted) {
-    devLog.log(devLog.colors.cyan(`${indent}${devLog.colors.cyan("◆")} ${title}`) + devLog.colors.gray(" started..."));
-  }
-  const elapsed = startMeasureTime();
+
+  const t = new DevLogTimed(`${title}`, options);
   try {
     if (typeof fnOrPromise === "function") {
       fnOrPromise = fnOrPromise();
     }
     const result = await fnOrPromise;
-    if (isTimed) {
-      devLog.log(
-        devLog.colors.green(
-          `${printStarted ? "\n" : ""}${indent}${devLog.colors.green("✔")} ${title} ${devLog.colors.bold(
-            "OK",
-          )} ${devLog.colors.gray(`in ${elapsed.toString()}`)}`,
-        ),
-      );
-    }
+    t.end();
     return result;
   } catch (error) {
-    if (isTimed || options.logError) {
-      if (options.logError && (typeof error !== "object" || error === null || !_errorLoggedSet.has(error))) {
-        devLog.error(`${title} FAILED in ${elapsed.toString()}`, options.showStack !== false ? error : `${error}`);
-      } else {
-        devLog.error(devLog.colors.redBright(`${title} ${devLog.colors.bold("FAILED")} in ${elapsed.toString()}`));
-      }
-    }
+    t.fail(error);
     throw error;
   }
 }
 
 devLog.timed = timed;
+
+export class DevLogTimed {
+  #options: DevLogTimeOptions;
+  #elapsed: ReturnType<typeof startMeasureTime> | null = null;
+  #printStarted = false;
+  #indent = "";
+
+  constructor(public title: string, options: DevLogTimeOptions) {
+    this.#options = options;
+  }
+
+  public start(): this {
+    const options = this.#options;
+    const indent = _parseIndent(options.indent);
+    const isTimed = options.timed === undefined || !!options.timed;
+    this.#indent = indent;
+    this.#printStarted = options.printStarted === undefined || !!options.printStarted;
+    if (isTimed && this.#printStarted) {
+      devLog.log(
+        devLog.colors.cyan(`${indent}${devLog.colors.cyan("◆")} ${this.title}`) + devLog.colors.gray(" started..."),
+      );
+    }
+    if (isTimed) {
+      this.#elapsed = startMeasureTime();
+    }
+    return this;
+  }
+
+  public end() {
+    const elapsed = this.#elapsed;
+    if (elapsed) {
+      const indent = this.#indent;
+      devLog.log(
+        devLog.colors.green(
+          `${this.#printStarted ? "\n" : ""}${indent}${devLog.colors.green("✔")} ${this.title} ${devLog.colors.bold(
+            "OK",
+          )} ${devLog.colors.gray(`in ${elapsed.toString()}`)}`,
+        ),
+      );
+    }
+  }
+
+  public fail(error: unknown) {
+    const options = this.#options;
+    const elapsed = this.#elapsed;
+    if (elapsed || options.logError) {
+      if (
+        (options.logError === undefined || options.logError) &&
+        (typeof error !== "object" || error === null || !_errorLoggedSet.has(error))
+      ) {
+        devLog.error(
+          `${this.title} FAILED${elapsed ? ` in ${elapsed.toString()}` : ""}`,
+          options.showStack !== false ? error : `${error}`,
+        );
+      } else {
+        devLog.error(
+          devLog.colors.redBright(
+            `${this.title} ${devLog.colors.bold("FAILED")}${elapsed ? ` in ${elapsed.toString()}` : ""}`,
+          ),
+        );
+      }
+    }
+  }
+}
 
 /** Asks the user to input Yes or No */
 devLog.askConfirmation = async function askConfirmation(message: string, defaultValue: boolean) {

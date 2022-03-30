@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,13 +22,13 @@
   "homepage": "https://github.com/SalvatorePreviti/balsamic/tree/main/packages/dev#readme",
   "bin": {},
   "engines": {
-    "node": ">=14.15.0"
+    "node": ">=16.0.0"
   },
   "type": "commonjs",
   "dependencies": {
     "chalk": "^4.1.2"
   },
   "devDependencies": {
-    "@types/node": "^17.0.12"
+    "@types/node": "^17.0.23"
   }
 }

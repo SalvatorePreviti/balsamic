@@ -407,6 +407,7 @@ const jsRules = {
   "restrict-template-expressions": 0,
   "triple-slash-reference": 0,
   "unbound-method": 0,
+
   "import/namespace": 0,
 
   "mocha/no-synchronous-tests": 0,
@@ -534,10 +535,10 @@ const _testOverrides = {
   files: patterns.tests,
   rules: {
     "global-require": 0,
+    "no-unused-expressions": 0, // for chai
     "node/no-unpublished-require": 0,
     "node/no-extraneous-import": 0,
     "node/no-extraneous-require": 0,
-    "no-unused-expressions": 0, // for chai
     "@typescript-eslint/no-unused-expressions": 0, // for chai
   },
 };

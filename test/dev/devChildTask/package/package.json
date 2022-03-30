@@ -1,0 +1,8 @@
+{
+  "name": "dev-child-task-test",
+  "private": true,
+  "scripts": {
+    "ok": "node -e 'console.log(123);'",
+    "fail": "node -e 'process.exit(123);'"
+  }
+}

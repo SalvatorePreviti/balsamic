@@ -3,8 +3,12 @@ import { devLog } from "../dev-log";
 
 export function noop() {}
 
+export namespace Deferred {
+  export type Status = "pending" | "succeeded" | "rejected";
+}
+
 export class Deferred<T> {
-  public status: "pending" | "succeeded" | "rejected" = "pending";
+  public status: Deferred.Status = "pending";
   public error: Error | null = null;
   public result: T | undefined = undefined;
   public promise: Promise<T>;
@@ -75,15 +79,19 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
   }
 }
 
-/** Runs lists of functions or promises in parallel */
+/**
+ * Runs lists of functions or promises in parallel.
+ * Continue running until all are promises settled.
+ * Throws the first error raised, if any.
+ */
 export async function runParallel(...functionsOrPromises: unknown[]): Promise<void> {
-  let error;
   const promises: Promise<void>[] = [];
 
+  let error: unknown;
   const handlePromise = async (p: any) => {
     try {
       if (typeof p === "function") {
-        p = p();
+        p = error !== undefined && p();
       }
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
         return undefined;
@@ -97,6 +105,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
         }
       }
     } catch (e) {
+      error = e;
       devLog.errorOnce(e);
     }
     return p;
@@ -106,8 +115,11 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
     promises.push(handlePromise(p));
   }
 
-  await Promise.all(promises);
-  if (error) {
+  for (let i = 0; i < promises.length; ++i) {
+    await promises[i];
+  }
+
+  if (error !== undefined) {
     throw error;
   }
 }

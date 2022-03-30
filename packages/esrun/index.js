@@ -376,7 +376,7 @@ exports.ignoreProcessWarning.isIgnored = function isIgnored(name) {
   return _ignoredWarnings ? _ignoredWarnings.has(name) : false;
 };
 
-const _validIdentifierSpecialsRegex = /[\s!%^&*(){}[\]?~`\-+=:'|/<>,.;"']/g;
+const _validIdentifierSpecialsRegex = /[\s!%^&*(){}[\]?~`\-+=:'|/<>,.;"']/;
 
 exports.isValidIdentifier = function isValidIdentifier(name) {
   if (

@@ -1,26 +1,26 @@
-import _nodePath from "path";
 import { expect } from "chai";
+import _nodePath from "path";
+import path from "../../../packages/dev/src/path";
 import * as posix from "../../../packages/dev/src/path/posix";
 import {
-  isSep,
-  fixSlashes,
-  isRelative,
-  splitSlashes,
-  startsWithSlash,
-  endsWithSlash,
-  removeTrailingSlash,
-  appendTrailingSlash,
-  isPathInside,
-  startsWithRelative,
-  isRootPath,
-  fileDir,
-  globNormalize,
-  globJoin,
-  pathFromFileURL,
   absolutePathToFileURL,
+  appendTrailingSlash,
+  endsWithSlash,
+  fileDir,
+  fixSlashes,
+  globJoin,
+  globNormalize,
+  isPathInside,
+  isRelative,
+  isRootPath,
+  isSep,
+  pathFromFileURL,
+  removeTrailingSlash,
   resolveFileOrDirectory,
+  splitSlashes,
+  startsWithRelative,
+  startsWithSlash,
 } from "../../../packages/dev/src/path/posix";
-import path from "../../../packages/dev/src/path";
 
 const nodePosix = _nodePath.posix;
 
