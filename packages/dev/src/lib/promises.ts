@@ -1,5 +1,4 @@
 import { devError } from "../dev-error";
-import { devLog } from "../dev-log";
 
 export function noop() {}
 
@@ -87,7 +86,7 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
 export async function runParallel(...functionsOrPromises: unknown[]): Promise<void> {
   const promises: Promise<void>[] = [];
 
-  let error: unknown;
+  let error: any;
   const handlePromise = async (p: any) => {
     try {
       if (typeof p === "function") {
@@ -105,8 +104,16 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
         }
       }
     } catch (e) {
-      error = e;
-      devLog.errorOnce(e);
+      if (error === undefined) {
+        error = devError(e, runParallel);
+      } else {
+        try {
+          if (!error.errors) {
+            error.errors = [];
+          }
+          error.errors.push(e);
+        } catch {}
+      }
     }
     return p;
   };
@@ -117,7 +124,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
 
   await Promise.all(promises);
 
-  if (error !== undefined) {
+  if (error) {
     throw error;
   }
 }
