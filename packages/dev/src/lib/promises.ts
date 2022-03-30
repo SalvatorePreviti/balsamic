@@ -91,7 +91,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
   const handlePromise = async (p: any) => {
     try {
       if (typeof p === "function") {
-        p = error !== undefined && p();
+        p = error === undefined && p();
       }
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
         return undefined;
@@ -115,9 +115,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
     promises.push(handlePromise(p));
   }
 
-  for (let i = 0; i < promises.length; ++i) {
-    await promises[i];
-  }
+  await Promise.all(promises);
 
   if (error !== undefined) {
     throw error;

@@ -6,7 +6,7 @@
     "outDir": "dist",
     "noEmit": false,
     "sourceMap": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "declaration": true,
     "declarationDir": "dist",
     "types": ["node"]
