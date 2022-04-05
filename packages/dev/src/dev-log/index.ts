@@ -290,16 +290,17 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
     title = fnOrPromise.name;
   }
 
-  const t = new DevLogTimed(`${title}`, options);
+  const _timed = new DevLogTimed(`${title}`, options);
   try {
+    _timed.start();
     if (typeof fnOrPromise === "function") {
       fnOrPromise = fnOrPromise();
     }
     const result = await fnOrPromise;
-    t.end();
+    _timed.end();
     return result;
   } catch (error) {
-    t.fail(error);
+    _timed.fail(error);
     throw error;
   }
 }
@@ -313,7 +314,7 @@ export class DevLogTimed {
   #indent = "";
 
   constructor(public title: string, options: DevLogTimeOptions) {
-    this.#options = options;
+    this.#options = options || {};
   }
 
   public start(): this {
