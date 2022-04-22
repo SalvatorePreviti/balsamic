@@ -8,17 +8,7 @@ export { ProcessPromise, _ProcessPromiseResult as ProcessPromiseResult };
 const { isArray } = Array;
 
 export namespace devChildTask {
-  export interface CommonOptions extends DevLogTimeOptions, ProcessPromise.Options {
-    title?: string;
-
-    /** Overrides the showStack property in case of error */
-    showStack?: boolean;
-
-    /** Throws if exitCode is non zero or a signal was raised. Default is true. */
-    throwOnExitCode?: boolean;
-
-    errorTimeoutBeforeExit?: number;
-  }
+  export interface CommonOptions extends DevLogTimeOptions, ProcessPromise.Options {}
 
   export interface SpawnOptions extends CommonOptions, child_process.SpawnOptions {}
 

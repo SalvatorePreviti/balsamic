@@ -133,3 +133,27 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
 export function asyncDelay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export class AbortError extends Error {
+  public static readonly code: string = "ABORT_ERR";
+
+  public constructor(message: string = "The operation was aborted", options?: ErrorOptions) {
+    super(message, options);
+    Error.captureStackTrace(this, new.target);
+    this.code = "ABORT_ERR";
+  }
+
+  public static isAbortError(error: unknown): error is AbortError {
+    return error instanceof AbortError || (error instanceof Error && error.code === "ABORT_ERR");
+  }
+
+  public static throwIfSignalAborted(signal: { aborted: unknown } | null | undefined): void | never {
+    if (signal?.aborted) {
+      const abortError = new AbortError();
+      Error.captureStackTrace(abortError, AbortError.throwIfSignalAborted);
+      throw abortError;
+    }
+  }
+}
+
+AbortError.prototype.code = "ABORT_ERR";

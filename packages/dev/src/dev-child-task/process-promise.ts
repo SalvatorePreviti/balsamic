@@ -1,6 +1,6 @@
 import { ChildProcess } from "child_process";
 import { devError } from "../dev-error";
-import type { Deferred } from "../lib/promises";
+import { AbortError, Deferred } from "../lib/promises";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import type { Abortable } from "node:events";
 
@@ -70,15 +70,16 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
           timeout = null;
         }
         if (state.status === "pending") {
-          if (options.rejectOnAbort !== undefined && !options.rejectOnAbort && exitError?.code === "ABORT_ERR") {
+          const { rejectOnAbort } = options;
+          if (rejectOnAbort !== undefined && !rejectOnAbort && AbortError.isAbortError(exitError)) {
             state.status = "succeeded";
             timed.end();
             resolve({ exitCode: "SIGABRT" });
+          } else {
+            timed.fail(exitError);
+            state.status = "rejected";
+            reject(exitError);
           }
-
-          timed.fail(exitError);
-          state.status = "rejected";
-          reject(exitError);
         }
       };
 
@@ -135,11 +136,13 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         } else {
           timed.start();
           if (typeof childProcess === "function") {
+            AbortError.throwIfSignalAborted(options.signal);
             childProcess = childProcess();
           }
           state.child = childProcess;
           childProcess.on("error", onChildProcessError);
           childProcess.on("exit", onExit);
+          AbortError.throwIfSignalAborted(options.signal);
         }
       } catch (error) {
         setError(error, false);
