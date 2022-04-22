@@ -2,6 +2,7 @@ import { ChildProcess } from "child_process";
 import { devError } from "../dev-error";
 import type { Deferred } from "../lib/promises";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
+import type { Abortable } from "node:events";
 
 export class ProcessPromiseResult {
   exitCode: number | NodeJS.Signals;
@@ -13,10 +14,11 @@ interface ProcessPromiseState {
   status: Deferred.Status;
   exitCode: number | NodeJS.Signals | null;
   error: Error | null;
+  aborted: boolean;
 }
 
 export namespace ProcessPromise {
-  export interface Options extends DevLogTimeOptions {
+  export interface Options extends DevLogTimeOptions, Abortable {
     title?: string;
     showStack?: boolean;
     throwOnExitCode?: boolean;
@@ -47,6 +49,7 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
       status: "pending",
       exitCode: null,
       error: null,
+      aborted: false,
     };
 
     const runProcessPromise = (resolve: (value: ProcessPromiseResult) => void, reject: (e: Error) => void) => {
@@ -93,6 +96,19 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
           state.child = childProcess;
           childProcess.on("error", onError);
           childProcess.on("exit", onExit);
+
+          const signal = options.signal;
+          if (signal && signal.addEventListener) {
+            const abortListener = () => {
+              this.#state.aborted = true;
+              signal.removeEventListener("abort", abortListener);
+              const child = childProcess as ChildProcess | null;
+              if (child && child.killed === false) {
+                child.kill("SIGINT");
+              }
+            };
+            signal.addEventListener("abort", abortListener);
+          }
         }
       } catch (error) {
         onError(error);
@@ -142,6 +158,11 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
   /** True if failed */
   public get isRejected() {
     return this.#state.status === "rejected";
+  }
+
+  /** True if abort signal was raised */
+  public get isAborted(): boolean {
+    return this.#state.aborted;
   }
 
   public get title(): string {
