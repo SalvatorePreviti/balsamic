@@ -4,6 +4,7 @@ import { colors as _colors } from "../colors";
 import { millisecondsToString, startMeasureTime } from "../lib/utils";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
+import { AbortError } from "../lib/promises";
 
 let _logProcessTimeInitialized = false;
 const _errorLoggedSet = new WeakSet<any>();
@@ -352,21 +353,23 @@ export class DevLogTimed {
     const options = this.#options;
     const elapsed = this.#elapsed;
     if (elapsed || options.logError) {
+      const isAbort = AbortError.isAbortError(error);
+      const message = `${this.title} ${isAbort ? "ABORTED" : "FAILED"}${elapsed ? ` in ${elapsed.toString()}` : ""}`;
+
       if (
         (options.logError === undefined || options.logError) &&
         (typeof error !== "object" || error === null || !_errorLoggedSetHas(error))
       ) {
         _errorLoggedSetAdd(error);
-        devLog.error(
-          `${this.title} FAILED${elapsed ? ` in ${elapsed.toString()}` : ""}`,
-          options.showStack !== false ? error : `${error}`,
-        );
+        if (isAbort) {
+          devLog.warn(message, options.showStack !== false ? error : `${error}`);
+        } else {
+          devLog.error(message, options.showStack !== false ? error : `${error}`);
+        }
+      } else if (isAbort) {
+        devLog.error(message);
       } else {
-        devLog.error(
-          devLog.colors.redBright(
-            `${this.title} ${devLog.colors.bold("FAILED")}${elapsed ? ` in ${elapsed.toString()}` : ""}`,
-          ),
-        );
+        devLog.warn(message);
       }
     }
   }
