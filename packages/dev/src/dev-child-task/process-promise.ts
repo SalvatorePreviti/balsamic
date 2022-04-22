@@ -14,14 +14,23 @@ interface ProcessPromiseState {
   status: Deferred.Status;
   exitCode: number | NodeJS.Signals | null;
   error: Error | null;
-  aborted: boolean;
 }
 
 export namespace ProcessPromise {
   export interface Options extends DevLogTimeOptions, Abortable {
     title?: string;
+
+    /** Overrides the showStack property in case of error */
     showStack?: boolean;
+
+    /** Throws if exitCode is non zero or a signal was raised. Default is true. */
     throwOnExitCode?: boolean;
+
+    /** Amount of milliseconds to wait after an error (for example abort) for the process to terminate before rejecting the promise. Default is 5000 */
+    errorTimeoutBeforeExit?: number;
+
+    /** True if the promise will be rejected on abort. If false, the promise will just succeed instead. Default is true. */
+    rejectOnAbort?: boolean;
   }
 }
 
@@ -29,7 +38,7 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
   #state: ProcessPromiseState;
 
   public static rejectProcessPromise(reason: unknown, options: ProcessPromise.Options = {}): ProcessPromise {
-    return new ProcessPromise(devError(reason), options);
+    return new ProcessPromise(devError(reason, ProcessPromise.rejectProcessPromise), options);
   }
 
   public constructor(childProcess: ChildProcess | (() => ChildProcess) | Error, options: ProcessPromise.Options = {}) {
@@ -49,34 +58,69 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
       status: "pending",
       exitCode: null,
       error: null,
-      aborted: false,
     };
 
     const runProcessPromise = (resolve: (value: ProcessPromiseResult) => void, reject: (e: Error) => void) => {
-      const onError = (error?: any) => {
-        try {
-          if (state.status === "pending") {
-            exitError = devError(error || exitError, onError);
-            if (state.title) {
-              devError.setProperty(exitError, "title", state.title, true);
-            }
-            state.status = "rejected";
-            state.error = exitError;
-            timed.fail(exitError);
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let errored = false;
+
+      const doReject = () => {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        if (state.status === "pending") {
+          if (options.rejectOnAbort !== undefined && !options.rejectOnAbort && exitError?.code === "ABORT_ERR") {
+            state.status = "succeeded";
+            timed.end();
+            resolve({ exitCode: "SIGABRT" });
           }
-        } finally {
+
+          timed.fail(exitError);
+          state.status = "rejected";
           reject(exitError);
         }
+      };
+
+      const setError = (error: any, delayed: boolean) => {
+        if (errored) {
+          return false;
+        }
+        errored = true;
+        exitError = devError(error || exitError, setError);
+        if (state.title) {
+          devError.setProperty(exitError, "title", state.title, true);
+        }
+        state.error = exitError;
+
+        if (delayed) {
+          timeout = setTimeout(doReject, options.errorTimeoutBeforeExit ?? 5000);
+        } else {
+          doReject();
+        }
+
+        return true;
+      };
+
+      const onChildProcessError = (error?: any) => {
+        setError(error, true);
       };
 
       const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
         const throwOnExitCode = options.throwOnExitCode;
         const exitCode = code || signal || 0;
         this.#state.exitCode = exitCode;
+
         if ((throwOnExitCode || throwOnExitCode === undefined) && (code || code === null)) {
           exitError.exitCode = exitCode;
-          onError();
-        } else if (state.status === "pending") {
+          setError(exitError, false);
+        }
+
+        if (errored) {
+          doReject();
+        }
+
+        if (state.status === "pending") {
           state.status = "succeeded";
           timed.end();
           resolve({ exitCode });
@@ -87,31 +131,18 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         if (childProcess instanceof Error) {
           const error = childProcess;
           state.child = Object.create(ChildProcess.prototype);
-          onError(error);
+          setError(error, false);
         } else {
           timed.start();
           if (typeof childProcess === "function") {
             childProcess = childProcess();
           }
           state.child = childProcess;
-          childProcess.on("error", onError);
+          childProcess.on("error", onChildProcessError);
           childProcess.on("exit", onExit);
-
-          const signal = options.signal;
-          if (signal && signal.addEventListener) {
-            const abortListener = () => {
-              this.#state.aborted = true;
-              signal.removeEventListener("abort", abortListener);
-              const child = childProcess as ChildProcess | null;
-              if (child && child.killed === false) {
-                child.kill("SIGINT");
-              }
-            };
-            signal.addEventListener("abort", abortListener);
-          }
         }
       } catch (error) {
-        onError(error);
+        setError(error, false);
       }
     };
 
@@ -158,11 +189,6 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
   /** True if failed */
   public get isRejected() {
     return this.#state.status === "rejected";
-  }
-
-  /** True if abort signal was raised */
-  public get isAborted(): boolean {
-    return this.#state.aborted;
   }
 
   public get title(): string {
