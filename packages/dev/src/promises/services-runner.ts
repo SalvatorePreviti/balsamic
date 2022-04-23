@@ -186,7 +186,7 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
 
       if (error) {
-        if (!errorToThrow) {
+        if (!errorToThrow || AbortError.isAbortError(errorToThrow)) {
           errorToThrow = error;
         }
         if (!this.aborted) {

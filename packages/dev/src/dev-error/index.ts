@@ -96,6 +96,7 @@ devError.initErrorHandling = function initErrorHandling() {
 /** Handler for unhandled rejections (unhandled promise) */
 devError.handleUnhandledRejection = function handleUnhandledRejection(error: unknown) {
   if (_unhandledErrorsLoggedOnce(error)) {
+    devLog.log();
     devLog.logException("Unhandled rejection", error, { showStack: "once" });
   }
 };
@@ -107,7 +108,8 @@ devError.handleUncaughtException = function handleUncaughtException(error: unkno
       error instanceof Error && typeof error.exitCode === "number" && error.exitCode ? error.exitCode : 1;
   }
   if (_unhandledErrorsLoggedOnce(error)) {
-    devLog.logException("Uncaught", error, { showStack: "once" });
+    devLog.log();
+    devLog.logException("Uncaught", error, { showStack: "once", abortErrorIsWarning: false });
   }
 };
 
