@@ -6,6 +6,8 @@ import { ProcessPromise, ProcessPromiseResult as _ProcessPromiseResult } from ".
 
 const { isArray } = Array;
 
+let _detachGloballyDisabled = false;
+
 export namespace devChildTask {
   export interface CommonOptions extends DevLogTimeOptions, ProcessPromise.Options {}
 
@@ -142,6 +144,45 @@ export const devChildTask = {
   ): ProcessPromise {
     options = { title: `npm ${command}`, ...options };
     return devChildTask.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  },
+
+  /**
+   * Overrides nodejs process child options.
+   * This can be useful to change some attributes in child process spawned by external packages.
+   */
+  forceGlobalSpawnOptions(forcedOptions: {}) {
+    if (_detachGloballyDisabled) {
+      return false;
+    }
+
+    _detachGloballyDisabled = true;
+    const _spawn = child_process.spawn;
+    const _fork = child_process.fork;
+
+    const _spawnSync = child_process.spawnSync;
+
+    child_process.spawn = function (command: string, args?: any, options?: any) {
+      if (Array.isArray(args)) {
+        return _spawn(command, args, { ...options, ...forcedOptions });
+      }
+      return _spawn(command, { ...options, ...forcedOptions });
+    } as any;
+
+    child_process.spawnSync = function (command: string, args?: any, options?: any) {
+      if (Array.isArray(args)) {
+        return _spawnSync(command, args, { ...options, ...forcedOptions });
+      }
+      return _spawnSync(command, { ...options, ...forcedOptions });
+    } as any;
+
+    child_process.fork = function (command: string, args?: any, options?: any) {
+      if (Array.isArray(args)) {
+        return _fork(command, args, { ...options, ...forcedOptions });
+      }
+      return _fork(command, { ...options, ...forcedOptions });
+    } as any;
+
+    return true;
   },
 
   ProcessPromise,

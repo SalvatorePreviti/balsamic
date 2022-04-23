@@ -21,6 +21,10 @@ export interface ServicesRunnerServiceOptions {
   timed?: boolean;
 }
 
+export interface ServiceRunnerRunOptions {
+  onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+}
+
 interface ServiceRunnerPendingEntry {
   title: string;
   promise: Promise<Error | null>;
@@ -173,7 +177,7 @@ export class ServicesRunner extends AbortControllerWrapper {
     return true;
   }
 
-  public async awaitAll(): Promise<void> {
+  public async awaitAll(options?: ServiceRunnerRunOptions): Promise<void> {
     let errorToThrow: Error | null = null;
     for (;;) {
       const entry = await _pendingPop(this.#pending);
@@ -188,11 +192,15 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
 
       if (error) {
-        if (!errorToThrow || AbortError.isAbortError(errorToThrow)) {
+        if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(errorToThrow))) {
           errorToThrow = error;
         }
         if (!this.aborted) {
           this.abort(error);
+        }
+
+        if (options && typeof options.onError === "function") {
+          await options.onError(error, entry.title);
         }
       }
     }
@@ -205,8 +213,15 @@ export class ServicesRunner extends AbortControllerWrapper {
       try {
         await promise;
       } catch (e) {
-        if (e && !errorToThrow) {
-          errorToThrow = devError(e);
+        if (e) {
+          const error = devError(e);
+          if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(errorToThrow))) {
+            errorToThrow = error;
+          }
+
+          if (options && typeof options.onError === "function") {
+            await options.onError(error, undefined);
+          }
         }
       }
     }
@@ -229,17 +244,17 @@ export class ServicesRunner extends AbortControllerWrapper {
     return this.rejectIfAborted();
   }
 
-  public async run<T>(callback: () => T | Promise<T>): Promise<T> {
+  public async run<T>(callback: () => T | Promise<T>, options?: ServiceRunnerRunOptions): Promise<T> {
     const run = async () => {
       try {
         const result = await callback();
-        await this.awaitAll();
+        await this.awaitAll(options);
         return result;
       } catch (e) {
         const error = devError(e, this.run);
         this.abort(error);
         try {
-          await this.awaitAll();
+          await this.awaitAll(options);
         } catch {}
         throw error;
       }
