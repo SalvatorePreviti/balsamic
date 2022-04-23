@@ -15,7 +15,6 @@ export interface ServicesRunnerServiceOptions extends DevLogTimeOptions {
   abortOnServiceTermination?: boolean;
   onOk?: () => void | Promise<void>;
   onError?: (error: Error) => void | Promise<void>;
-  onFinally?: () => void | Promise<void>;
 }
 
 interface ServiceRunnerPendingEntry {
@@ -104,7 +103,7 @@ export class ServicesRunner extends AbortControllerWrapper {
   }
 
   public async awaitAll(): Promise<void> {
-    const errorsSet = new Set<Error>();
+    let errorToThrow: Error | null = null;
     for (;;) {
       const entry = _pendingPop(this.#pending);
       if (entry === undefined) {
@@ -121,7 +120,9 @@ export class ServicesRunner extends AbortControllerWrapper {
         if (!error.serviceTitle) {
           error.serviceTitle = entry.title;
         }
-        errorsSet.add(error);
+        if (!errorToThrow) {
+          errorToThrow = error;
+        }
         if (!this.aborted) {
           this.abort(error, { caller: ServicesRunner.prototype.awaitAll, cause: error });
         }
@@ -136,21 +137,20 @@ export class ServicesRunner extends AbortControllerWrapper {
       try {
         await promise;
       } catch (e) {
-        if (e) {
-          errorsSet.add(devError(e));
+        if (e && !errorToThrow) {
+          errorToThrow = devError(e);
         }
       }
     }
 
-    const errors = Array.from(errorsSet);
-    if (errors.length > 0) {
-      Reflect.defineProperty(errors[0], "errors", {
-        value: errors,
-        configurable: true,
-        enumerable: false,
-        writable: true,
-      });
-      throw errors[0];
+    if (errorToThrow) {
+      const abortError =
+        this.aborted &&
+        AbortError.isAbortError(errorToThrow) &&
+        withAbortSignal.getOrCreateAbortError.hasAbortError(this.signal) &&
+        this.getAbortError();
+
+      throw abortError || errorToThrow;
     }
   }
 
@@ -205,8 +205,10 @@ export class ServicesRunner extends AbortControllerWrapper {
         await options.onOk();
       }
       if (abortOnServiceTermination) {
-        this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, isOk: false }));
+        this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title }));
       }
+
+      return undefined;
     } catch (e) {
       const error = devError(e);
       if (!error.serviceTitle) {
@@ -221,20 +223,10 @@ export class ServicesRunner extends AbortControllerWrapper {
       if (abortOnServiceError) {
         this.abort(error);
       } else if (abortOnServiceTermination) {
-        this.abort(
-          new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, isOk: false, cause: error }),
-        );
-      }
-      if (options.onFinally) {
-        options.onFinally();
+        this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
       }
       return error;
-    } finally {
-      if (options.onFinally) {
-        options.onFinally();
-      }
     }
-    return undefined;
   }
 
   #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {
