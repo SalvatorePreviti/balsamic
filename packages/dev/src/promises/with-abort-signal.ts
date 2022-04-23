@@ -180,6 +180,11 @@ function abort(abortController: AbortController, reason?: unknown, options?: Abo
     });
   }
 
-  abortController.abort(reason);
+  try {
+    abortController.abort(reason);
+  } catch {
+    return false;
+  }
+
   return true;
 }

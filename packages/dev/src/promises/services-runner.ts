@@ -20,7 +20,7 @@ export interface ServicesRunnerServiceOptions extends DevLogTimeOptions {
 
 interface ServiceRunnerPendingEntry {
   title: string;
-  promise: Promise<unknown>;
+  promise: Promise<Error | undefined>;
 }
 
 export class ServicesRunner extends AbortControllerWrapper {
@@ -110,10 +110,14 @@ export class ServicesRunner extends AbortControllerWrapper {
       if (entry === undefined) {
         break;
       }
+      let error: Error | undefined;
       try {
-        await entry.promise;
+        error = await entry.promise;
       } catch (e) {
-        const error = devError(e);
+        error = devError(e);
+      }
+
+      if (error) {
         if (!error.serviceTitle) {
           error.serviceTitle = entry.title;
         }
@@ -184,9 +188,9 @@ export class ServicesRunner extends AbortControllerWrapper {
     title: string,
     fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void),
     options?: ServicesRunnerServiceOptions,
-  ): Promise<void> {
+  ): Promise<Error | undefined> {
     if (this.aborted) {
-      return;
+      return undefined;
     }
     options = { timed: false, logError: true, ...options };
     const abortOnServiceTermination = options.abortOnServiceTermination ?? this.abortOnServiceTermination;
@@ -224,11 +228,13 @@ export class ServicesRunner extends AbortControllerWrapper {
       if (options.onFinally) {
         options.onFinally();
       }
-      throw error;
+      return error;
+    } finally {
+      if (options.onFinally) {
+        options.onFinally();
+      }
     }
-    if (options.onFinally) {
-      options.onFinally();
-    }
+    return undefined;
   }
 
   #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {
