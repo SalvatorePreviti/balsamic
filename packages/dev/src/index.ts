@@ -16,7 +16,7 @@ export * from "./promises/abort-error";
 
 export * from "./promises/abort-controller-wrapper";
 
-export * from "./promises/with-abort-signal";
+export * from "./promises/abort-signals";
 
 export * from "./promises/services-runner";
 

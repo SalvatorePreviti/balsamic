@@ -3,7 +3,7 @@ import { devError } from "../dev-error";
 import { Deferred } from "./promises";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import type { Abortable } from "node:events";
-import { withAbortSignal } from "./with-abort-signal";
+import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
 
 export class ProcessPromiseResult {
@@ -85,7 +85,7 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         }
       };
 
-      const setError = (error: any, delayed: boolean) => {
+      const setError = (error: any, delayed?: boolean) => {
         if (errored) {
           return false;
         }
@@ -146,15 +146,21 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
           state.child = Object.create(ChildProcess.prototype);
           setError(error, false);
         } else {
+          const signal = abortSignals.getSignal(options.signal);
+
           timed.start();
           if (typeof childProcess === "function") {
-            withAbortSignal.throwIfAborted(options.signal);
+            if (signal && signal.aborted) {
+              state.child = Object.create(ChildProcess.prototype);
+              abortSignals.rejectIfAborted(signal).catch(setError);
+              return;
+            }
             childProcess = childProcess();
           }
           state.child = childProcess;
           childProcess.on("error", onChildProcessError);
           childProcess.on("exit", onExit);
-          withAbortSignal.throwIfAborted(options.signal);
+          abortSignals.rejectIfAborted().catch((error) => setError(error, true));
         }
       } catch (error) {
         setError(error, false);

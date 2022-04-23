@@ -1,7 +1,8 @@
+import { setImmediate } from "node:timers/promises";
 import { devError } from "../dev-error";
-import { devLog, DevLogTimeOptions } from "../dev-log";
+import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortControllerWrapper } from "./abort-controller-wrapper";
-import { withAbortSignal } from "./with-abort-signal";
+import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
 
 export interface ServicesRunnerOptions {
@@ -13,18 +14,17 @@ export interface ServicesRunnerOptions {
 export interface ServicesRunnerServiceOptions extends DevLogTimeOptions {
   abortOnServiceError?: boolean;
   abortOnServiceTermination?: boolean;
-  onOk?: () => void | Promise<void>;
-  onError?: (error: Error) => void | Promise<void>;
+  onTerminate?: (error: Error | null) => void | Promise<void>;
 }
 
 interface ServiceRunnerPendingEntry {
   title: string;
-  promise: Promise<Error | undefined>;
+  promise: Promise<Error | null>;
 }
 
 export class ServicesRunner extends AbortControllerWrapper {
   #pending: ServiceRunnerPendingEntry[] = [];
-  #abortHandlers: (() => void | Promise<void>)[] = [];
+  #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
 
   /** Default singleton instance */
@@ -38,23 +38,6 @@ export class ServicesRunner extends AbortControllerWrapper {
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-
-    const onAbort = () => {
-      this.getOrCreateAbortError({ caller: onAbort });
-      const handlers = this.#abortHandlers;
-      this.#abortHandlers = [];
-      for (const fn of handlers) {
-        try {
-          this.#addPendingPromise(fn());
-        } catch (e) {
-          if (e) {
-            this.#addPendingPromise(Promise.reject(devError(e)));
-          }
-        }
-      }
-    };
-
-    super.addAbortHandler(onAbort);
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -72,8 +55,32 @@ export class ServicesRunner extends AbortControllerWrapper {
     if (this.aborted) {
       this.#addPendingPromise(fn());
     } else {
-      this.#abortHandlers.push(fn);
+      (this.#abortHandlers || this.#initPendingPromisesArray()).push(fn);
     }
+  }
+
+  #initPendingPromisesArray() {
+    const handlers: (() => void | Promise<void>)[] = [];
+    this.#abortHandlers = handlers;
+
+    const onAbort = async () => {
+      for (;;) {
+        const handler = await _pendingPop(handlers);
+        if (!handler) {
+          break;
+        }
+        try {
+          this.#addPendingPromise(handler());
+        } catch (e) {
+          if (e) {
+            this.#addPendingPromise(Promise.reject(devError(e)));
+          }
+        }
+      }
+    };
+
+    super.addAbortHandler(onAbort);
+    return handlers;
   }
 
   public get runningServices(): number {
@@ -88,15 +95,7 @@ export class ServicesRunner extends AbortControllerWrapper {
     if (!fnOrPromise) {
       return false;
     }
-    if (typeof fnOrPromise === "function") {
-      this.throwIfAborted();
-    } else {
-      for (const pending of this.#pending) {
-        if (pending.promise === fnOrPromise) {
-          return false;
-        }
-      }
-    }
+    title = `${title}`;
     const promise = this.#runService(title, fnOrPromise, options);
     this.#pending.push({ promise, title });
     return true;
@@ -105,11 +104,11 @@ export class ServicesRunner extends AbortControllerWrapper {
   public async awaitAll(): Promise<void> {
     let errorToThrow: Error | null = null;
     for (;;) {
-      const entry = _pendingPop(this.#pending);
+      const entry = await _pendingPop(this.#pending);
       if (entry === undefined) {
         break;
       }
-      let error: Error | undefined;
+      let error: Error | null;
       try {
         error = await entry.promise;
       } catch (e) {
@@ -124,13 +123,13 @@ export class ServicesRunner extends AbortControllerWrapper {
           errorToThrow = error;
         }
         if (!this.aborted) {
-          this.abort(error, { caller: ServicesRunner.prototype.awaitAll, cause: error });
+          this.abort(error);
         }
       }
     }
 
     for (;;) {
-      const promise = _pendingPop(this.#pendingPromises);
+      const promise = await _pendingPop(this.#pendingPromises);
       if (promise === undefined) {
         break;
       }
@@ -144,19 +143,10 @@ export class ServicesRunner extends AbortControllerWrapper {
     }
 
     if (errorToThrow) {
-      const abortError =
-        this.aborted &&
-        AbortError.isAbortError(errorToThrow) &&
-        withAbortSignal.getOrCreateAbortError.hasAbortError(this.signal) &&
-        this.getAbortError();
-
-      throw abortError || errorToThrow;
+      throw errorToThrow;
     }
 
-    const abortedError = this.getAbortError();
-    if (abortedError) {
-      throw abortedError;
-    }
+    return this.rejectIfAborted();
   }
 
   public async run<T>(callback: () => T | Promise<T>): Promise<T> {
@@ -166,72 +156,68 @@ export class ServicesRunner extends AbortControllerWrapper {
         await this.awaitAll();
         return result;
       } catch (e) {
-        let error = devError(e, this.run);
-
-        const abortError =
-          this.aborted &&
-          AbortError.isAbortError(error) &&
-          withAbortSignal.getOrCreateAbortError.hasAbortError(this.signal) &&
-          this.getAbortError();
-
-        if (abortError) {
-          error = abortError;
-        } else {
-          this.abort(error, { caller: ServicesRunner.prototype.run, cause: error });
-        }
-
+        const error = devError(e, this.run);
+        this.abort(error);
         try {
           await this.awaitAll();
         } catch {}
         throw error;
       }
     };
-    return withAbortSignal.run(this.signal, run);
+    return abortSignals.run(this.signal, run);
   }
 
   async #runService(
     title: string,
     fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void),
     options?: ServicesRunnerServiceOptions,
-  ): Promise<Error | undefined> {
-    if (this.aborted) {
-      return undefined;
-    }
+  ): Promise<Error | null> {
     options = { timed: false, logError: true, ...options };
     const abortOnServiceTermination = options.abortOnServiceTermination ?? this.abortOnServiceTermination;
+    let error = null;
+
+    const _timed = new DevLogTimed(title, options);
+
     try {
-      await devLog.timed(
-        title,
-        typeof fnOrPromise === "function" ? () => withAbortSignal.run(this.signal, fnOrPromise) : fnOrPromise,
-        options,
-      );
-      if (options.onOk) {
-        this.throwIfAborted();
-        await options.onOk();
+      _timed.start();
+
+      if (typeof fnOrPromise === "function") {
+        if (this.aborted) {
+          await this.rejectIfAborted();
+        }
+
+        if (abortSignals.getSignal() !== this.signal) {
+          await abortSignals.run(this.signal, fnOrPromise);
+        } else {
+          await fnOrPromise();
+        }
+      } else {
+        await fnOrPromise;
       }
+
+      _timed.end();
+
       if (abortOnServiceTermination) {
         this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title }));
       }
-
-      return undefined;
     } catch (e) {
-      const error = devError(e);
+      error = devError(e);
       if (!error.serviceTitle) {
         error.serviceTitle = title;
       }
-      try {
-        if (options.onError) {
-          await options.onError(error);
-        }
-      } catch {}
       const abortOnServiceError = options.abortOnServiceError ?? this.abortOnServiceError;
       if (abortOnServiceError) {
         this.abort(error);
       } else if (abortOnServiceTermination) {
         this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
       }
-      return error;
+
+      _timed.fail(error);
     }
+    if (options.onTerminate) {
+      await options.onTerminate(error);
+    }
+    return error;
   }
 
   #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {
@@ -249,13 +235,14 @@ export class ServicesRunner extends AbortControllerWrapper {
   }
 }
 
-function _pendingPop<T>(array: T[]): T | undefined {
+async function _pendingPop<T>(array: T[]): Promise<T | undefined> {
   let item: T | undefined;
   for (let tick = 0; tick < 3; ++tick) {
     item = array.pop();
     if (item !== undefined) {
       return item;
     }
+    await setImmediate();
   }
   return undefined;
 }

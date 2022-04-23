@@ -1,5 +1,5 @@
 import { devError } from "../dev-error";
-import { withAbortSignal } from "./with-abort-signal";
+import { abortSignals } from "./abort-signals";
 
 export function noop() {}
 
@@ -69,7 +69,10 @@ export class Deferred<T> {
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
   for (let p of functionsOrPromises) {
     if (typeof p === "function") {
-      withAbortSignal.throwIfAborted();
+      const signal = abortSignals.getSignal();
+      if (signal && signal.aborted) {
+        await abortSignals.rejectIfAborted(signal);
+      }
       p = p();
     }
     if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
@@ -96,7 +99,10 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
   const handlePromise = async (p: any) => {
     try {
       if (typeof p === "function") {
-        withAbortSignal.throwIfAborted();
+        const signal = abortSignals.getSignal();
+        if (signal && signal.aborted) {
+          await abortSignals.rejectIfAborted(signal);
+        }
         p = error === undefined && p();
       }
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {

@@ -1,15 +1,12 @@
 import { setTimeout } from "timers/promises";
-import { AbortError } from "./abort-error";
-import { withAbortSignal } from "./with-abort-signal";
+import { abortSignals } from "./abort-signals";
 
 export class AbortControllerWrapper implements AbortController {
   #abortController: AbortController;
 
   public constructor(abortController: AbortController) {
     this.#abortController = abortController;
-    this.throwIfAborted = this.throwIfAborted.bind(this);
-    this.getAbortError = this.getAbortError.bind(this);
-    this.getOrCreateAbortError = this.getOrCreateAbortError.bind(this);
+    this.rejectIfAborted = this.rejectIfAborted.bind(this);
     this.getAbortReason = this.getAbortReason.bind(this);
     this.abort = this.abort.bind(this);
     this.setTimeout = this.setTimeout.bind(this);
@@ -29,49 +26,22 @@ export class AbortControllerWrapper implements AbortController {
   }
 
   /** If the signal was aborted, throws an AbortError. If not, does nothing. */
-  public throwIfAborted(options?: AbortError.Options): void | never {
-    if (!options || !options.caller) {
-      options = { ...options, caller: AbortControllerWrapper.prototype.throwIfAborted };
-    }
-    withAbortSignal.throwIfAborted(this.signal, options);
-  }
-
-  /** Gets an AbortError instance */
-  public getAbortError(options?: AbortError.Options): AbortError | undefined {
-    if (!options || !options.caller) {
-      options = { ...options, caller: AbortControllerWrapper.prototype.getAbortError };
-    }
-    return withAbortSignal.getAbortError(this.signal, options);
-  }
-
-  /** Gets or create an AbortError for this controller. It returns the instance also if not yet aborted. */
-  public getOrCreateAbortError(options?: AbortError.Options): AbortError | undefined {
-    if (!options || !options.caller) {
-      options = { ...options, caller: AbortControllerWrapper.prototype.getOrCreateAbortError };
-    }
-    return withAbortSignal.getOrCreateAbortError(this.signal, options);
+  public rejectIfAborted(): Promise<void> {
+    return abortSignals.rejectIfAborted(this.signal);
   }
 
   /** If a signal is aborted, it returns the abort reason. Returns undefined otherwise. */
   public getAbortReason(): unknown {
-    return withAbortSignal.getAbortReason(this);
+    return abortSignals.getAbortReason(this);
   }
 
   /** Aborts the abort controller, with a reason. */
-  public abort(reason?: unknown, options?: AbortError.Options): boolean {
-    if (!options || !options.caller) {
-      options = { ...options, caller: AbortControllerWrapper.prototype.abort };
-    }
-    return withAbortSignal.abort(this.abortController, reason, options);
+  public abort(reason?: unknown): boolean {
+    return abortSignals.abort(this.abortController, reason);
   }
 
   public async setTimeout<R = void>(delay: number, value?: R): Promise<R> {
-    this.throwIfAborted();
-    try {
-      return await setTimeout(delay, value, { signal: this.signal });
-    } catch (error) {
-      throw (AbortError.isAbortError(error) && this.getAbortError()) || error;
-    }
+    return setTimeout(delay, value, { signal: this.signal });
   }
 
   /**
