@@ -35,8 +35,6 @@ export namespace AbortError {
   }
 
   export class ServiceTerminatedError extends AbortError {
-    public serviceTitle?: string = undefined;
-
     public constructor(message?: string, options?: Readonly<AbortError.Options>) {
       if (!options || !options.caller) {
         options = { ...options, caller: new.target };
@@ -50,6 +48,17 @@ export namespace AbortError {
         } catch {}
       }
       super(message || "Service terminated.", options);
+    }
+  }
+
+  export class AbortOk extends AbortError {
+    public constructor(message?: string, options?: Readonly<AbortError.Options>) {
+      let isOk = options && options.isOk;
+      if (isOk === undefined) {
+        isOk = true;
+      }
+      super(message || (isOk ? "OK." : undefined), options);
+      this.isOk = isOk;
     }
   }
 }

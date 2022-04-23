@@ -83,7 +83,7 @@ export class ServicesRunner extends AbortControllerWrapper {
 
   public startService(
     title: string,
-    fnOrPromise: Promise<void> | (() => Promise<void> | void) | null | undefined | false,
+    fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void) | null | undefined | false,
     options?: ServicesRunnerServiceOptions,
   ): boolean {
     if (!fnOrPromise) {
@@ -182,7 +182,7 @@ export class ServicesRunner extends AbortControllerWrapper {
 
   async #runService(
     title: string,
-    fnOrPromise: Promise<void> | (() => Promise<void> | void),
+    fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void),
     options?: ServicesRunnerServiceOptions,
   ): Promise<void> {
     if (this.aborted) {
