@@ -56,7 +56,7 @@ export class AbortControllerWrapper implements AbortController {
     if (this.aborted) {
       fn();
     } else {
-      this.signal.addEventListener("abort", () => fn, { once: true });
+      this.signal.addEventListener("abort", () => fn(), { once: true });
     }
   }
 }
