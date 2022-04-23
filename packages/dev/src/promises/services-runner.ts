@@ -138,7 +138,7 @@ export class ServicesRunner extends AbortControllerWrapper {
           await fnOrPromise;
         }
 
-        if (abortOnServiceTermination) {
+        if (!this.aborted && abortOnServiceTermination) {
           this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title }));
         }
       } catch (e) {
@@ -151,11 +151,13 @@ export class ServicesRunner extends AbortControllerWrapper {
             writable: true,
           });
         }
-        const abortOnServiceError = options?.abortOnServiceError ?? this.abortOnServiceError;
-        if (abortOnServiceError) {
-          this.abort(error);
-        } else if (abortOnServiceTermination) {
-          this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
+
+        if (!this.aborted) {
+          if (options?.abortOnServiceError ?? this.abortOnServiceError) {
+            this.abort(error);
+          } else if (abortOnServiceTermination) {
+            this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
+          }
         }
       }
       if (options?.onTerminate) {
