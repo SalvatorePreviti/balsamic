@@ -152,6 +152,11 @@ export class ServicesRunner extends AbortControllerWrapper {
 
       throw abortError || errorToThrow;
     }
+
+    const abortedError = this.getAbortError();
+    if (abortedError) {
+      throw abortedError;
+    }
   }
 
   public async run<T>(callback: () => T | Promise<T>): Promise<T> {

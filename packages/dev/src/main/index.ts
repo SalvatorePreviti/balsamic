@@ -72,7 +72,13 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
     return error;
   }
 
-  let promise: Promise<any> | null = null;
+  const handlePromise = async (result: any) => {
+    try {
+      return await result;
+    } catch (error) {
+      return devRunMainError(error);
+    }
+  };
 
   try {
     devError.initErrorHandling();
@@ -101,19 +107,12 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
       result = (main as any)();
     }
 
-    if (typeof result === "object" && result !== null) {
-      if (typeof result.catch === "function") {
-        promise = result.catch(devRunMainError);
-      } else if (typeof result.then === "function") {
-        promise = result.then((x: any) => x, devRunMainError);
-      }
+    if (typeof result === "object" && result !== null && typeof result.then === "function") {
+      return handlePromise(result);
     }
-    promise = Promise.resolve(result);
-  } catch (error) {
-    if (!promise) {
-      promise = Promise.resolve(devRunMainError(error));
-    }
-  }
 
-  return promise;
+    return Promise.resolve(result);
+  } catch (error) {
+    return Promise.resolve(devRunMainError(error));
+  }
 }

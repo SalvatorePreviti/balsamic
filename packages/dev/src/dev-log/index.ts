@@ -190,7 +190,11 @@ function errorOnce(message?: any, error?: any, caller?: any) {
     const inspected = devLog.inspect(err);
     if (_inspectedErrorLoggedSet_add(inspected)) {
       if (AbortError.isAbortError(err)) {
-        devLog.warn(inspected);
+        if (err.isOk) {
+          devLog.info(inspected);
+        } else {
+          devLog.warn(inspected);
+        }
       } else {
         devLog.error(inspected);
       }
