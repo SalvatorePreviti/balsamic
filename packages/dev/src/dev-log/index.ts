@@ -74,6 +74,8 @@ export function devLog(...args: unknown[]): void {
   devLog.log(...args);
 }
 
+devLog.shouldPrintAbortErrorStackTrace = true;
+
 devLog.colors = _colors;
 
 devLog.inspectOptions = {
@@ -185,7 +187,7 @@ function logException(message: string | undefined, error: unknown, options?: { s
     isOk = isAbortError && error.isOk === true;
     if (error.showStack === false) {
       showStack = false;
-    } else if (isOk) {
+    } else if (isOk || (isAbortError && !devLog.shouldPrintAbortErrorStackTrace)) {
       showStack = false;
     } else {
       showStack = true;
