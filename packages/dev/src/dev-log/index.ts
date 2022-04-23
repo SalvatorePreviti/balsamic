@@ -1,13 +1,37 @@
 import util from "util";
 import readline from "readline";
 import { colors as _colors } from "../colors";
-import { millisecondsToString, startMeasureTime } from "../lib/utils";
+import { millisecondsToString } from "../lib/utils";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
-import { AbortError } from "../lib/promises";
+import { AbortError } from "../promises/abort-error";
+import type { ChalkFunction } from "chalk";
+
+export { ChalkFunction };
+
+const _noColor = (s: string) => `${s}`;
 
 let _logProcessTimeInitialized = false;
 const _errorLoggedSet = new WeakSet<any>();
+const _inspectedErrorLoggedSet = new Set<string>();
+
+const _inspectedErrorLoggedSet_maxSize = 20;
+
+function _inspectedErrorLoggedSet_add(value: string): boolean {
+  if (_inspectedErrorLoggedSet.has(value)) {
+    return false;
+  }
+  if (_inspectedErrorLoggedSet.size > _inspectedErrorLoggedSet_maxSize) {
+    for (const item of _inspectedErrorLoggedSet) {
+      if (_inspectedErrorLoggedSet.size <= _inspectedErrorLoggedSet_maxSize) {
+        break;
+      }
+      _inspectedErrorLoggedSet.delete(item);
+    }
+  }
+  _inspectedErrorLoggedSet.add(value);
+  return true;
+}
 
 function _errorLoggedSetAdd(error: any) {
   if (typeof error === "object" && error !== null) {
@@ -56,6 +80,16 @@ devLog.inspectOptions = {
   ...util.inspect.defaultOptions,
   colors: !!devLog.colors.supportsColor && devLog.colors.supportsColor.hasBasic,
   depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
+};
+
+devLog.getColor = function getColor(color: ChalkFunction | devLog.TermBasicColor | null | undefined) {
+  if (typeof color === "string") {
+    color = devLog.colors[color];
+  }
+  if (typeof color === "function") {
+    return color;
+  }
+  return _noColor;
 };
 
 devLog.log = function log(...args: unknown[]): void {
@@ -152,7 +186,11 @@ function errorOnce(message?: any, error?: any, caller?: any) {
     if (typeof error === "object" && error !== null && err !== error) {
       _errorLoggedSetAdd(error);
     }
-    devLog.error(err);
+
+    const inspected = devLog.inspect(err);
+    if (_inspectedErrorLoggedSet_add(inspected)) {
+      devLog.error(inspected);
+    }
   }
   return err;
 }
@@ -258,12 +296,30 @@ devLog.initProcessTime = function () {
   return true;
 };
 
+/** Prints an horizontal line */
+devLog.hr = function hr(color?: ChalkFunction | devLog.TermBasicColor, char = "⎯") {
+  let columns = 10;
+
+  if (devLog.colors.level < 1 || !process.stdout.isTTY) {
+    devLog.log("-".repeat(10));
+    return;
+  }
+
+  if (devLog.colors.level > 1 && process.stdout.isTTY && columns) {
+    columns = process.stdout.columns;
+  }
+  if (columns > 250) {
+    columns = 250;
+  }
+
+  devLog.log(devLog.getColor(color)(char.repeat(columns)));
+};
+
 export interface DevLogTimeOptions {
   printStarted?: boolean;
   logError?: boolean;
   showStack?: boolean;
   timed?: boolean;
-  indent?: number | string;
 }
 
 /** Prints how much time it takes to run something */
@@ -309,71 +365,149 @@ async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOp
 devLog.timed = timed;
 
 export class DevLogTimed {
-  #options: DevLogTimeOptions;
-  #elapsed: ReturnType<typeof startMeasureTime> | null = null;
-  #printStarted = false;
-  #indent = "";
+  public options: DevLogTimeOptions;
+  public status: "pending" | "started" | "succeeded" | "failed" = "pending";
+  #starTime: number;
 
-  constructor(public title: string, options: DevLogTimeOptions) {
-    this.#options = options || {};
+  constructor(public title: string, options: DevLogTimeOptions = {}) {
+    this.options = options;
+    this.#starTime = performance.now();
   }
 
   public start(): this {
-    const options = this.#options;
-    const indent = _parseIndent(options.indent);
-    const isTimed = options.timed === undefined || !!options.timed;
-    this.#indent = indent;
-    this.#printStarted = options.printStarted === undefined || !!options.printStarted;
-    if (isTimed && this.#printStarted) {
-      devLog.log(
-        devLog.colors.cyan(`${indent}${devLog.colors.cyan("◆")} ${this.title}`) + devLog.colors.gray(" started..."),
-      );
+    if (this.status !== "pending") {
+      return this;
     }
-    if (isTimed) {
-      this.#elapsed = startMeasureTime();
-    }
+    this.status = "started";
+    devLog.logOperationStart(this.title, this.options);
+    this.#starTime = performance.now();
     return this;
   }
 
-  public end() {
-    const elapsed = this.#elapsed;
-    if (elapsed) {
-      const indent = this.#indent;
-      devLog.log(
-        devLog.colors.green(
-          `${this.#printStarted ? "\n" : ""}${indent}${devLog.colors.green("✔")} ${this.title} ${devLog.colors.bold(
-            "OK",
-          )} ${devLog.colors.gray(`in ${elapsed.toString()}`)}`,
-        ),
-      );
-    }
+  public get elapsed(): number {
+    return performance.now() - this.#starTime;
   }
 
-  public fail(error: unknown) {
-    const options = this.#options;
-    const elapsed = this.#elapsed;
-    if (elapsed || options.logError) {
-      const isAbort = AbortError.isAbortError(error);
-      const message = `${this.title} ${isAbort ? "ABORTED" : "FAILED"}${elapsed ? ` in ${elapsed.toString()}` : ""}`;
+  public getElapsedTime(): string {
+    return millisecondsToString(performance.now() - this.#starTime);
+  }
 
-      if (
-        (options.logError === undefined || options.logError) &&
-        (typeof error !== "object" || error === null || !_errorLoggedSetHas(error))
-      ) {
-        _errorLoggedSetAdd(error);
-        if (isAbort) {
-          devLog.warn(message, options.showStack !== false ? error : `${error}`);
+  public end(): void {
+    if (this.status !== "pending" && this.status !== "started") {
+      return;
+    }
+    this.status = "succeeded";
+    devLog.logOperationSuccess(this.title, this.options, this.elapsed);
+  }
+
+  public fail<TError = unknown>(error: TError): TError {
+    if (this.status !== "pending" && this.status !== "started") {
+      return error;
+    }
+    this.status = "failed";
+    devLog.logOperationError(this.title, error, this.options, this.elapsed);
+    return error;
+  }
+}
+
+devLog.logOperationStart = function logOperationStart(
+  title: string,
+  options: DevLogTimeOptions = { printStarted: true },
+) {
+  let { timed: isTimed, printStarted } = options;
+  if (isTimed === undefined) {
+    isTimed = true;
+  }
+  if (printStarted === undefined) {
+    printStarted = isTimed;
+  }
+  if (printStarted) {
+    devLog.log(devLog.colors.cyan(`${devLog.colors.cyan("◆")} ${title}`) + devLog.colors.gray(" started..."));
+  }
+};
+
+devLog.logOperationSuccess = function logOperationSuccess(
+  title: string,
+  options: DevLogTimeOptions = { printStarted: true },
+  elapsed?: number,
+) {
+  let { timed: isTimed, printStarted } = options;
+  if (isTimed === undefined) {
+    isTimed = !!elapsed;
+  }
+  if (printStarted === undefined) {
+    printStarted = isTimed;
+  }
+  if (isTimed || printStarted) {
+    let msg = `${printStarted ? "\n" : ""}${devLog.colors.green("✔")} ${title} ${devLog.colors.bold("OK")}`;
+    if (elapsed && (isTimed || elapsed > 5)) {
+      msg += ` in ${millisecondsToString(elapsed)}`;
+    }
+    msg += ".";
+    devLog.log(devLog.colors.green(msg));
+  }
+};
+
+devLog.logOperationError = function logOperationError(
+  title: string,
+  error: unknown,
+  options: DevLogTimeOptions = { logError: true },
+  elapsed?: number,
+) {
+  let { timed: isTimed, logError } = options;
+  if (logError === undefined) {
+    logError = true;
+  }
+  if (logError) {
+    if (isTimed === undefined) {
+      isTimed = !!elapsed;
+    }
+
+    const isAbort = AbortError.isAbortError(error);
+    const message = `${title} ${isAbort ? "aborted" : "FAILED"}${
+      elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
+    }.`;
+
+    if (
+      (options.logError === undefined || options.logError) &&
+      (typeof error !== "object" || error === null || !_errorLoggedSetHas(error))
+    ) {
+      _errorLoggedSetAdd(error);
+
+      const showStack =
+        options.showStack !== false && (error as any)?.showStack !== false && (error as any)?.isOk !== true;
+
+      let err: string | undefined;
+      if (showStack) {
+        const inspected = devLog.inspect(error);
+        err = _inspectedErrorLoggedSet_add(inspected) ? inspected : `${error}`;
+      } else {
+        err = `${error}`;
+      }
+      if (err.includes("\n") && !err.endsWith("\n\n")) {
+        err += "\n";
+      }
+
+      if (isAbort) {
+        if (error.isOk === true) {
+          devLog.info(message, err);
         } else {
-          devLog.error(message, options.showStack !== false ? error : `${error}`);
+          devLog.warn(message, err);
         }
-      } else if (isAbort) {
-        devLog.error(message);
+      } else {
+        devLog.error(message, err);
+      }
+    } else if (isAbort) {
+      if (error.isOk === true) {
+        devLog.info(message);
       } else {
         devLog.warn(message);
       }
+    } else {
+      devLog.error(message);
     }
   }
-}
+};
 
 /** Asks the user to input Yes or No */
 devLog.askConfirmation = async function askConfirmation(message: string, defaultValue: boolean) {
@@ -398,12 +532,4 @@ devLog.askConfirmation = async function askConfirmation(message: string, default
 
 function _devInspectForLogging(args: unknown[]) {
   return args.map((what) => (typeof what === "string" ? what : devLog.inspect(what))).join(" ");
-}
-
-function _parseIndent(value: string | number | undefined | null): string {
-  return typeof value === "string"
-    ? value
-    : typeof value === "number" && value > 0
-    ? "  ".repeat((value > 20 ? 20 : value) | 0)
-    : "";
 }

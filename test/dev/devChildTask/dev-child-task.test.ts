@@ -1,8 +1,7 @@
 import path from "path";
 import { expect } from "chai";
-import { devChildTask, ProcessPromise } from "../../../packages/dev/src/dev-child-task";
 import { ChildProcess } from "child_process";
-import { AbortError } from "../../../packages/dev/src";
+import { AbortError, ProcessPromise, devChildTask } from "../../../packages/dev/src";
 
 describe("devChildTask", () => {
   let originalFolder: string;
@@ -18,7 +17,7 @@ describe("devChildTask", () => {
 
   describe("ProcessPromise.rejectProcessPromise", () => {
     it("returns a valid rejected promise", async () => {
-      const promise = ProcessPromise.rejectProcessPromise(new Error("xxx"));
+      const promise = ProcessPromise.rejectProcessPromise(new Error("xxx"), { logError: false });
 
       expect(promise.status).to.equal("rejected");
       expect(promise.isPending).to.equal(false);
@@ -52,7 +51,7 @@ describe("devChildTask", () => {
           fnCalled = true;
           throw new Error("should not be called");
         },
-        { signal: controller.signal, timed: false },
+        { signal: controller.signal, timed: false, logError: false },
       );
 
       expect(fnCalled).to.equal(false);
@@ -79,7 +78,7 @@ describe("devChildTask", () => {
           fnCalled = true;
           throw new Error("should not be called");
         },
-        { signal: controller.signal, timed: false, rejectOnAbort: false },
+        { signal: controller.signal, timed: false, rejectOnAbort: false, logError: false },
       );
 
       expect(fnCalled).to.equal(false);

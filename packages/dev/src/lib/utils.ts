@@ -38,12 +38,9 @@ export function millisecondsToString(milliseconds: number | string | readonly [n
  * Calling toString on the result will get a prettyfied elapsed time string.
  */
 export function startMeasureTime() {
-  const startTime = process.hrtime();
-  const elapsedMilliseconds = () => {
-    const diff = process.hrtime(startTime);
-    return (diff[0] * 1e9 + diff[1]) * 1e-6;
-  };
-  elapsedMilliseconds.toString = () => millisecondsToString(process.hrtime(startTime));
+  const startTime = performance.now();
+  const elapsedMilliseconds = () => performance.now() - startTime;
+  elapsedMilliseconds.toString = () => millisecondsToString(performance.now() - startTime);
   return elapsedMilliseconds;
 }
 

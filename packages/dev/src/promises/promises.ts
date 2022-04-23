@@ -1,4 +1,5 @@
 import { devError } from "../dev-error";
+import { withAbortSignal } from "./with-abort-signal";
 
 export function noop() {}
 
@@ -7,6 +8,10 @@ export namespace Deferred {
 }
 
 export class Deferred<T> {
+  public static readonly STATUS_PENDING = "pending" as const;
+  public static readonly STATUS_SUCCEEDED = "succeeded" as const;
+  public static readonly STATUS_REJECTED = "rejected" as const;
+
   public status: Deferred.Status = "pending";
   public error: Error | null = null;
   public result: T | undefined = undefined;
@@ -64,6 +69,7 @@ export class Deferred<T> {
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
   for (let p of functionsOrPromises) {
     if (typeof p === "function") {
+      withAbortSignal.throwIfAborted();
       p = p();
     }
     if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
@@ -90,6 +96,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
   const handlePromise = async (p: any) => {
     try {
       if (typeof p === "function") {
+        withAbortSignal.throwIfAborted();
         p = error === undefined && p();
       }
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
@@ -128,32 +135,3 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
     throw error;
   }
 }
-
-/** Asynchronous delay. Returns a promise that is resolved after some time. */
-export function asyncDelay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export class AbortError extends Error {
-  public static readonly code: string = "ABORT_ERR";
-
-  public constructor(message: string = "The operation was aborted", options?: ErrorOptions) {
-    super(message, options);
-    Error.captureStackTrace(this, new.target);
-    this.code = "ABORT_ERR";
-  }
-
-  public static isAbortError(error: unknown): error is AbortError {
-    return error instanceof AbortError || (error instanceof Error && error.code === "ABORT_ERR");
-  }
-
-  public static throwIfSignalAborted(signal: { aborted: unknown } | null | undefined): void | never {
-    if (signal?.aborted) {
-      const abortError = new AbortError();
-      Error.captureStackTrace(abortError, AbortError.throwIfSignalAborted);
-      throw abortError;
-    }
-  }
-}
-
-AbortError.prototype.code = "ABORT_ERR";

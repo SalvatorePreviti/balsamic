@@ -3,7 +3,7 @@ const onSignal = (signal) => {
   setTimeout(() => {
     console.log("     done.");
     process.exit(0);
-  }, 1000);
+  }, 100);
 };
 
 process.once("SIGTERM", onSignal);

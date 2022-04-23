@@ -1,8 +1,10 @@
 import { ChildProcess } from "child_process";
 import { devError } from "../dev-error";
-import { AbortError, Deferred } from "../lib/promises";
+import { Deferred } from "./promises";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import type { Abortable } from "node:events";
+import { withAbortSignal } from "./with-abort-signal";
+import { AbortError } from "./abort-error";
 
 export class ProcessPromiseResult {
   exitCode: number | NodeJS.Signals;
@@ -88,11 +90,21 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
           return false;
         }
         errored = true;
+
         exitError = devError(error || exitError, setError);
         if (state.title) {
           devError.setProperty(exitError, "title", state.title, true);
         }
         state.error = exitError;
+
+        if (delayed && childProcess instanceof ChildProcess) {
+          if (
+            !childProcess.connected &&
+            (!childProcess.pid || childProcess.exitCode !== null || childProcess.signalCode !== null)
+          ) {
+            delayed = false;
+          }
+        }
 
         if (delayed) {
           timeout = setTimeout(doReject, options.errorTimeoutBeforeExit ?? 5000);
@@ -136,13 +148,13 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         } else {
           timed.start();
           if (typeof childProcess === "function") {
-            AbortError.throwIfSignalAborted(options.signal);
+            withAbortSignal.throwIfAborted(options.signal);
             childProcess = childProcess();
           }
           state.child = childProcess;
           childProcess.on("error", onChildProcessError);
           childProcess.on("exit", onExit);
-          AbortError.throwIfSignalAborted(options.signal);
+          withAbortSignal.throwIfAborted(options.signal);
         }
       } catch (error) {
         setError(error, false);

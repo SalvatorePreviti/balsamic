@@ -1,9 +1,8 @@
 import child_process from "child_process";
 import type { DevLogTimeOptions } from "../dev-log";
+import { withAbortSignal } from "../promises/with-abort-signal";
 import { NodeResolver } from "../modules/node-resolver";
-import { ProcessPromise, ProcessPromiseResult as _ProcessPromiseResult } from "./process-promise";
-
-export { ProcessPromise, _ProcessPromiseResult as ProcessPromiseResult };
+import { ProcessPromise, ProcessPromiseResult as _ProcessPromiseResult } from "../promises/process-promise";
 
 const { isArray } = Array;
 
@@ -70,6 +69,7 @@ export const devChildTask = {
       const args = devChildTask.normalizeArgs(inputArgs);
       const cmd = [command, ...args].join(" ");
       const opts = { ...devChildTask.defaultOptions, ...options };
+      opts.signal = withAbortSignal.getSignal(opts.signal);
       if (typeof opts.title !== "string") {
         opts.title = cmd.length < 40 ? cmd : command;
       }
@@ -92,6 +92,7 @@ export const devChildTask = {
       const args = devChildTask.normalizeArgs(inputArgs);
       const cmd = [moduleId, ...args].join(" ");
       const opts = { ...devChildTask.defaultOptions, ...options };
+      opts.signal = withAbortSignal.getSignal(opts.signal);
       if (typeof opts.title !== "string") {
         opts.title = cmd.length < 40 ? cmd : moduleId;
       }
@@ -113,6 +114,7 @@ export const devChildTask = {
   ): ProcessPromise {
     try {
       options = { ...options };
+      options.signal = withAbortSignal.getSignal(options.signal);
       if (typeof options.title !== "string") {
         options.title = `${moduleId}:${executableId}`;
       }

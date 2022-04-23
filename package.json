@@ -24,7 +24,7 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "mocha -r ts-node/register ./test/**/*.test.ts",
+    "test": "mocha -r ts-node/register --recursive ./test/**/*.test.ts",
     "precommit": "lint-staged && pretty-quick --staged",
     "postinstall": "husky install .husky"
   },
