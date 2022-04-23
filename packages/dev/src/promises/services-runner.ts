@@ -1,9 +1,12 @@
 import { setImmediate } from "node:timers/promises";
 import { devError } from "../dev-error";
-import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortControllerWrapper } from "./abort-controller-wrapper";
 import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
+import { devLog, DevLogTimeOptions } from "../dev-log";
+import { runParallel, runSequential } from "./promises";
+
+const { defineProperty } = Reflect;
 
 export interface ServicesRunnerOptions {
   abortController?: AbortController;
@@ -11,10 +14,11 @@ export interface ServicesRunnerOptions {
   abortOnServiceError?: boolean;
 }
 
-export interface ServicesRunnerServiceOptions extends DevLogTimeOptions {
+export interface ServicesRunnerServiceOptions {
   abortOnServiceError?: boolean;
   abortOnServiceTermination?: boolean;
   onTerminate?: (error: Error | null) => void | Promise<void>;
+  timed?: boolean;
 }
 
 interface ServiceRunnerPendingEntry {
@@ -26,9 +30,6 @@ export class ServicesRunner extends AbortControllerWrapper {
   #pending: ServiceRunnerPendingEntry[] = [];
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
-
-  /** Default singleton instance */
-  public static instance = new ServicesRunner({});
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
@@ -87,6 +88,27 @@ export class ServicesRunner extends AbortControllerWrapper {
     return this.#pending.length;
   }
 
+  public runSequential(...functionsOrPromises: unknown[]): Promise<void> {
+    if (abortSignals.getSignal() !== this.signal) {
+      return abortSignals.run(this.signal, () => runSequential(functionsOrPromises));
+    }
+    return runSequential(functionsOrPromises);
+  }
+
+  public runParallel(...functionsOrPromises: unknown[]): Promise<void> {
+    if (abortSignals.getSignal() !== this.signal) {
+      return abortSignals.run(this.signal, () => runParallel(functionsOrPromises));
+    }
+    return runParallel(functionsOrPromises);
+  }
+
+  public timed<T>(title: string, fnOrPromise: (() => Promise<T> | T) | Promise<T> | T, options?: DevLogTimeOptions) {
+    if (typeof fnOrPromise === "function" && abortSignals.getSignal() !== this.signal) {
+      return abortSignals.run(this.signal, () => devLog.timed(title, fnOrPromise, options));
+    }
+    return devLog.timed(title, fnOrPromise, options);
+  }
+
   public startService(
     title: string,
     fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void) | null | undefined | false,
@@ -96,7 +118,55 @@ export class ServicesRunner extends AbortControllerWrapper {
       return false;
     }
     title = `${title}`;
-    const promise = this.#runService(title, fnOrPromise, options);
+
+    const runService = async () => {
+      const abortOnServiceTermination = options?.abortOnServiceTermination ?? this.abortOnServiceTermination;
+      let error = null;
+
+      try {
+        if (typeof fnOrPromise === "function") {
+          if (this.aborted) {
+            await this.rejectIfAborted();
+          }
+
+          if (abortSignals.getSignal() !== this.signal) {
+            await abortSignals.run(this.signal, fnOrPromise);
+          } else {
+            await fnOrPromise();
+          }
+        } else {
+          await fnOrPromise;
+        }
+
+        if (abortOnServiceTermination) {
+          this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title }));
+        }
+      } catch (e) {
+        error = devError(e);
+        if (!AbortError.isAbortError(error) && !error.serviceTitle) {
+          defineProperty(error, "serviceTitle", {
+            value: title,
+            configurable: true,
+            enumerable: true,
+            writable: true,
+          });
+        }
+        const abortOnServiceError = options?.abortOnServiceError ?? this.abortOnServiceError;
+        if (abortOnServiceError) {
+          this.abort(error);
+        } else if (abortOnServiceTermination) {
+          this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
+        }
+      }
+      if (options?.onTerminate) {
+        await options.onTerminate(error);
+      }
+      return error;
+    };
+
+    defineProperty(runService, "name", { value: title, configurable: true, enumerable: false });
+
+    const promise = options?.timed ? this.timed(title, runService, { abortErrorIsWarning: true }) : runService();
     this.#pending.push({ promise, title });
     return true;
   }
@@ -116,9 +186,6 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
 
       if (error) {
-        if (!error.serviceTitle) {
-          error.serviceTitle = entry.title;
-        }
         if (!errorToThrow) {
           errorToThrow = error;
         }
@@ -143,7 +210,18 @@ export class ServicesRunner extends AbortControllerWrapper {
     }
 
     if (errorToThrow) {
+      if (AbortError.isAbortError(errorToThrow)) {
+        const reason = this.getAbortReason();
+        if (reason instanceof Error) {
+          throw reason;
+        }
+      }
       throw errorToThrow;
+    }
+
+    const reason = this.getAbortReason();
+    if (reason instanceof Error) {
+      throw reason;
     }
 
     return this.rejectIfAborted();
@@ -165,59 +243,6 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
     };
     return abortSignals.run(this.signal, run);
-  }
-
-  async #runService(
-    title: string,
-    fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void),
-    options?: ServicesRunnerServiceOptions,
-  ): Promise<Error | null> {
-    options = { timed: false, logError: true, ...options };
-    const abortOnServiceTermination = options.abortOnServiceTermination ?? this.abortOnServiceTermination;
-    let error = null;
-
-    const _timed = new DevLogTimed(title, options);
-
-    try {
-      _timed.start();
-
-      if (typeof fnOrPromise === "function") {
-        if (this.aborted) {
-          await this.rejectIfAborted();
-        }
-
-        if (abortSignals.getSignal() !== this.signal) {
-          await abortSignals.run(this.signal, fnOrPromise);
-        } else {
-          await fnOrPromise();
-        }
-      } else {
-        await fnOrPromise;
-      }
-
-      _timed.end();
-
-      if (abortOnServiceTermination) {
-        this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title }));
-      }
-    } catch (e) {
-      error = devError(e);
-      if (!error.serviceTitle) {
-        error.serviceTitle = title;
-      }
-      const abortOnServiceError = options.abortOnServiceError ?? this.abortOnServiceError;
-      if (abortOnServiceError) {
-        this.abort(error);
-      } else if (abortOnServiceTermination) {
-        this.abort(new AbortError.ServiceTerminatedError(undefined, { serviceTitle: title, cause: error }));
-      }
-
-      _timed.fail(error);
-    }
-    if (options.onTerminate) {
-      await options.onTerminate(error);
-    }
-    return error;
   }
 
   #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {

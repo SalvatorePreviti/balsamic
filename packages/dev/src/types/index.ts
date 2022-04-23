@@ -10,7 +10,7 @@ export * from "./tsconfig-json";
 
 declare global {
   export interface Error {
-    showStack?: boolean;
+    showStack?: boolean | "once";
     [key: string]: unknown;
   }
 }

@@ -4,6 +4,20 @@ import { AbortError } from "../promises/abort-error";
 let _devErrorHandlingInitialized = false;
 let _ignoredWarnings: Set<string> | null = null;
 
+const _unhandledErrorsLogged = new WeakSet();
+
+const _unhandledErrorsLoggedOnce = (value: unknown): boolean => {
+  if (typeof value === "object" && value !== null) {
+    try {
+      if (_unhandledErrorsLogged.has(value)) {
+        return false;
+      }
+      _unhandledErrorsLogged.add(value);
+    } catch {}
+  }
+  return true;
+};
+
 const { defineProperty } = Reflect;
 
 /** Fixes an error, the return value is always an Error instance */
@@ -40,10 +54,16 @@ export function devError(error?: any, a?: any, b?: any) {
     }
 
     // Hide some unuseful properties
+
     hideProperty(error, "showStack");
     hideProperty(error, "codeFrame");
     hideProperty(error, "watchFiles");
-    hideProperty(error, "response");
+
+    if (error.isAxiosError) {
+      hideProperty(error, "response");
+      hideProperty(error, "request");
+      hideProperty(error, "config");
+    }
   } catch {}
 
   return error;
@@ -75,7 +95,9 @@ devError.initErrorHandling = function initErrorHandling() {
 
 /** Handler for unhandled rejections (unhandled promise) */
 devError.handleUnhandledRejection = function handleUnhandledRejection(error: unknown) {
-  devLog.errorOnce("Unhandled rejection", error);
+  if (_unhandledErrorsLoggedOnce(error)) {
+    devLog.logException("Unhandled rejection", error, { showStack: "once" });
+  }
 };
 
 /** Handler for unhandled error */
@@ -84,7 +106,9 @@ devError.handleUncaughtException = function handleUncaughtException(error: unkno
     process.exitCode =
       error instanceof Error && typeof error.exitCode === "number" && error.exitCode ? error.exitCode : 1;
   }
-  devLog.errorOnce("Uncaught", error);
+  if (_unhandledErrorsLoggedOnce(error)) {
+    devLog.logException("Uncaught", error, { showStack: "once" });
+  }
 };
 
 /** Emits an unhandled error and logs it properly */
@@ -155,7 +179,7 @@ devError.setProperty = function setProperty(error: Error, name: string, value: u
   }
 };
 
-devError.setShowStack = function setShowStack(error: Error, value: boolean | undefined) {
+devError.setShowStack = function setShowStack(error: Error, value: boolean | "once" | undefined) {
   devError.setProperty(error, "showStack", value);
 };
 

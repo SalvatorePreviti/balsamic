@@ -68,7 +68,11 @@ function isAborted(signal?: MaybeSignal): boolean {
 /** If the signal was aborted, throws an AbortError. If not, does nothing. */
 async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
   signal = abortSignals.getSignal(signal);
-  if (signal?.aborted) {
+  if (signal && signal.aborted) {
+    const reason = (signal as { reason?: unknown }).reason;
+    if (AbortError.isAbortError(reason)) {
+      throw reason;
+    }
     await setImmediate(undefined, { signal });
   }
 }

@@ -22,9 +22,6 @@ export namespace ProcessPromise {
   export interface Options extends DevLogTimeOptions, Abortable {
     title?: string;
 
-    /** Overrides the showStack property in case of error */
-    showStack?: boolean;
-
     /** Throws if exitCode is non zero or a signal was raised. Default is true. */
     throwOnExitCode?: boolean;
 

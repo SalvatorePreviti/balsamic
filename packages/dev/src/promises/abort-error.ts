@@ -1,3 +1,5 @@
+import { devError } from "../dev-error";
+
 export class AbortError extends Error {
   public static code = "ABORT_ERR";
 
@@ -16,6 +18,10 @@ export class AbortError extends Error {
     }
     if (options?.isOk === true) {
       this.isOk = true;
+      const showStackValue = AbortError.AbortOk.prototype.showStack;
+      if (this.showStack !== showStackValue) {
+        devError.setShowStack(this, showStackValue);
+      }
     }
   }
 
@@ -26,6 +32,7 @@ export class AbortError extends Error {
 
 AbortError.prototype.code = "ABORT_ERR";
 AbortError.prototype.name = AbortError.name;
+AbortError.prototype.showStack = "once";
 
 export namespace AbortError {
   export interface Options extends ErrorOptions {
@@ -61,4 +68,6 @@ export namespace AbortError {
       this.isOk = isOk;
     }
   }
+
+  AbortOk.prototype.showStack = false;
 }

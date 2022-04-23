@@ -32,7 +32,7 @@ export class AbortControllerWrapper implements AbortController {
 
   /** If a signal is aborted, it returns the abort reason. Returns undefined otherwise. */
   public getAbortReason(): unknown {
-    return abortSignals.getAbortReason(this);
+    return abortSignals.getAbortReason(this.signal);
   }
 
   /** Aborts the abort controller, with a reason. */

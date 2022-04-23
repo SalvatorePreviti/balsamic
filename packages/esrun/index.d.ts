@@ -136,7 +136,7 @@ export declare function devGetError(
   error: any,
   caller?: Function,
 ): Error & {
-  showStack?: boolean;
+  showStack?: boolean | "once";
 };
 
 export declare function devInspect(what: unknown): string;
