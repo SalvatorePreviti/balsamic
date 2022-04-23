@@ -1,4 +1,5 @@
 import { devLog } from "../dev-log";
+import { AbortError } from "../promises/abort-error";
 
 let _devErrorHandlingInitialized = false;
 let _ignoredWarnings: Set<string> | null = null;
@@ -74,16 +75,16 @@ devError.initErrorHandling = function initErrorHandling() {
 
 /** Handler for unhandled rejections (unhandled promise) */
 devError.handleUnhandledRejection = function handleUnhandledRejection(error: unknown) {
-  devLog.warn("Unhandled rejection", error);
+  devLog.errorOnce("Unhandled rejection", error);
 };
 
 /** Handler for unhandled error */
 devError.handleUncaughtException = function handleUncaughtException(error: unknown) {
-  if (!process.exitCode) {
+  if (!process.exitCode && (!AbortError.isAbortError(error) || error.isOk !== true)) {
     process.exitCode =
       error instanceof Error && typeof error.exitCode === "number" && error.exitCode ? error.exitCode : 1;
   }
-  devLog.errorOnce("Uncaught", error, devError.handleUncaughtException);
+  devLog.errorOnce("Uncaught", error);
 };
 
 /** Emits an unhandled error and logs it properly */

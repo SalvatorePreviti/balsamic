@@ -13,11 +13,11 @@ const _noColor = (s: string) => `${s}`;
 
 let _logProcessTimeInitialized = false;
 const _errorLoggedSet = new WeakSet<any>();
-const _inspectedErrorLoggedSet = new Set<string>();
+const _inspectedErrorLoggedSet = new Set<unknown>();
 
 const _inspectedErrorLoggedSet_maxSize = 20;
 
-function _inspectedErrorLoggedSet_add(value: string): boolean {
+function _inspectedErrorLoggedSet_add(value: unknown): boolean {
   if (_inspectedErrorLoggedSet.has(value)) {
     return false;
   }
@@ -171,36 +171,73 @@ devLog.error = function (...args: unknown[]): void {
   }
 };
 
-function errorOnce<TError>(error: TError): TError extends Error ? TError : Error;
-function errorOnce<TError>(message: string, error: TError, caller?: Function): TError extends Error ? TError : Error;
-function errorOnce(message?: any, error?: any, caller?: any) {
-  if (!error) {
-    error = message;
-  }
-  const err = devError(error, typeof caller === "function" ? caller : devLog.errorOnce);
-  if (typeof error === "object" && error !== null && _errorLoggedSetHas(error)) {
-    return err;
-  }
-  if (!_errorLoggedSetHas(err)) {
-    _errorLoggedSetAdd(err);
-    if (typeof error === "object" && error !== null && err !== error) {
-      _errorLoggedSetAdd(error);
+devLog.logException = logException;
+
+function logException(message: string | undefined, error: unknown, options?: { showStack?: boolean }) {
+  let err;
+  let isAbortError = false;
+  let isOk = false;
+
+  _errorLoggedSetAdd(error);
+  if (error instanceof Error) {
+    isAbortError = AbortError.isAbortError(error);
+    let showStack: boolean;
+    isOk = isAbortError && error.isOk === true;
+    if (error.showStack === false) {
+      showStack = false;
+    } else if (isOk) {
+      showStack = false;
+    } else {
+      showStack = true;
+    }
+    if (showStack && options && options.showStack === false) {
+      showStack = false;
     }
 
-    const inspected = devLog.inspect(err);
-    if (_inspectedErrorLoggedSet_add(inspected)) {
-      if (AbortError.isAbortError(err)) {
-        if (err.isOk) {
-          devLog.info(inspected);
-        } else {
-          devLog.warn(inspected);
-        }
-      } else {
-        devLog.error(inspected);
-      }
+    if (showStack) {
+      const inspected = devLog.inspect(error) || `${error}`;
+      err = _inspectedErrorLoggedSet_add(inspected) ? inspected : `${error}`;
+    } else {
+      err = `${error}`;
     }
+
+    if (err.includes("\n") && !err.endsWith("\n\n")) {
+      err += "\n";
+    }
+  } else {
+    err = error;
   }
-  return err;
+
+  if (message) {
+    if (isAbortError) {
+      if (isOk) {
+        devLog.info(message, err);
+      } else {
+        devLog.warn(message, err);
+      }
+    } else {
+      devLog.error(message, err);
+    }
+  } else if (isAbortError) {
+    if (isOk) {
+      devLog.info(err);
+    } else {
+      devLog.warn(err);
+    }
+  } else {
+    devLog.error(err);
+  }
+}
+
+function errorOnce(error: unknown): void;
+function errorOnce(message: string, error: unknown, options?: { showStack?: boolean }): void;
+function errorOnce(message?: any, error?: any, options?: { showStack?: boolean }): void {
+  if (error && !_inspectedErrorLoggedSet_add(error)) {
+    return;
+  }
+  if (!_errorLoggedSetHas(error)) {
+    logException(message, error, options);
+  }
 }
 
 devLog.printProcessBanner = function printProcessBanner() {
@@ -471,49 +508,11 @@ devLog.logOperationError = function logOperationError(
       isTimed = !!elapsed;
     }
 
-    const isAbort = AbortError.isAbortError(error);
-    const message = `${title} ${isAbort ? "aborted" : "FAILED"}${
+    const message = `${title} ${AbortError.isAbortError(error) ? "aborted" : "FAILED"}${
       elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
     }.`;
 
-    if (
-      (options.logError === undefined || options.logError) &&
-      (typeof error !== "object" || error === null || !_errorLoggedSetHas(error))
-    ) {
-      _errorLoggedSetAdd(error);
-
-      const showStack =
-        options.showStack !== false && (error as any)?.showStack !== false && (error as any)?.isOk !== true;
-
-      let err: string | undefined;
-      if (showStack) {
-        const inspected = devLog.inspect(error);
-        err = _inspectedErrorLoggedSet_add(inspected) ? inspected : `${error}`;
-      } else {
-        err = `${error}`;
-      }
-      if (err.includes("\n") && !err.endsWith("\n\n")) {
-        err += "\n";
-      }
-
-      if (isAbort) {
-        if (error.isOk === true) {
-          devLog.info(message, err);
-        } else {
-          devLog.warn(message, err);
-        }
-      } else {
-        devLog.error(message, err);
-      }
-    } else if (isAbort) {
-      if (error.isOk === true) {
-        devLog.info(message);
-      } else {
-        devLog.warn(message);
-      }
-    } else {
-      devLog.error(message);
-    }
+    logException(message, error, options);
   }
 };
 
