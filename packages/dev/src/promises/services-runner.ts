@@ -28,6 +28,9 @@ export class ServicesRunner extends AbortControllerWrapper {
   #abortHandlers: (() => void | Promise<void>)[] = [];
   #pendingPromises: Promise<unknown>[] = [];
 
+  /** Default singleton instance */
+  public static instance = new ServicesRunner({});
+
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
 
