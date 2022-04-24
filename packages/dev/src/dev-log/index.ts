@@ -298,6 +298,18 @@ devLog.info = function (...args: unknown[]): void {
   }
 };
 
+devLog.debug = function (...args: unknown[]): void {
+  if (args.length === 0) {
+    console.debug();
+  } else {
+    console.debug(
+      devLog.colors.blueBright(
+        `${devLog.colors.cyanBright(`🐛  ${devLog.colors.underline("DEBUG")}:`)} ${_devInspectForLogging(args)}`,
+      ),
+    );
+  }
+};
+
 devLog.inspect = function (what: unknown): string {
   if (what instanceof Error) {
     if (what.showStack === false) {

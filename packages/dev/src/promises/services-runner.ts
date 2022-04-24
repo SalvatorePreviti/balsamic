@@ -192,7 +192,7 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
 
       if (error) {
-        if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(errorToThrow))) {
+        if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
           errorToThrow = error;
         }
         if (!this.aborted) {
@@ -215,7 +215,7 @@ export class ServicesRunner extends AbortControllerWrapper {
       } catch (e) {
         if (e) {
           const error = devError(e);
-          if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(errorToThrow))) {
+          if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
             errorToThrow = error;
           }
 
