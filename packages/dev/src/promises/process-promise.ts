@@ -98,12 +98,15 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         state.error = exitError;
 
         if (exitError instanceof ChildProcessError) {
-          Reflect.defineProperty(exitError, "message", {
-            value: `${exitError.exitCode ? ` exitCode:${exitError.exitCode}.` : ""}`,
-            configurable: true,
-            enumerable: false,
-            writable: true,
-          });
+          const exitCode = this.#state.exitCode;
+          if (exitCode !== null && exitCode !== undefined) {
+            Reflect.defineProperty(exitError, "message", {
+              value: `${exitError.message} exitCode:${exitCode}`,
+              configurable: true,
+              enumerable: false,
+              writable: true,
+            });
+          }
         }
 
         if (delayed && childProcess instanceof ChildProcess) {
