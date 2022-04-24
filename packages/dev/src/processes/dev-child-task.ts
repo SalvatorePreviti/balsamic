@@ -3,20 +3,20 @@ import { NodeResolver } from "../modules/node-resolver";
 import { ChildProcessPromise, ChildProcessWrapper } from "./child-process-wrapper";
 import {
   childProcess,
-  SpawnCommonOptions as childProcess_SpawnCommonOptions,
+  SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
   SpawnOptions as childProcesses_SpawnOptions,
   ForkOptions as childProcess_ForkOptions,
-  SpawnArg,
+  SpawnArg as childProcess_SpawnArg,
 } from "./child-process";
 
 export namespace devChildTask {
-  export type CommonOptions = childProcess_SpawnCommonOptions;
-
   export type SpawnOptions = childProcesses_SpawnOptions;
 
   export type ForkOptions = childProcess_ForkOptions;
 
-  export type Arg = SpawnArg;
+  export type SpawnOrForkOptions = childProcess_SpawnOrForkOptions;
+
+  export type SpawnArg = childProcess_SpawnArg;
 
   export type ChildProcess = child_process.ChildProcess;
 
@@ -29,7 +29,7 @@ export const devChildTask = {
   /** Spawn a new process, redirect stdio and await for completion. */
   spawn(
     command: string,
-    inputArgs?: readonly devChildTask.Arg[],
+    inputArgs?: readonly devChildTask.SpawnArg[],
     options?: devChildTask.SpawnOptions | null,
   ): ChildProcessPromise {
     return new ChildProcessWrapper(() => {
@@ -44,7 +44,7 @@ export const devChildTask = {
   /** Forks the node process that runs the given module, redirect stdio and await for completion. */
   fork(
     moduleId: string,
-    inputArgs?: readonly devChildTask.Arg[],
+    inputArgs?: readonly devChildTask.SpawnArg[],
     options?: devChildTask.ForkOptions | null,
   ): ChildProcessPromise {
     return new ChildProcessWrapper(() => {
@@ -60,7 +60,7 @@ export const devChildTask = {
   runModuleBin(
     moduleId: string,
     executableId: string,
-    inputArgs: readonly devChildTask.Arg[] = [],
+    inputArgs: readonly devChildTask.SpawnArg[] = [],
     options?: devChildTask.ForkOptions,
   ): ChildProcessPromise {
     return new ChildProcessWrapper(() => {
@@ -81,7 +81,7 @@ export const devChildTask = {
   /** Executes npm run <command> [args] */
   npmRun(
     command: string,
-    args: readonly devChildTask.Arg[] = [],
+    args: readonly devChildTask.SpawnArg[] = [],
     options?: devChildTask.SpawnOptions,
   ): ChildProcessPromise {
     options = { title: `npm run ${command}`, ...options };
@@ -91,7 +91,7 @@ export const devChildTask = {
   /** Executes npm <command> [args] */
   npmCommand(
     command: string,
-    args: readonly devChildTask.Arg[] = [],
+    args: readonly devChildTask.SpawnArg[] = [],
     options?: devChildTask.SpawnOptions,
   ): ChildProcessPromise {
     options = { title: `npm ${command}`, ...options };

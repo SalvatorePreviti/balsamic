@@ -8,11 +8,19 @@ import { killProcessChildren } from "./lib/kill-process-children";
 
 const { isArray } = Array;
 
-export interface SpawnCommonOptions extends DevLogTimeOptions, ChildProcessWrapper.Options, Abortable {}
+export interface SpawnOptions
+  extends DevLogTimeOptions,
+    ChildProcessWrapper.Options,
+    Abortable,
+    child_process.SpawnOptions {}
 
-export interface SpawnOptions extends SpawnCommonOptions, child_process.SpawnOptions {}
+export interface ForkOptions
+  extends DevLogTimeOptions,
+    ChildProcessWrapper.Options,
+    Abortable,
+    child_process.ForkOptions {}
 
-export interface ForkOptions extends SpawnCommonOptions, child_process.ForkOptions {}
+export interface SpawnOrForkOptions extends SpawnOptions, ForkOptions {}
 
 export type SpawnArg =
   | string
@@ -28,7 +36,7 @@ export const childProcess = {
     env: process.env,
     throwOnExitCode: true,
     timed: true,
-  } as Omit<SpawnCommonOptions, "title" | "caller" | "signal">,
+  } as Omit<SpawnOrForkOptions, "title" | "caller" | "signal">,
 
   normalizeArgs,
   extractSpawnOptions,
