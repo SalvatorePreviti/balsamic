@@ -48,9 +48,16 @@ export namespace ChildProcessWrapper {
     title?: string;
     caller?: Function;
   }
-}
 
-export interface ChildProcessWrapper extends InterfaceFromClass<ChildProcessWrapperClass> {}
+  export type ConstructorInput =
+    | ChildProcess
+    | Error
+    | ((options: ChildProcessWrapper.Options) => {
+        childProcess: ChildProcess;
+        options?: ChildProcessWrapper.Options;
+        abortSignal?: AbortSignal | null;
+      });
+}
 
 class ErroredChildProcess extends ChildProcess {
   readonly _error: Error;
@@ -62,7 +69,7 @@ class ErroredChildProcess extends ChildProcess {
   }
 }
 
-class ChildProcessWrapperClass {
+export class ChildProcessWrapper {
   public static defaultOptions: Omit<ChildProcessWrapper.Options, "title" | "caller"> = {
     exitErrorTimeout: 6000,
     rejectOnAbort: true,
@@ -82,14 +89,7 @@ class ChildProcessWrapperClass {
   #killChildren: boolean;
 
   public constructor(
-    input:
-      | ChildProcess
-      | Error
-      | ((options: ChildProcessWrapper.Options) => {
-          childProcess: ChildProcess;
-          options?: ChildProcessWrapper.Options;
-          abortSignal?: AbortSignal | null;
-        }),
+    input: ChildProcessWrapper.ConstructorInput,
     options?: ChildProcessWrapper.Options | null,
     abortSignal?: AbortSignal,
   ) {
@@ -97,7 +97,7 @@ class ChildProcessWrapperClass {
     this.#exitCode = null;
     this.#promise = null;
 
-    const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapperClass.defaultOptions;
+    const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapper.defaultOptions;
     options = { ...defaultOptions, ...options };
     options = _sanitizeOptions(options, defaultOptions);
 
@@ -491,21 +491,16 @@ class ChildProcessWrapperClass {
       killed: this.#childProcess.killed,
     };
   }
+
+  public [util.inspect.custom]() {
+    return this.toJSON();
+  }
 }
 
-defineProperty(ChildProcessWrapperClass.prototype, util.inspect.custom, {
-  value(this: ChildProcessWrapperClass) {
-    return this.toJSON();
-  },
-  configurable: true,
-  writable: true,
-});
-
-export let ChildProcessWrapper = ChildProcessWrapperClass;
-
-Reflect.defineProperty(ChildProcessWrapper, "name", { value: "ChildProcessWrapper", configurable: true });
-
-export class ChildProcessPromise<T = ChildProcessWrapper> extends Promise<T> implements ChildProcessWrapper {
+export class ChildProcessPromise<T = ChildProcessWrapper>
+  extends Promise<T>
+  implements InterfaceFromClass<ChildProcessWrapper>
+{
   #childProcessWrapper: ChildProcessWrapper | undefined;
   #error?: Error;
 
@@ -536,6 +531,10 @@ export class ChildProcessPromise<T = ChildProcessWrapper> extends Promise<T> imp
     }
   }
 
+  public [util.inspect.custom]() {
+    return this.childProcessWrapper?.[util.inspect.custom]?.() || this.constructor.name;
+  }
+
   public get pid(): number | undefined {
     return this.childProcessWrapper.pid;
   }
@@ -543,7 +542,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper> extends Promise<T> imp
   public get childProcessWrapper(): ChildProcessWrapper {
     let result = this.#childProcessWrapper;
     if (!result) {
-      result = new ChildProcessWrapperClass(devError(this.#error), {
+      result = new ChildProcessWrapper(devError(this.#error), {
         timed: false,
         showStack: false,
         printStarted: false,

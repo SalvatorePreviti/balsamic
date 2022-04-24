@@ -1,5 +1,4 @@
 import { devError } from "../dev-error";
-import { InterfaceFromClass } from "../types";
 import { abortSignals } from "./abort-signals";
 
 export function noop() {}
@@ -8,9 +7,7 @@ export namespace Deferred {
   export type Status = "starting" | "pending" | "succeeded" | "rejected";
 }
 
-export interface Deferred<T> extends InterfaceFromClass<DeferredClass<T>> {}
-
-class DeferredClass<T> {
+export class Deferred<T> {
   public static readonly STATUS_PENDING = "pending" as const;
   public static readonly STATUS_SUCCEEDED = "succeeded" as const;
   public static readonly STATUS_REJECTED = "rejected" as const;
@@ -71,8 +68,6 @@ class DeferredClass<T> {
     return this.status === "rejected";
   }
 }
-
-Reflect.defineProperty(DeferredClass, "name", { value: "Deferred", configurable: true });
 
 /** Runs lists of functions or promises in sequence */
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
@@ -150,5 +145,3 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
     throw error;
   }
 }
-
-export const Deferred = DeferredClass;

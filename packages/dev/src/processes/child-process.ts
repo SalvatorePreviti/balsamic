@@ -150,6 +150,8 @@ function npmCommand(command: string, args: readonly SpawnArg[] = [], options?: S
 
 let _spawnOverridden: boolean;
 
+const _forceGlobalSpawnOptions_options = { __debug: false };
+
 /**
  * Overrides nodejs process child options.
  * This can be useful to change some attributes in child process spawned by external packages.
@@ -158,7 +160,7 @@ let _spawnOverridden: boolean;
 function forceGlobalSpawnOptions(
   forcedOptions: SpawnOptions & ForkOptions & child_process.SpawnOptionsWithoutStdio & { __debug?: boolean },
 ) {
-  Object.assign(forceGlobalSpawnOptions.options, forcedOptions);
+  Object.assign(_forceGlobalSpawnOptions_options, forcedOptions);
   if (_spawnOverridden) {
     return;
   }
@@ -171,44 +173,40 @@ function forceGlobalSpawnOptions(
 
   child_process.spawn = function (command: string, args?: any, options?: any) {
     if (Array.isArray(args)) {
-      if (forceGlobalSpawnOptions.options!.__debug) {
+      if (_forceGlobalSpawnOptions_options!.__debug) {
         devLog.debug("spawn", { command, args, options: { ...options, env: "[env]" } });
       }
-      return _spawn(command, args, { ...options, ...forceGlobalSpawnOptions.options });
+      return _spawn(command, args, { ...options, ..._forceGlobalSpawnOptions_options });
     }
-    if (forceGlobalSpawnOptions.options!.__debug) {
+    if (_forceGlobalSpawnOptions_options!.__debug) {
       devLog.debug("spawn", { command, options: { ...args, env: "[env]" } });
     }
-    return _spawn(command, { ...args, ...forceGlobalSpawnOptions.options });
+    return _spawn(command, { ...args, ..._forceGlobalSpawnOptions_options });
   } as any;
 
   child_process.spawnSync = function (command: string, args?: any, options?: any) {
     if (Array.isArray(args)) {
-      if (forceGlobalSpawnOptions.options!.__debug) {
+      if (_forceGlobalSpawnOptions_options!.__debug) {
         devLog.debug("spawnSync", { command, args, options: { ...options, env: "[env]" } });
       }
-      return _spawnSync(command, args, { ...options, ...forceGlobalSpawnOptions.options });
+      return _spawnSync(command, args, { ...options, ..._forceGlobalSpawnOptions_options });
     }
-    if (forceGlobalSpawnOptions.options!.__debug) {
+    if (_forceGlobalSpawnOptions_options!.__debug) {
       devLog.debug("spawnSync", { command, options: { ...args, env: "[env]" } });
     }
-    return _spawnSync(command, { ...args, ...forceGlobalSpawnOptions.options });
+    return _spawnSync(command, { ...args, ..._forceGlobalSpawnOptions_options });
   } as any;
 
   child_process.fork = function (command: string, args?: any, options?: any) {
     if (Array.isArray(args)) {
-      if (forceGlobalSpawnOptions.options!.__debug) {
+      if (_forceGlobalSpawnOptions_options!.__debug) {
         devLog.debug("fork", { command, args, options: { ...options, env: "[env]" } });
       }
-      return _fork(command, args, { ...options, ...forceGlobalSpawnOptions.options });
+      return _fork(command, args, { ...options, ..._forceGlobalSpawnOptions_options });
     }
-    if (forceGlobalSpawnOptions.options!.__debug) {
+    if (_forceGlobalSpawnOptions_options!.__debug) {
       devLog.debug("fork", { command, options: { ...args, env: "[env]" } });
     }
-    return _fork(command, { ...args, ...forceGlobalSpawnOptions.options });
+    return _fork(command, { ...args, ..._forceGlobalSpawnOptions_options });
   } as any;
 }
-
-forceGlobalSpawnOptions.options = {} as SpawnOptions &
-  ForkOptions &
-  child_process.SpawnOptionsWithoutStdio & { __debug?: boolean };
