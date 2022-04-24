@@ -33,6 +33,8 @@ export namespace ProcessPromise {
   }
 }
 
+class ChildProcessError extends Error {}
+
 export class ProcessPromise extends Promise<ProcessPromiseResult> {
   #state: ProcessPromiseState;
 
@@ -43,7 +45,7 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
   public constructor(childProcess: ChildProcess | (() => ChildProcess) | Error, options: ProcessPromise.Options = {}) {
     const title = options.title || "";
 
-    let exitError = new Error(title ? `Child process "${title}" failed` : "Child process failed");
+    let exitError = new ChildProcessError(title ? `Child process "${title}" failed.` : "Child process failed.");
     Error.captureStackTrace(exitError, new.target);
     if (options.showStack !== undefined) {
       devError.setShowStack(exitError, options.showStack);
@@ -82,17 +84,27 @@ export class ProcessPromise extends Promise<ProcessPromiseResult> {
         }
       };
 
-      const setError = (error: any, delayed?: boolean) => {
+      const setError = (e: any, delayed?: boolean) => {
         if (errored) {
           return false;
         }
         errored = true;
 
-        exitError = devError(error || exitError, setError);
+        const error = devError(e || exitError, setError);
+        exitError = error;
         if (state.title) {
           devError.setProperty(exitError, "title", state.title, true);
         }
         state.error = exitError;
+
+        if (exitError instanceof ChildProcessError) {
+          Reflect.defineProperty(exitError, "message", {
+            value: `${exitError.exitCode ? ` exitCode:${exitError.exitCode}.` : ""}`,
+            configurable: true,
+            enumerable: false,
+            writable: true,
+          });
+        }
 
         if (delayed && childProcess instanceof ChildProcess) {
           if (
