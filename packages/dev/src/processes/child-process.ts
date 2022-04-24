@@ -123,18 +123,15 @@ function runModuleBin(
   return new ChildProcessWrapper(() => {
     options = { ...options };
     if (typeof options.title !== "string") {
-      options.title = `${moduleId}:${executableId}`;
+      options.title = executableId !== moduleId ? `${moduleId}:${executableId}` : moduleId;
     }
     const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd);
     if (!resolved) {
       throw new Error(`Could not find ${moduleId}:${executableId}`);
     }
 
-    const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options);
-    if (!opts.caller) {
-      opts.caller = runModuleBin;
-    }
-    return { childProcess: child_process.fork(moduleId, args, opts), options: opts, abortSignal: signal };
+    const { opts, args, signal } = devChildTask.extractSpawnOptions(inputArgs, moduleId, options);
+    return { childProcess: child_process.fork(resolved, args, opts), options: opts, abortSignal: signal };
   });
 }
 
