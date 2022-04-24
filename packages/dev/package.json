@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.1.33",
+  "version": "0.1.34",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,7 +26,8 @@
   },
   "type": "commonjs",
   "dependencies": {
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "tree-kill": "^1.2.2"
   },
   "devDependencies": {
     "@types/node": "^17.0.25"

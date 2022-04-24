@@ -1,13 +1,16 @@
 import { devError } from "../dev-error";
+import { InterfaceFromClass } from "../types";
 import { abortSignals } from "./abort-signals";
 
 export function noop() {}
 
 export namespace Deferred {
-  export type Status = "pending" | "succeeded" | "rejected";
+  export type Status = "starting" | "pending" | "succeeded" | "rejected";
 }
 
-export class Deferred<T> {
+export interface Deferred<T> extends InterfaceFromClass<DeferredClass<T>> {}
+
+class DeferredClass<T> {
   public static readonly STATUS_PENDING = "pending" as const;
   public static readonly STATUS_SUCCEEDED = "succeeded" as const;
   public static readonly STATUS_REJECTED = "rejected" as const;
@@ -48,22 +51,28 @@ export class Deferred<T> {
     return this;
   }
 
-  public get isPending() {
-    return this.status === "pending";
+  /** True if running */
+  public get isRunning() {
+    return this.status === "pending" || this.status === "starting";
   }
 
+  /** True if completed, with or without errors */
   public get isSettled() {
-    return this.status !== "pending";
+    return this.status === "succeeded" || this.status === "rejected";
   }
 
+  /** True if completed without errors */
   public get isSucceeded() {
     return this.status === "succeeded";
   }
 
+  /** True if failed */
   public get isRejected() {
     return this.status === "rejected";
   }
 }
+
+Reflect.defineProperty(DeferredClass, "name", { value: "Deferred", configurable: true });
 
 /** Runs lists of functions or promises in sequence */
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
@@ -141,3 +150,5 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
     throw error;
   }
 }
+
+export const Deferred = DeferredClass;

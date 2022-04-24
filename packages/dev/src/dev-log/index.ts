@@ -1,11 +1,12 @@
 import util from "util";
 import readline from "readline";
 import { colors as _colors } from "../colors";
-import { millisecondsToString } from "../lib/utils";
+import { millisecondsToString } from "../utils";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import type { ChalkFunction } from "chalk";
+import { Deferred } from "../promises/promises";
 
 export { ChalkFunction };
 
@@ -377,6 +378,7 @@ export interface DevLogTimeOptions extends LogExceptionOptions {
   printStarted?: boolean;
   logError?: boolean;
   timed?: boolean;
+  elapsed?: number;
 }
 
 /** Prints how much time it takes to run something */
@@ -423,47 +425,69 @@ devLog.timed = timed;
 
 export class DevLogTimed {
   public options: DevLogTimeOptions;
-  public status: "pending" | "started" | "succeeded" | "failed" = "pending";
-  #starTime: number;
+  public status: Deferred.Status = "starting";
+  public starTime: number;
+  private _elapsed: number | null = null;
 
   constructor(public title: string, options: DevLogTimeOptions = {}) {
     this.options = options;
-    this.#starTime = performance.now();
+    this.starTime = performance.now() + (options.elapsed ? +options.elapsed : 0);
   }
 
   public start(): this {
-    if (this.status !== "pending") {
+    if (this.status !== "starting") {
       return this;
     }
-    this.status = "started";
+    this.status = "pending";
     devLog.logOperationStart(this.title, this.options);
-    this.#starTime = performance.now();
     return this;
   }
 
   public get elapsed(): number {
-    return performance.now() - this.#starTime;
+    return this._elapsed ?? performance.now() - this.starTime;
   }
 
   public getElapsedTime(): string {
-    return millisecondsToString(performance.now() - this.#starTime);
+    return millisecondsToString(this.elapsed);
   }
 
-  public end(): void {
-    if (this.status !== "pending" && this.status !== "started") {
+  public end(text?: string): void {
+    if (this.status !== "pending" && this.status !== "starting") {
       return;
     }
+    this._elapsed = this.elapsed;
     this.status = "succeeded";
-    devLog.logOperationSuccess(this.title, this.options, this.elapsed);
+    devLog.logOperationSuccess(this.title, this.options, this.elapsed, text);
   }
 
   public fail<TError = unknown>(error: TError): TError {
-    if (this.status !== "pending" && this.status !== "started") {
+    if (this.status !== "pending" && this.status !== "starting") {
       return error;
     }
-    this.status = "failed";
+    this.status = "rejected";
+    this._elapsed = this.elapsed;
     devLog.logOperationError(this.title, error, this.options, this.elapsed);
     return error;
+  }
+
+  /** True if running */
+  public get isRunning() {
+    return this.status === "pending" || this.status === "starting";
+  }
+
+  /** True if completed, with or without errors */
+  public get isSettled() {
+    return this.status === "succeeded" || this.status === "rejected";
+  }
+
+  /** True if completed without errors */
+  public get isSucceeded() {
+    return this.status === "succeeded";
+  }
+
+  /** True if failed */
+  public get isRejected() {
+    return this.status === "rejected";
   }
 }
 
@@ -487,6 +511,7 @@ devLog.logOperationSuccess = function logOperationSuccess(
   title: string,
   options: DevLogTimeOptions = { printStarted: true },
   elapsed?: number,
+  text?: string,
 ) {
   let { timed: isTimed, printStarted } = options;
   if (isTimed === undefined) {
@@ -501,6 +526,9 @@ devLog.logOperationSuccess = function logOperationSuccess(
       msg += ` in ${millisecondsToString(elapsed)}`;
     }
     msg += ".";
+    if (text) {
+      msg += ` ${text}`;
+    }
     devLog.log(devLog.colors.green(msg));
   }
 };

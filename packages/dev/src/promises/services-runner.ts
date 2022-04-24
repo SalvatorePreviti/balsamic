@@ -1,10 +1,10 @@
 import { setImmediate } from "node:timers/promises";
 import { devError } from "../dev-error";
-import { AbortControllerWrapper } from "./abort-controller-wrapper";
 import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
 import { devLog, DevLogTimeOptions } from "../dev-log";
 import { runParallel, runSequential } from "./promises";
+import { setTimeout } from "timers/promises";
 
 const { defineProperty } = Reflect;
 
@@ -30,7 +30,9 @@ interface ServiceRunnerPendingEntry {
   promise: Promise<Error | null>;
 }
 
-export class ServicesRunner extends AbortControllerWrapper {
+export class ServicesRunner implements AbortController {
+  public abortController: AbortController;
+
   #pending: ServiceRunnerPendingEntry[] = [];
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
@@ -39,7 +41,7 @@ export class ServicesRunner extends AbortControllerWrapper {
   public abortOnServiceError: boolean;
 
   public constructor(options: ServicesRunnerOptions) {
-    super(options.abortController || new AbortController());
+    this.abortController = options.abortController || new AbortController();
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
@@ -47,6 +49,38 @@ export class ServicesRunner extends AbortControllerWrapper {
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
     this.run = this.run.bind(this);
+    this.rejectIfAborted = this.rejectIfAborted.bind(this);
+    this.getAbortReason = this.getAbortReason.bind(this);
+    this.abort = this.abort.bind(this);
+    this.setTimeout = this.setTimeout.bind(this);
+    this.addAbortHandler = this.addAbortHandler.bind(this);
+  }
+
+  public get aborted(): boolean {
+    return this.abortController.signal.aborted;
+  }
+
+  public get signal(): AbortSignal & { reason?: any } {
+    return this.abortController.signal;
+  }
+
+  /** If the signal was aborted, throws an AbortError. If not, does nothing. */
+  public rejectIfAborted(): Promise<void> {
+    return abortSignals.rejectIfAborted(this.signal);
+  }
+
+  /** If a signal is aborted, it returns the abort reason. Returns undefined otherwise. */
+  public getAbortReason(): unknown {
+    return abortSignals.getAbortReason(this.signal);
+  }
+
+  /** Aborts the abort controller, with a reason. */
+  public abort(reason?: unknown): boolean {
+    return abortSignals.abort(this.abortController, reason);
+  }
+
+  public async setTimeout<R = void>(delay: number, value?: R): Promise<R> {
+    return setTimeout(delay, value, { signal: this.signal });
   }
 
   /**
@@ -84,7 +118,7 @@ export class ServicesRunner extends AbortControllerWrapper {
       }
     };
 
-    super.addAbortHandler(onAbort);
+    abortSignals.addAbortHandler(this.signal, onAbort);
     return handlers;
   }
 
@@ -249,6 +283,10 @@ export class ServicesRunner extends AbortControllerWrapper {
     const run = async () => {
       try {
         if (this.aborted) {
+          const reason = this.getAbortReason();
+          if (reason instanceof Error) {
+            throw reason;
+          }
           await this.rejectIfAborted();
         }
         const result = await (typeof callback === "function" ? callback() : callback);

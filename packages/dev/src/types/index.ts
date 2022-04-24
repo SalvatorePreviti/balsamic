@@ -14,3 +14,7 @@ declare global {
     [key: string]: unknown;
   }
 }
+
+export type InterfaceFromClass<T> = {
+  [P in keyof T]: T[P];
+};

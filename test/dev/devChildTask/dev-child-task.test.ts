@@ -1,7 +1,7 @@
 import path from "path";
 import { expect } from "chai";
 import { ChildProcess } from "child_process";
-import { AbortError, ProcessPromise, devChildTask } from "../../../packages/dev/src";
+import { AbortError, ChildProcessPromise, ChildProcessWrapper, devChildTask } from "../../../packages/dev/src";
 
 describe("devChildTask", () => {
   let originalFolder: string;
@@ -15,12 +15,12 @@ describe("devChildTask", () => {
     process.chdir(originalFolder);
   });
 
-  describe("ProcessPromise.rejectProcessPromise", () => {
+  describe("ChildProcessPromise.rejectProcessPromise", () => {
     it("returns a valid rejected promise", async () => {
-      const promise = ProcessPromise.rejectProcessPromise(new Error("xxx"), { logError: false });
+      const promise = ChildProcessPromise.reject(new Error("xxx"));
 
       expect(promise.status).to.equal("rejected");
-      expect(promise.isPending).to.equal(false);
+      expect(promise.isRunning).to.equal(false);
       expect(promise.isRejected).to.equal(true);
       expect(promise.isSettled).to.equal(true);
       expect(promise.isSucceeded).to.equal(false);
@@ -46,13 +46,14 @@ describe("devChildTask", () => {
       controller.abort();
 
       let fnCalled = false;
-      const promise = new ProcessPromise(
+      const promise = new ChildProcessWrapper(
         () => {
           fnCalled = true;
           throw new Error("should not be called");
         },
-        { signal: controller.signal, timed: false, logError: false },
-      );
+        { timed: false, logError: false },
+        controller.signal,
+      ).promise();
 
       expect(fnCalled).to.equal(false);
 
@@ -73,13 +74,14 @@ describe("devChildTask", () => {
       controller.abort();
 
       let fnCalled = false;
-      const promise = new ProcessPromise(
+      const promise = new ChildProcessWrapper(
         () => {
           fnCalled = true;
           throw new Error("should not be called");
         },
-        { signal: controller.signal, timed: false, rejectOnAbort: false, logError: false },
-      );
+        { timed: false, rejectOnAbort: false, logError: false },
+        controller.signal,
+      ).promise();
 
       expect(fnCalled).to.equal(false);
 
@@ -126,17 +128,20 @@ describe("devChildTask", () => {
         controller.abort();
       }, 100).unref();
 
-      expect(await promise).to.deep.equal({ exitCode: "SIGABRT" });
+      const result = await promise;
+      expect(result).to.equal(promise.childProcessWrapper);
+
+      expect(result.killed).equal(true);
     });
   });
 
   describe("npmRun", () => {
     it("executes an ok script", async () => {
-      const promise = devChildTask.npmRun("ok", [], {});
+      const promise = devChildTask.npmRun("ok", [], { printStarted: false });
       expect(promise.childProcess).to.be.instanceOf(ChildProcess);
 
       expect(promise.status).to.equal("pending");
-      expect(promise.isPending).to.equal(true);
+      expect(promise.isRunning).to.equal(true);
       expect(promise.isRejected).to.equal(false);
       expect(promise.isSettled).to.equal(false);
       expect(promise.isSucceeded).to.equal(false);
@@ -149,7 +154,7 @@ describe("devChildTask", () => {
       const result = await promise;
 
       expect(promise.status).to.equal("succeeded");
-      expect(promise.isPending).to.equal(false);
+      expect(promise.isRunning).to.equal(false);
       expect(promise.isRejected).to.equal(false);
       expect(promise.isSettled).to.equal(true);
       expect(promise.isSucceeded).to.equal(true);
@@ -165,7 +170,7 @@ describe("devChildTask", () => {
       expect(promise.childProcess).to.be.instanceOf(ChildProcess);
 
       expect(promise.status).to.equal("pending");
-      expect(promise.isPending).to.equal(true);
+      expect(promise.isRunning).to.equal(true);
       expect(promise.isRejected).to.equal(false);
       expect(promise.isSettled).to.equal(false);
       expect(promise.isSucceeded).to.equal(false);
@@ -185,7 +190,7 @@ describe("devChildTask", () => {
       expect(error).to.be.instanceOf(Error);
 
       expect(promise.status).to.equal("rejected");
-      expect(promise.isPending).to.equal(false);
+      expect(promise.isRunning).to.equal(false);
       expect(promise.isRejected).to.equal(true);
       expect(promise.isSettled).to.equal(true);
       expect(promise.isSucceeded).to.equal(false);

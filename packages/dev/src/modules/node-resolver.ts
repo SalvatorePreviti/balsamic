@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { PackageJson } from "../types";
-import { toUTF8 } from "../lib/utils";
+import { toUTF8 } from "../utils";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;

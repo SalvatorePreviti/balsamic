@@ -15,6 +15,8 @@ export const abortSignals = {
   getAbortReason,
   isAborted,
   rejectIfAborted,
+  throwIfAborted,
+  addAbortHandler,
   abort,
   run,
 };
@@ -65,15 +67,26 @@ function isAborted(signal?: MaybeSignal): boolean {
   return !!signal && !!signal.aborted;
 }
 
-/** If the signal was aborted, throws an AbortError. If not, does nothing. */
+/**
+ * If the signal was aborted, throws an AbortError. If not, does nothing.
+ * Prefer rejectIfAborted to throwIfAborted until throwIfAborted is not implemented in AbortSignal in the next node versions.
+ */
 async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
   signal = abortSignals.getSignal(signal);
   if (signal && signal.aborted) {
-    const reason = (signal as { reason?: unknown }).reason;
-    if (AbortError.isAbortError(reason)) {
-      throw reason;
-    }
-    await setImmediate(undefined, { signal });
+    return setImmediate(undefined, { signal });
+  }
+  return undefined;
+}
+
+/**
+ * This implementation of throwIfAborted is far from perfect since it loses the stack trace of the abort call.
+ * Prefer rejectIfAborted to throwIfAborted until throwIfAborted is not implemented in AbortSignal in the next node versions.
+ */
+function throwIfAborted(signal?: MaybeSignal): void | never {
+  signal = abortSignals.getSignal(signal);
+  if (signal && signal.aborted) {
+    throw new AbortError();
   }
 }
 
@@ -111,4 +124,21 @@ function getAbortReason(signal?: MaybeSignal): unknown | undefined {
     return (signal as { reason?: unknown }).reason;
   }
   return undefined;
+}
+
+/**
+ * Adds a new function to execute on abort.
+ * If already aborted, the function will be called straight away.
+ * The function should not return a Promise.
+ */
+function addAbortHandler(signal: MaybeSignal, fn: (() => void) | null | undefined | false): void {
+  signal = abortSignals.getSignal(signal);
+  if (!signal || typeof fn !== "function") {
+    return;
+  }
+  if (signal.aborted) {
+    fn();
+  } else {
+    signal.addEventListener("abort", () => fn(), { once: true });
+  }
 }

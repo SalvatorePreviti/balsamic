@@ -1,5 +1,6 @@
 import { devLog } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
+import "../types";
 
 let _devErrorHandlingInitialized = false;
 let _ignoredWarnings: Set<string> | null = null;
@@ -61,9 +62,9 @@ export function devError(error?: any, a?: any, b?: any) {
 
     if (error.isAxiosError) {
       hideProperty(error, "response");
-      hideProperty(error, "request");
-      hideProperty(error, "config");
     }
+    hideProperty(error, "request");
+    hideProperty(error, "config");
   } catch {}
 
   return error;
@@ -175,25 +176,67 @@ devError.isProcessWarningIgnored = function isProcessWarningIgnored(name: string
   return _ignoredWarnings !== null && _ignoredWarnings.has(name);
 };
 
-devError.setProperty = function setProperty(error: Error, name: string, value: unknown, enumerable = true) {
+devError.setProperty = function setProperty(error: Error, name: string, value: unknown, enumerable?: boolean): void {
   if (typeof error === "object" && error !== null) {
+    if (enumerable === undefined) {
+      if (
+        value === error ||
+        value === global ||
+        value === this ||
+        value === undefined ||
+        typeof value === "symbol" ||
+        typeof value === "function" ||
+        name === "cause" ||
+        name === "message" ||
+        name === "showStack" ||
+        name === "request" ||
+        name === "response" ||
+        (error.isAxiosError && name === "config")
+      ) {
+        enumerable = false;
+      } else {
+        const descriptor = Reflect.getOwnPropertyDescriptor(error, "name");
+        enumerable = descriptor ? !!descriptor.enumerable : true;
+      }
+    }
     defineProperty(error, name, { value, configurable: true, enumerable, writable: true });
   }
 };
 
-devError.setShowStack = function setShowStack(error: Error, value: boolean | "once" | undefined) {
-  devError.setProperty(error, "showStack", value);
+devError.addProperty = function addProperty(error: Error, name: string, value: unknown, enumerable?: boolean): boolean {
+  if (!(name in error)) {
+    devError.setProperty(error, name, value, enumerable);
+    return true;
+  }
+  return false;
+};
+
+devError.addProperties = function addProperties(error: Error, obj: {}, enumerable?: boolean) {
+  for (const [key, value] of Object.entries(obj)) {
+    devError.addProperty(error, key, value, enumerable);
+  }
+};
+
+devError.setShowStack = function setShowStack(error: Error, value: boolean | "once" | undefined): void {
+  devError.setProperty(error, "showStack", value, false);
+};
+
+devError.setCause = function setCause(error: Error, cause: Error | undefined | null | false) {
+  devError.setProperty(error, "cause", cause ?? undefined, false);
+};
+
+devError.setReason = function setReason(error: Error, reason: unknown) {
+  devError.setProperty(error, "reason", reason, false);
+};
+
+devError.setMessage = function setMessage(error: Error, message: string) {
+  devError.setProperty(error, "message", message, false);
 };
 
 devError.hideProperty = hideProperty;
 
 function hideProperty(error: Error, name: string) {
   if (typeof error === "object" && error !== null && name in error) {
-    defineProperty(error, name, {
-      value: error[name],
-      configurable: true,
-      enumerable: false,
-      writable: true,
-    });
+    devError.setProperty(error, name, error[name], false);
   }
 }
