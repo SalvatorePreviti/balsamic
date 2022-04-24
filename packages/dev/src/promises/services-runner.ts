@@ -178,7 +178,8 @@ export class ServicesRunner extends AbortControllerWrapper {
   }
 
   public async awaitAll(options?: ServiceRunnerRunOptions): Promise<void> {
-    let errorToThrow: Error | null = null;
+    const abortReason = this.getAbortReason();
+    let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
     for (;;) {
       const entry = await _pendingPop(this.#pending);
       if (entry === undefined) {
@@ -244,18 +245,38 @@ export class ServicesRunner extends AbortControllerWrapper {
     return this.rejectIfAborted();
   }
 
-  public async run<T>(callback: () => T | Promise<T>, options?: ServiceRunnerRunOptions): Promise<T> {
+  public async run<T>(callback: (() => T | Promise<T>) | Promise<T>, options?: ServiceRunnerRunOptions): Promise<T> {
     const run = async () => {
       try {
-        const result = await callback();
+        if (this.aborted) {
+          await this.rejectIfAborted();
+        }
+        const result = await (typeof callback === "function" ? callback() : callback);
         await this.awaitAll(options);
         return result;
       } catch (e) {
-        const error = devError(e, this.run);
-        this.abort(error);
+        let error: Error;
+        if (AbortError.isAbortError(e)) {
+          const reason = this.getAbortReason();
+          error = reason instanceof Error ? reason : e;
+        } else {
+          error = devError(e);
+        }
+        if (!this.aborted) {
+          this.abort(error);
+        }
         try {
           await this.awaitAll(options);
-        } catch {}
+        } catch (e1) {
+          if (AbortError.isAbortError(e)) {
+            if (AbortError.isAbortError(e1)) {
+              const reason = this.getAbortReason();
+              error = reason instanceof Error ? reason : e1;
+            } else {
+              error = devError(e1);
+            }
+          }
+        }
         throw error;
       }
     };

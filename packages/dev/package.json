@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
