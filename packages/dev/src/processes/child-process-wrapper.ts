@@ -53,8 +53,6 @@ export namespace ChildProcessWrapper {
     | Error
     | ((options: ChildProcessWrapper.Options) => {
         childProcess: ChildProcess;
-        options?: ChildProcessWrapper.Options;
-        abortSignal?: AbortSignal | null;
       });
 }
 
@@ -70,7 +68,7 @@ class ErroredChildProcess extends ChildProcess {
 
 export class ChildProcessWrapper {
   public static defaultOptions: Omit<ChildProcessWrapper.Options, "title"> = {
-    exitErrorTimeout: 6000,
+    exitErrorTimeout: 5000,
     rejectOnAbort: true,
     rejectOnNonZeroStatusCode: true,
     killChildren: false,
@@ -107,13 +105,6 @@ export class ChildProcessWrapper {
         }
         const ret = input(options);
         input = ret.childProcess;
-        if (ret.abortSignal !== undefined) {
-          abortSignal = ret.abortSignal ?? undefined;
-        }
-        if (ret.options) {
-          const newOptions = { ...options, ...ret.options };
-          options = _sanitizeOptions(newOptions, options);
-        }
       } catch (error) {
         input = devError(error, new.target);
       }

@@ -97,7 +97,7 @@ function spawn(command: string, inputArgs?: readonly SpawnArg[], options?: Spawn
     () => {
       return { childProcess: child_process.spawn(command, args, opts) };
     },
-    options,
+    opts,
     signal,
   );
 }
@@ -109,7 +109,7 @@ function fork(moduleId: string, inputArgs?: readonly SpawnArg[], options?: ForkO
     () => {
       return { childProcess: child_process.fork(moduleId, args, opts) };
     },
-    options,
+    opts,
     signal,
   );
 }
@@ -135,7 +135,7 @@ function runModuleBin(
       }
       return { childProcess: child_process.fork(resolved, args, opts) };
     },
-    options,
+    opts,
     signal,
   );
 }
