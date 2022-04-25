@@ -1,6 +1,5 @@
 import child_process from "child_process";
-import { NodeResolver } from "../modules/node-resolver";
-import { ChildProcessPromise, ChildProcessWrapper } from "./child-process-wrapper";
+import { ChildProcessPromise } from "./child-process-wrapper";
 import {
   childProcess,
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
@@ -39,13 +38,11 @@ function spawn(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.SpawnOptions | null,
 ): ChildProcessPromise {
-  return new ChildProcessWrapper(() => {
-    const { args, opts, signal } = devChildTask.extractSpawnOptions(inputArgs, command, options);
-    if (!opts.caller) {
-      opts.caller = spawn;
-    }
-    return { childProcess: child_process.spawn(command, args, opts), options: opts, abortSignal: signal };
-  }).promise();
+  const opts = { ...options };
+  if (!opts?.caller) {
+    opts.caller = spawn;
+  }
+  return childProcess.spawn(command, inputArgs, options).promise();
 }
 
 /** Forks the node process that runs the given module, redirect stdio and await for completion. */
@@ -54,13 +51,11 @@ function fork(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.ForkOptions | null,
 ): ChildProcessPromise {
-  return new ChildProcessWrapper(() => {
-    const { opts, args, signal } = devChildTask.extractSpawnOptions(inputArgs, moduleId, options);
-    if (!opts.caller) {
-      opts.caller = fork;
-    }
-    return { childProcess: child_process.fork(moduleId, args, opts), options: opts, abortSignal: signal };
-  }).promise();
+  const opts = { ...options };
+  if (!opts?.caller) {
+    opts.caller = fork;
+  }
+  return childProcess.fork(moduleId, inputArgs, options).promise();
 }
 
 /** Forks the node process that runs the given bin command for the given package, redirect stdio and await for completion. */
@@ -70,22 +65,11 @@ function runModuleBin(
   inputArgs: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.ForkOptions,
 ): ChildProcessPromise {
-  return new ChildProcessWrapper(() => {
-    options = { ...options };
-    if (typeof options.title !== "string") {
-      options.title = executableId !== moduleId ? `${moduleId}:${executableId}` : moduleId;
-    }
-    const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd);
-    if (!resolved) {
-      throw new Error(`Could not find ${moduleId}:${executableId}`);
-    }
-
-    const { opts, args, signal } = devChildTask.extractSpawnOptions(inputArgs, moduleId, options);
-    if (!opts.caller) {
-      opts.caller = runModuleBin;
-    }
-    return { childProcess: child_process.fork(resolved, args, opts), options: opts, abortSignal: signal };
-  }).promise();
+  const opts = { ...options };
+  if (!opts?.caller) {
+    opts.caller = runModuleBin;
+  }
+  return childProcess.runModuleBin(moduleId, executableId, inputArgs, options).promise();
 }
 
 /** Executes npm run <command> [args] */
@@ -94,11 +78,11 @@ function npmRun(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  options = { title: `npm run ${command}`, ...options };
-  if (!options.caller) {
-    options.caller = npmRun;
+  const opts = { ...options };
+  if (!opts?.caller) {
+    opts.caller = npmRun;
   }
-  return devChildTask.spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", command, ...args], options);
+  return childProcess.npmRun(command, args, options).promise();
 }
 
 /** Executes npm <command> [args] */
@@ -107,9 +91,9 @@ function npmCommand(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  options = { title: `npm ${command}`, ...options };
-  if (!options.caller) {
-    options.caller = npmCommand;
+  const opts = { ...options };
+  if (!opts?.caller) {
+    opts.caller = npmCommand;
   }
-  return devChildTask.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  return childProcess.npmCommand(command, args, options).promise();
 }

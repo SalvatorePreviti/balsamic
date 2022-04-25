@@ -36,7 +36,7 @@ export const childProcess = {
     env: process.env,
     throwOnExitCode: true,
     timed: true,
-  } as Omit<SpawnOrForkOptions, "title" | "caller" | "signal">,
+  } as Omit<SpawnOrForkOptions, "title" | "caller">,
 
   normalizeArgs,
   extractSpawnOptions,
@@ -76,6 +76,7 @@ function extractSpawnOptions<TOptions extends SpawnOptions | ForkOptions>(
   inputArgs: readonly SpawnArg[] | undefined,
   command: string,
   options: TOptions | null | undefined,
+  caller?: Function,
 ) {
   const args = childProcess.normalizeArgs(inputArgs);
   const cmd = [command, ...args].join(" ");
@@ -86,31 +87,36 @@ function extractSpawnOptions<TOptions extends SpawnOptions | ForkOptions>(
   if (typeof opts.cwd !== "string") {
     opts.cwd = process.cwd();
   }
-  const signal = abortSignals.getSignal(opts.signal);
+  const signal = "signal" in opts ? opts.signal : abortSignals.getSignal(opts.signal);
   opts.signal = undefined;
+  if (!opts.caller) {
+    opts.caller = caller;
+  }
   return { command, args, opts, signal };
 }
 
 /** Spawn a new process, redirect stdio and await for completion. */
 function spawn(command: string, inputArgs?: readonly SpawnArg[], options?: SpawnOptions | null) {
-  return new ChildProcessWrapper(() => {
-    const { args, opts, signal } = childProcess.extractSpawnOptions(inputArgs, command, options);
-    if (!opts.caller) {
-      opts.caller = spawn;
-    }
-    return { childProcess: child_process.spawn(command, args, opts), options: opts, abortSignal: signal };
-  });
+  const { args, opts, signal } = childProcess.extractSpawnOptions(inputArgs, command, options, spawn);
+  return new ChildProcessWrapper(
+    () => {
+      return { childProcess: child_process.spawn(command, args, opts) };
+    },
+    options,
+    signal,
+  );
 }
 
 /** Forks the node process that runs the given module, redirect stdio and await for completion. */
 function fork(moduleId: string, inputArgs?: readonly SpawnArg[], options?: ForkOptions | null) {
-  return new ChildProcessWrapper(() => {
-    const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options);
-    if (!opts.caller) {
-      opts.caller = fork;
-    }
-    return { childProcess: child_process.fork(moduleId, args, opts), options: opts, abortSignal: signal };
-  });
+  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options, fork);
+  return new ChildProcessWrapper(
+    () => {
+      return { childProcess: child_process.fork(moduleId, args, opts) };
+    },
+    options,
+    signal,
+  );
 }
 
 /** Forks the node process that runs the given bin command for the given package, redirect stdio and await for completion. */
@@ -120,22 +126,23 @@ function runModuleBin(
   inputArgs: readonly SpawnArg[] = [],
   options?: ForkOptions,
 ) {
-  return new ChildProcessWrapper(() => {
-    options = { ...options };
-    if (typeof options.title !== "string") {
-      options.title = `${moduleId}:${executableId}`;
-    }
-    const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, options.cwd);
-    if (!resolved) {
-      throw new Error(`Could not find ${moduleId}:${executableId}`);
-    }
+  options = { ...options };
+  if (typeof options.title !== "string") {
+    options = { ...options, title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId };
+  }
+  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options, runModuleBin);
 
-    const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options);
-    if (!opts.caller) {
-      opts.caller = runModuleBin;
-    }
-    return { childProcess: child_process.fork(moduleId, args, opts), options: opts, abortSignal: signal };
-  });
+  return new ChildProcessWrapper(
+    () => {
+      const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, opts.cwd);
+      if (!resolved) {
+        throw new Error(`Could not find ${moduleId}:${executableId}`);
+      }
+      return { childProcess: child_process.fork(moduleId, args, opts) };
+    },
+    options,
+    signal,
+  );
 }
 
 /** Executes npm run <command> [args] */
