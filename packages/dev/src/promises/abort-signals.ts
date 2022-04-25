@@ -44,6 +44,18 @@ export const abortSignals = {
      * 0, null, undefined means infinity.
      */
     processKillOnDoubleSignalsTimeout: 2000 as number | undefined | null | false,
+
+    /**
+     * If true, process.exit will be blocked and instead the abortController will be aborted.
+     * Whilst pretty invasive, this might be useful when some third party library enjoy to randomly raise a process.exit for no reason.
+     */
+    preventProcessExit: false,
+
+    /**
+     * If true, ServicesRunner.registerProcessTerminationDuringRun option will be true by default.
+     * Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during ServicesRunner.run function.
+     */
+    registerProcessTerminationDuringRun: false,
   },
 };
 
@@ -173,6 +185,7 @@ const _registeredAbortControllers: AbortController[] = [];
 const _signalsRaised = new Map<string, number>();
 let _terminating: string | null = null;
 let _registrationsCount = 0;
+let _overriddenProcessExit: typeof process.exit | null = null;
 
 function signalHandler(signal: NodeJS.Signals) {
   if (!signal) {
@@ -212,10 +225,10 @@ function signalHandler(signal: NodeJS.Signals) {
   }
 
   if (shouldTerminate) {
-    _unregisterHandlers();
+    _unregisterHandlers(true);
     _terminating = signal;
     setTimeout(() => {
-      _unregisterHandlers();
+      _unregisterHandlers(true);
       if (abortSignals.processTerminationOptions.logSignals) {
         devLog.logRedBright(`💀 process.exit(1) due to ${signal}`);
       }
@@ -256,31 +269,71 @@ function unhandledRejectionHandler(error: Error) {
   }
 }
 
-function _unregisterHandlers() {
+function _unregisterHandlers(forced: boolean = false) {
+  if (forced && _registrationsCount) {
+    _registrationsCount = 1;
+  }
+
   if (_registrationsCount > 1) {
     --_registrationsCount;
-  } else {
-    process.off("SIGINT", signalHandler);
-    process.off("SIGTERM", signalHandler);
-    process.off("SIGBREAK", signalHandler);
-    process.off("SIGHUP", signalHandler);
-    process.off("uncaughtException", uncaughtExceptionHandler);
-    process.off("unhandledRejection", uncaughtExceptionHandler);
-    if (!_terminating) {
-      _signalsRaised.clear();
-    }
+    return;
+  }
+
+  _registrationsCount = 0;
+  process.off("SIGINT", signalHandler);
+  process.off("SIGTERM", signalHandler);
+  process.off("SIGBREAK", signalHandler);
+  process.off("SIGHUP", signalHandler);
+  process.off("uncaughtException", uncaughtExceptionHandler);
+  process.off("unhandledRejection", uncaughtExceptionHandler);
+  if (!_terminating) {
+    _signalsRaised.clear();
+  }
+
+  if (_overriddenProcessExit) {
+    defineProperty(process, "exit", {
+      value: _overriddenProcessExit,
+      configurable: true,
+      enumerable: true,
+      writable: true,
+    });
+    _overriddenProcessExit = null;
   }
 }
 
 function _registerHandlers() {
-  if (++_registrationsCount === 1 && !_terminating) {
-    process.on("SIGINT", signalHandler);
-    process.on("SIGTERM", signalHandler);
-    process.on("SIGBREAK", signalHandler);
-    process.on("SIGHUP", signalHandler);
-    process.on("uncaughtException", uncaughtExceptionHandler);
-    if (abortSignals.processTerminationOptions.handleUnhandledRejections) {
-      process.on("unhandledRejection", unhandledRejectionHandler);
+  if (_terminating) {
+    return;
+  }
+  if (_registrationsCount > 0) {
+    ++_registrationsCount;
+    return;
+  }
+
+  _registrationsCount = 1;
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
+  process.on("SIGBREAK", signalHandler);
+  process.on("SIGHUP", signalHandler);
+  process.on("uncaughtException", uncaughtExceptionHandler);
+  if (abortSignals.processTerminationOptions.handleUnhandledRejections) {
+    process.on("unhandledRejection", unhandledRejectionHandler);
+  }
+
+  if (!_overriddenProcessExit) {
+    _overriddenProcessExit = process.exit;
+    defineProperty(process, "exit", { value: processAbort, configurable: true, enumerable: true, writable: true });
+  }
+}
+
+function processAbort(code: number | undefined = process.exitCode) {
+  while (_registeredAbortControllers.length > 0) {
+    const abortController = _registeredAbortControllers.pop();
+    if (abortController) {
+      abortSignals.abort(
+        abortController,
+        code === 0 ? new AbortError.AbortOk("process.exit(0)") : new AbortError(`process.exit(${code}')`),
+      );
     }
   }
 }

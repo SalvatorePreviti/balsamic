@@ -345,7 +345,9 @@ export class ServicesRunner implements AbortController {
     const run = async () => {
       const abortOnError = options?.abortOnError ?? true;
       const termination =
-        options?.registerProcessTermination ?? this.#registerProcessTerminationDuringRun
+        options?.registerProcessTermination ??
+        this.#registerProcessTerminationDuringRun ??
+        abortSignals.processTerminationOptions.registerProcessTerminationDuringRun
           ? abortSignals.registerProcessTermination(this)
           : null;
 

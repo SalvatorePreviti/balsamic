@@ -79,7 +79,6 @@ export class ChildProcessWrapper {
   #timed: DevLogTimed;
   #killSignal: NodeJS.Signals | number | undefined;
   #killChildren: boolean;
-  #unreffed: boolean = false;
   #pendingPromises: Promise<unknown>[] = [];
 
   public constructor(
@@ -444,7 +443,6 @@ export class ChildProcessWrapper {
    * ```
    */
   public ref(): void {
-    this.#unreffed = false;
     this.#childProcess.ref();
   }
 
@@ -467,7 +465,6 @@ export class ChildProcessWrapper {
    * ```
    */
   public unref(): void {
-    this.#unreffed = true;
     this.#childProcess.unref();
   }
 
