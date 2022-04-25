@@ -199,6 +199,7 @@ function signalHandler(signal: NodeJS.Signals) {
   const delay = abortSignals.processTerminationOptions.processKillOnDoubleSignalsTimeout;
   if (delay && Number.isFinite(delay)) {
     if (!_terminating && raisedCount > 0) {
+      _unregisterHandlers();
       _terminating = signal;
       setTimeout(() => {
         _unregisterHandlers();
@@ -207,9 +208,6 @@ function signalHandler(signal: NodeJS.Signals) {
         }
         process.exit(1);
       }, delay).unref();
-    }
-    if (raisedCount > 1) {
-      _unregisterHandlers();
     }
   }
 }
