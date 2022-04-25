@@ -151,11 +151,15 @@ function addAbortHandler(signal: MaybeSignal, fn: abortSignals.AbortHandler | nu
 }
 
 const _registeredAbortControllers: AbortController[] = [];
-const _signalsRaised = new Set<string>();
-let _terminating = false;
+const _signalsRaised = new Map<string, number>();
+let _terminating: string | null = null;
 let _registrationsCount = 0;
 
 function signalHandler(signal: NodeJS.Signals) {
+  if (!signal) {
+    signal = "SIGTERM";
+  }
+
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
@@ -163,27 +167,26 @@ function signalHandler(signal: NodeJS.Signals) {
     }
   }
 
-  if (!_terminating) {
-    if (!_signalsRaised.has(signal)) {
-      _signalsRaised.add(signal);
-      devLog.log();
-      devLog.hr("red");
-      devLog.logRedBright(`😵 ABORT: ${signal}`);
-      devLog.hr("red");
-      devLog.log();
-    } else {
-      _terminating = true;
-      devLog.log();
-      devLog.hr("red");
-      devLog.logRedBright(`😱 ABORT: ${signal} +1, terminating...`);
-      devLog.hr("red");
-      devLog.log();
-      setTimeout(() => {
-        devLog.logRedBright(`process.exit due to ${signal}`);
-        process.exit(1);
-      }, 650).unref();
+  const raisedCount = _signalsRaised.get(signal) || 0;
+  _signalsRaised.set(signal, raisedCount + 1);
+
+  devLog.log();
+  devLog.hr("red");
+  devLog.logRedBright(`😵 ABORT: ${signal}${raisedCount ? ` +${raisedCount}` : ""}`);
+  devLog.hr("red");
+  devLog.log();
+
+  if (!_terminating && raisedCount > 0) {
+    _terminating = signal;
+    setTimeout(() => {
       _unregisterHandlers();
-    }
+      devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
+      process.exit(1);
+    }, 650).unref();
+  }
+
+  if (raisedCount > 1) {
+    _unregisterHandlers();
   }
 }
 
@@ -197,19 +200,28 @@ function uncaughtExceptionHandler(error: Error) {
 }
 
 function _unregisterHandlers() {
-  process.off("SIGINT", signalHandler);
-  process.off("SIGTERM", signalHandler);
-  process.off("SIGBREAK", signalHandler);
-  process.off("SIGHUP", signalHandler);
-  process.off("uncaughtException", uncaughtExceptionHandler);
+  if (_registrationsCount > 1) {
+    --_registrationsCount;
+  } else {
+    process.off("SIGINT", signalHandler);
+    process.off("SIGTERM", signalHandler);
+    process.off("SIGBREAK", signalHandler);
+    process.off("SIGHUP", signalHandler);
+    process.off("uncaughtException", uncaughtExceptionHandler);
+    if (!_terminating) {
+      _signalsRaised.clear();
+    }
+  }
 }
 
 function _registerHandlers() {
-  process.on("SIGINT", signalHandler);
-  process.on("SIGTERM", signalHandler);
-  process.on("SIGBREAK", signalHandler);
-  process.on("SIGHUP", signalHandler);
-  process.on("uncaughtException", uncaughtExceptionHandler);
+  if (++_registrationsCount === 1 && !_terminating) {
+    process.on("SIGINT", signalHandler);
+    process.on("SIGTERM", signalHandler);
+    process.on("SIGBREAK", signalHandler);
+    process.on("SIGHUP", signalHandler);
+    process.on("uncaughtException", uncaughtExceptionHandler);
+  }
 }
 
 /**
@@ -218,15 +230,16 @@ function _registerHandlers() {
 function registerProcessTermination(abortController: AbortController) {
   const abortSignal = abortController.signal;
 
-  if (!abortSignal.aborted && _registeredAbortControllers.indexOf(abortController) < 0) {
-    _registeredAbortControllers.push(abortController);
+  if (!abortSignal.aborted) {
+    if (_terminating) {
+      abortSignals.abort(abortController, _terminating);
+    } else if (_registeredAbortControllers.indexOf(abortController) < 0) {
+      _registeredAbortControllers.push(abortController);
+    }
   }
 
   let registered = true;
-
-  if (++_registrationsCount === 1) {
-    _registerHandlers();
-  }
+  _registerHandlers();
 
   const result = {
     signal: abortController.signal,
@@ -234,16 +247,12 @@ function registerProcessTermination(abortController: AbortController) {
       return registered;
     },
     unregister() {
-      if (registered) {
-        registered = false;
-        if (_registrationsCount > 1) {
-          --_registrationsCount;
-        } else {
-          _registrationsCount = 0;
-          _unregisterHandlers();
-          _signalsRaised.clear();
-        }
+      if (!registered) {
+        return false;
       }
+      registered = false;
+      _unregisterHandlers();
+      return true;
     },
     abort(reason?: unknown) {
       return abortSignals.abort(abortController, reason);
