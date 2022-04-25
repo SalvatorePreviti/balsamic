@@ -65,7 +65,10 @@ export class ServicesRunner implements AbortController {
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-    this.#registerProcessTerminationDuringRun = !!options.registerProcessTerminationDuringRun;
+    this.#registerProcessTerminationDuringRun =
+      options.registerProcessTerminationDuringRun ??
+      abortSignals.processTerminationOptions.registerProcessTerminationDuringRun ??
+      false;
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -345,9 +348,7 @@ export class ServicesRunner implements AbortController {
     const run = async () => {
       const abortOnError = options?.abortOnError ?? true;
       const termination =
-        options?.registerProcessTermination ??
-        this.#registerProcessTerminationDuringRun ??
-        abortSignals.processTerminationOptions.registerProcessTerminationDuringRun
+        options?.registerProcessTermination ?? this.#registerProcessTerminationDuringRun
           ? abortSignals.registerProcessTermination(this)
           : null;
 
