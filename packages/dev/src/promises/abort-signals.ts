@@ -217,7 +217,7 @@ function signalHandler(signal: NodeJS.Signals) {
     setTimeout(() => {
       _unregisterHandlers();
       if (abortSignals.processTerminationOptions.logSignals) {
-        devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
+        devLog.logRedBright(`💀 process.exit(1) due to ${signal}`);
       }
       process.exit(1);
     }, delay).unref();
