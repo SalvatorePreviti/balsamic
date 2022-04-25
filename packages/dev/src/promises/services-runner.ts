@@ -11,8 +11,11 @@ const { defineProperty } = Reflect;
 export namespace ServicesRunner {
   export interface Options {
     abortController?: AbortController;
-    abortOnServiceTerminationDuringRun?: boolean;
+    abortOnServiceTermination?: boolean;
     abortOnServiceError?: boolean;
+
+    /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
+    registerProcessTerminationDuringRun?: boolean;
   }
 
   export interface ServiceOptions {
@@ -52,6 +55,7 @@ export class ServicesRunner implements AbortController {
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
+  #registerProcessTerminationDuringRun: boolean;
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
@@ -59,8 +63,9 @@ export class ServicesRunner implements AbortController {
   public constructor(options: ServicesRunner.Options) {
     this.abortController = options.abortController || new AbortController();
 
-    this.abortOnServiceTermination = options.abortOnServiceTerminationDuringRun ?? true;
+    this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
+    this.#registerProcessTerminationDuringRun = !!options.registerProcessTerminationDuringRun;
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -339,7 +344,10 @@ export class ServicesRunner implements AbortController {
 
     const run = async () => {
       const abortOnError = options?.abortOnError ?? true;
-      const termination = options?.registerProcessTermination ? abortSignals.registerProcessTermination(this) : null;
+      const termination =
+        options?.registerProcessTermination ?? this.#registerProcessTerminationDuringRun
+          ? abortSignals.registerProcessTermination(this)
+          : null;
 
       try {
         if (this.aborted) {
