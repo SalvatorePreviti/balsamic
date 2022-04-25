@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { setImmediate } from "node:timers/promises";
 import { devLog } from "../dev-log";
+import { millisecondsToString } from "../utils";
 import { AbortError } from "./abort-error";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
@@ -188,27 +189,38 @@ function signalHandler(signal: NodeJS.Signals) {
   const raisedCount = _signalsRaised.get(signal) || 0;
   _signalsRaised.set(signal, raisedCount + 1);
 
+  let delay = abortSignals.processTerminationOptions.processKillOnDoubleSignalsTimeout;
+  if (!delay || !Number.isFinite(delay)) {
+    delay = 0;
+  }
+
+  const shouldTerminate = raisedCount > 0 && delay > 0 && !_terminating;
+
   if (abortSignals.processTerminationOptions.logSignals) {
     devLog.log();
     devLog.hr("red");
-    devLog.logRedBright(`😵 ABORT: ${signal}${raisedCount ? ` +${raisedCount}` : ""}`);
+    let msg = `😵 ABORT: ${signal}`;
+    if (raisedCount > 0) {
+      msg += ` +${raisedCount}`;
+    }
+    if (shouldTerminate) {
+      msg += ` - process will be killed in ${millisecondsToString(delay)}`;
+    }
+    devLog.logRedBright(msg);
     devLog.hr("red");
     devLog.log();
   }
 
-  const delay = abortSignals.processTerminationOptions.processKillOnDoubleSignalsTimeout;
-  if (delay && Number.isFinite(delay)) {
-    if (!_terminating && raisedCount > 0) {
+  if (shouldTerminate) {
+    _unregisterHandlers();
+    _terminating = signal;
+    setTimeout(() => {
       _unregisterHandlers();
-      _terminating = signal;
-      setTimeout(() => {
-        _unregisterHandlers();
-        if (abortSignals.processTerminationOptions.logSignals) {
-          devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
-        }
-        process.exit(1);
-      }, delay).unref();
-    }
+      if (abortSignals.processTerminationOptions.logSignals) {
+        devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
+      }
+      process.exit(1);
+    }, delay).unref();
   }
 }
 
