@@ -1,12 +1,12 @@
 import child_process from "child_process";
-import { ChildProcessPromise } from "./child-process-wrapper";
 import {
-  childProcess,
+  ChildProcessWrapper,
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
   SpawnOptions as childProcesses_SpawnOptions,
   ForkOptions as childProcess_ForkOptions,
   SpawnArg as childProcess_SpawnArg,
-} from "./child-process";
+  ChildProcessPromise,
+} from "./child-process-wrapper";
 
 export namespace devChildTask {
   export type SpawnOptions = childProcesses_SpawnOptions;
@@ -23,7 +23,7 @@ export namespace devChildTask {
 }
 
 export const devChildTask = {
-  ...childProcess,
+  ...ChildProcessWrapper,
 
   spawn,
   fork,
@@ -38,7 +38,7 @@ function spawn(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.SpawnOptions | null,
 ): ChildProcessPromise {
-  return childProcess.spawn(command, inputArgs, options).promise();
+  return ChildProcessWrapper.spawn(command, inputArgs, options).promise();
 }
 
 /** Forks the node process that runs the given module, redirect stdio and await for completion. */
@@ -47,7 +47,7 @@ function fork(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.ForkOptions | null,
 ): ChildProcessPromise {
-  return childProcess.fork(moduleId, inputArgs, options).promise();
+  return ChildProcessWrapper.fork(moduleId, inputArgs, options).promise();
 }
 
 /** Forks the node process that runs the given bin command for the given package, redirect stdio and await for completion. */
@@ -57,7 +57,7 @@ function runModuleBin(
   inputArgs: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.ForkOptions,
 ): ChildProcessPromise {
-  return childProcess.runModuleBin(moduleId, executableId, inputArgs, options).promise();
+  return ChildProcessWrapper.runModuleBin(moduleId, executableId, inputArgs, options).promise();
 }
 
 /** Executes npm run <command> [args] */
@@ -66,7 +66,7 @@ function npmRun(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  return childProcess.npmRun(command, args, options).promise();
+  return ChildProcessWrapper.npmRun(command, args, options).promise();
 }
 
 /** Executes npm <command> [args] */
@@ -75,5 +75,5 @@ function npmCommand(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  return childProcess.npmCommand(command, args, options).promise();
+  return ChildProcessWrapper.npmCommand(command, args, options).promise();
 }

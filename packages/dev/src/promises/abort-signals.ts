@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { setImmediate } from "node:timers/promises";
+import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
-import { millisecondsToString } from "../utils";
+import { millisecondsToString, noop } from "../utils";
 import { AbortError } from "./abort-error";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
@@ -10,24 +11,58 @@ const { defineProperty } = Reflect;
 export type MaybeSignal = AbortController | AbortSignal | null | undefined;
 
 export namespace abortSignals {
-  export type AbortHandler =
-    | (<Reason = unknown>(reason: Reason) => void)
+  export type AbortHandler = (this: AbortSignal, event: Event) => void;
+
+  export type AsyncAbortHandler = <R = unknown>(this: AbortSignal, event: Event) => Promise<R>;
+
+  export interface HasAbortMethod {
+    abort(reason?: unknown): void;
+  }
+
+  export interface HasRejectMethod {
+    reject(reason?: unknown): void;
+  }
+
+  export interface HasDisposeMethod {
+    dispose(): void;
+  }
+
+  export interface HasCloseMethod {
+    close(): void;
+  }
+
+  export type AddAbortHandlerArg =
+    | abortSignals.AbortHandler
     | AbortController
-    | { abort(reason?: unknown): unknown };
+    | abortSignals.HasAbortMethod
+    | abortSignals.HasRejectMethod
+    | abortSignals.HasDisposeMethod
+    | abortSignals.HasCloseMethod;
+
+  export type AddAbortAsyncHandlerArg = abortSignals.AsyncAbortHandler | AddAbortHandlerArg;
 }
 
 export const abortSignals = {
   isAbortError: AbortError.isAbortError,
   isAbortController,
   isAbortSignal,
+
+  withAbortSignal,
+
   getSignal,
   getAbortReason,
+  getAbortError,
   isAborted,
   rejectIfAborted,
   throwIfAborted,
-  addAbortHandler,
   abort,
-  run,
+
+  addAbortHandler,
+  addAsyncAbortHandler,
+  removeAbortHandler,
+  signalAddPendingPromise,
+  signalAwaitPendingPromises,
+  signalRemovePendingPromise,
 
   registerProcessTermination,
 
@@ -65,7 +100,14 @@ export const abortSignals = {
   },
 };
 
-function run<R = void>(signal: MaybeSignal, callback: () => R): R {
+/**
+ * Executes a function sharing the given abort signal in an AsyncLocalStorage.
+ * All functions exported in abortSignals are aware of this, and will use the signal passed in this function
+ * when their signal parameter is unspecified or undefined.
+ *
+ * If promises are added with signalAddPendingPromise or addAsyncAbortHandler, you can call signalAwaitPendingPromises.
+ */
+function withAbortSignal<R = void>(signal: MaybeSignal, callback: () => R): R {
   return (_abortSignalAsyncLocalStorage ?? (_abortSignalAsyncLocalStorage = new AsyncLocalStorage())).run(
     signal === null ? undefined : abortSignals.getSignal(signal),
     callback,
@@ -106,9 +148,12 @@ function isAbortController(controller: unknown): controller is AbortController {
 }
 
 /** Returns true if the given value is an aborted AbortSignal or AbortController */
-function isAborted(signal?: MaybeSignal): boolean {
-  signal = abortSignals.getSignal(signal);
-  return !!signal && !!signal.aborted;
+function isAborted(signal?: MaybeSignal | { aborted?: boolean }): boolean {
+  const msignal = abortSignals.getSignal(signal as any);
+  if (msignal) {
+    return !!msignal.aborted;
+  }
+  return typeof signal === "object" && signal !== null && !!(signal as any).aborted;
 }
 
 /**
@@ -130,72 +175,306 @@ async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
 function throwIfAborted(signal?: MaybeSignal): void | never {
   signal = abortSignals.getSignal(signal);
   if (signal && signal.aborted) {
-    throw new AbortError();
+    throw new AbortError(undefined, { caller: throwIfAborted });
   }
 }
 
-/** Aborts the given abortController with a reason. */
-function abort(abortController: AbortController, reason?: unknown): boolean {
-  const signal = abortController.signal;
-  if (signal.aborted) {
-    return false;
-  }
-
-  if (reason !== undefined && (signal as { reason?: undefined }).reason === undefined) {
-    defineProperty(signal, "reason", {
-      value: reason,
-      configurable: true,
-      enumerable: true,
-      writable: true,
-    });
-  }
-
-  try {
-    abortController.abort(reason);
-  } catch {
-    return false;
-  }
-
-  return true;
-}
-
-function getAbortReason(signal?: MaybeSignal): unknown | undefined {
-  if (AbortError.isAbortError(signal)) {
-    return signal.reason;
-  }
+/**
+ * If a signal was aborted, returns an AbortError instance. Returns undefined if not abort.ed.
+ */
+function getAbortError(signal?: MaybeSignal): AbortError | undefined {
   signal = abortSignals.getSignal(signal);
-  if (signal && signal.aborted) {
-    return (signal as { reason?: unknown }).reason;
+  if (signal?.aborted) {
+    return new AbortError(undefined, { caller: getAbortError });
   }
   return undefined;
 }
 
+/** Aborts the given abortController with a reason. */
+function abort(
+  abortController:
+    | AbortController
+    | abortSignals.HasAbortMethod
+    | abortSignals.HasRejectMethod
+    | abortSignals.HasDisposeMethod
+    | abortSignals.HasCloseMethod,
+  reason?: unknown,
+): boolean {
+  try {
+    if (isAborted(abortController as any)) {
+      return false;
+    }
+    if (reason === undefined) {
+      reason = getAbortReason();
+    }
+    if (reason !== undefined) {
+      const signal = "signal" in abortController ? abortController.signal : undefined;
+      if (typeof signal === "object" && signal !== null && (signal as { reason?: unknown }).reason === undefined) {
+        defineProperty(signal, "reason", {
+          value: reason,
+          configurable: true,
+          enumerable: true,
+          writable: true,
+        });
+      }
+    }
+
+    if (typeof (abortController as abortSignals.HasAbortMethod).abort === "function") {
+      (abortController as abortSignals.HasAbortMethod).abort(reason);
+      return true;
+    }
+
+    if (typeof (abortController as abortSignals.HasRejectMethod).reject === "function") {
+      (abortController as abortSignals.HasRejectMethod).reject(reason);
+      return true;
+    }
+
+    if (typeof (abortController as abortSignals.HasDisposeMethod).dispose === "function") {
+      (abortController as abortSignals.HasDisposeMethod).dispose();
+      return true;
+    }
+
+    if (typeof (abortController as abortSignals.HasCloseMethod).close === "function") {
+      (abortController as abortSignals.HasCloseMethod).close();
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+function getAbortReason<Reason = unknown>(signal?: MaybeSignal): Reason | undefined {
+  if (AbortError.isAbortError(signal)) {
+    return signal.reason as Reason;
+  }
+  signal = abortSignals.getSignal(signal);
+  if (signal && signal.aborted) {
+    return (signal as { reason?: Reason }).reason;
+  }
+  return undefined;
+}
+
+const _addAbortHandlerOptions: AddEventListenerOptions = { once: true, passive: true };
+const _pendingPromisesBySignalMap = new WeakMap<AbortSignal, Promise<unknown>[]>();
+const _abortHandlersRemap = new WeakMap<object, (this: AbortSignal, ev: Event) => any>();
+
 /**
- * Adds a new function to execute on abort.
- * If already aborted, the function will be called straight away.
- * The function should not return a Promise.
+ * Removes an abort handler previously registered with addAbortHandler or addAsyncAbortHandler from a signal.
  */
-function addAbortHandler(signal: MaybeSignal, handler: abortSignals.AbortHandler | null | undefined | false): void {
+function removeAbortHandler(
+  signal: MaybeSignal,
+  handler: abortSignals.AddAbortAsyncHandlerArg | abortSignals.AddAbortHandlerArg | null | undefined | false | void,
+): void {
+  signal = abortSignals.getSignal(signal);
+  if (!signal || (typeof handler !== "object" && typeof handler !== "function") || handler === null) {
+    return;
+  }
+  handler = _abortHandlersRemap.get(handler);
+  if (typeof handler !== "function") {
+    return;
+  }
+  signal.removeEventListener("abort", handler);
+}
+
+/**
+ * Adds a new sync function to be executed on abort.
+ * If already aborted, the function will be called straight away.
+ * The function should not return a Promise, use addAsyncAbortHandler instead.
+ *
+ * @returns A function that when called removes the abort handler.
+ * If the handler was not added, the function noop() will be returned.
+ * You can check for equality with noop function to check if the handler was not added.
+ */
+function addAbortHandler(
+  signal: MaybeSignal,
+  handler: abortSignals.AddAbortHandlerArg | null | undefined | false | void,
+): () => void {
   signal = abortSignals.getSignal(signal);
   if (!signal) {
-    return;
+    return noop;
   }
-  let abortHandler: () => void;
+
+  let func: ((this: AbortSignal, ev: Event) => any) | undefined;
   if (typeof handler === "function") {
-    abortHandler = () => handler(abortSignals.getAbortReason(signal));
-  } else if (typeof handler === "object" && handler !== null && "abort" in handler) {
-    if ("signal" in handler) {
-      abortHandler = () => abortSignals.abort(handler as AbortController, abortSignals.getAbortReason(signal));
-    } else {
-      abortHandler = () => (handler as { abort(reason?: unknown): void }).abort(abortSignals.getAbortReason(signal));
+    func = handler;
+  } else if (typeof handler === "object" && handler !== null) {
+    func = _abortHandlersRemap.get(handler);
+    if (func === undefined) {
+      if (
+        !(
+          (!("abort" in handler) && !("reject" in handler) && !("dispose" in handler) && !("close" in handler)) ||
+          abortSignals.isAborted(handler as any)
+        )
+      ) {
+        const abortable = handler;
+        func = function handleAbortSignal(this: AbortSignal) {
+          abortSignals.abort(abortable, abortSignals.getAbortReason(this));
+        };
+        _abortHandlersRemap.set(handler, func);
+      }
     }
-  } else {
-    return;
+  }
+  if (func === noop || func === undefined) {
+    return noop;
   }
   if (signal.aborted) {
-    abortHandler();
+    func.call(signal, new Event("abort"));
+    return noop;
+  }
+  signal.addEventListener("abort", func, _addAbortHandlerOptions);
+  return () => {
+    if (signal !== null) {
+      (signal as AbortSignal).removeEventListener("abort", func!);
+      signal = null;
+      func = undefined;
+    }
+  };
+}
+
+/**
+ * Adds a new asynchronous function to be executed on abort.
+ * If already aborted, the function will be called straight away.
+ * The promise will be added to the signal with `signalAddPendingPromise`.
+ * User is responsible to await for those promises with `signalAwaitPendingPromises`.
+ *
+ * @returns A function that when called removes the abort handler.
+ * If the handler was not added, the function noop() will be returned.
+ * You can check for equality with noop function to check if the handler was not added.
+ */
+function addAsyncAbortHandler(
+  signal: MaybeSignal,
+  handler: abortSignals.AddAbortAsyncHandlerArg | null | undefined | false | void,
+): () => void {
+  signal = abortSignals.getSignal(signal);
+  if (!signal) {
+    return noop;
+  }
+
+  if (typeof handler === "object" && handler !== null) {
+    return abortSignals.addAbortHandler(signal, handler as any);
+  }
+
+  if (typeof handler !== "function") {
+    return noop;
+  }
+
+  let ahandler = _abortHandlersRemap.get(handler);
+  if (!ahandler) {
+    ahandler = function asyncAbortHandler(this: AbortSignal, event: Event) {
+      const result = (handler as Function).call(this, event);
+      if (typeof result === "object" && result !== null && typeof (result as Promise<unknown>).catch === "function") {
+        abortSignals.signalAddPendingPromise(result);
+      }
+      return result;
+    };
+    _abortHandlersRemap.set(handler, ahandler);
+  }
+
+  return abortSignals.addAbortHandler(signal, ahandler);
+}
+
+/**
+ * Adds a pending promise to an AbortSignal.
+ * You can await all pending promises with awaitSignalPendingPromises.
+ *
+ * @returns A function that if called removes the added pending promise.
+ */
+function signalAddPendingPromise(
+  signal: MaybeSignal | undefined,
+  promise: Promise<unknown> | null | undefined | void,
+): () => void {
+  if (typeof promise !== "object" || promise === null || !promise.then) {
+    return noop;
+  }
+  signal = abortSignals.getSignal(signal);
+  if (!signal) {
+    return noop;
+  }
+
+  let pendingPromises = _pendingPromisesBySignalMap.get(signal as AbortSignal);
+  if (!pendingPromises) {
+    pendingPromises = [promise];
+    _pendingPromisesBySignalMap.set(signal as AbortSignal, pendingPromises);
   } else {
-    signal.addEventListener("abort", () => abortHandler(), { once: true });
+    pendingPromises.push(promise);
+  }
+
+  return () => {
+    if (pendingPromises) {
+      const index = pendingPromises.indexOf(promise);
+      if (index >= 0) {
+        pendingPromises!.splice(index, 1);
+      }
+      pendingPromises = undefined;
+    }
+  };
+}
+
+/**
+ * Removes a promise previously added with signalAddPendingPromise.
+ */
+function signalRemovePendingPromise(
+  signal: MaybeSignal | undefined,
+  promise: Promise<unknown> | null | undefined | void,
+): boolean {
+  signal = abortSignals.getSignal(signal);
+  if (!signal || !promise) {
+    return false;
+  }
+  const pendingPromises = _pendingPromisesBySignalMap.get(signal as AbortSignal);
+  if (!pendingPromises) {
+    return false;
+  }
+  const index = pendingPromises.indexOf(promise);
+  if (index < 0) {
+    return false;
+  }
+  pendingPromises.splice(index, 1);
+  return true;
+}
+
+/**
+ * If an AbortSignal has some registered pending promises to flush,
+ * this function await for them all.
+ * It await for all promises and throws the first error encountered, excluding AbortError.
+ *
+ * You can add a pending promise to an AbortSignal with addSignalPendingPromise
+ * @param signal
+ * @returns
+ */
+async function signalAwaitPendingPromises(
+  signal?: MaybeSignal,
+  options?: { onError?: ((error: Error) => void) | null | undefined },
+): Promise<void> {
+  const onError = options?.onError;
+  signal = abortSignals.getSignal(signal);
+  const array = signal && _pendingPromisesBySignalMap.get(signal);
+  if (!array) {
+    return;
+  }
+  let errorToThrow: Error | null = null;
+  for (;;) {
+    let item = array.pop();
+    if (item === undefined) {
+      await setImmediate();
+      item = array.pop();
+      if (item === undefined) {
+        break;
+      }
+    }
+    try {
+      await item;
+    } catch (e) {
+      if (errorToThrow === null && !AbortError.isAbortError(e)) {
+        errorToThrow = devError(e);
+        await onError?.(errorToThrow);
+      } else if (onError) {
+        await onError?.(devError(e));
+      }
+    }
+  }
+  if (errorToThrow) {
+    throw errorToThrow;
   }
 }
 

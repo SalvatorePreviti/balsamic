@@ -12,6 +12,8 @@ export * from "./utils";
 
 export * from "./promises/promises";
 
+export * from "./promises/deferred";
+
 export * from "./promises/abort-error";
 
 export * from "./promises/abort-signals";
@@ -23,8 +25,6 @@ export * from "./dev-error";
 export * from "./dev-log";
 
 export * from "./processes/child-process-wrapper";
-
-export * from "./processes/child-process";
 
 export * from "./processes/dev-child-task";
 

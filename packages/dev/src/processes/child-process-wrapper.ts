@@ -1,17 +1,43 @@
 import util from "util";
-import { ChildProcess } from "child_process";
+import child_process from "child_process";
 import { devError } from "../dev-error";
-import { millisecondsToString } from "../utils";
+import { millisecondsToString, noop } from "../utils";
 import { InterfaceFromClass } from "../types";
-import { Deferred, noop } from "../promises/promises";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
 import { killProcessChildren } from "./lib/kill-process-children";
+import type { Deferred } from "../promises/deferred";
+import type { Abortable } from "events";
+import { NodeResolver } from "../modules/node-resolver";
 
 const { defineProperty } = Reflect;
 
 class ChildProcessError extends Error {}
+
+const { isArray } = Array;
+
+export interface SpawnOptions
+  extends DevLogTimeOptions,
+    ChildProcessWrapper.Options,
+    Abortable,
+    child_process.SpawnOptions {}
+
+export interface ForkOptions
+  extends DevLogTimeOptions,
+    ChildProcessWrapper.Options,
+    Abortable,
+    child_process.ForkOptions {}
+
+export interface SpawnOrForkOptions extends SpawnOptions, ForkOptions {}
+
+export type SpawnArg =
+  | string
+  | null
+  | undefined
+  | number
+  | false
+  | readonly (string | null | undefined | number | false)[];
 
 export namespace ChildProcessWrapper {
   export interface Options extends DevLogTimeOptions {
@@ -46,14 +72,14 @@ export namespace ChildProcessWrapper {
   }
 
   export type ConstructorInput =
-    | ChildProcess
+    | child_process.ChildProcess
     | Error
     | ((options: ChildProcessWrapper.Options) => {
-        childProcess: ChildProcess;
+        childProcess: child_process.ChildProcess;
       });
 }
 
-class ErroredChildProcess extends ChildProcess {
+class ErroredChildProcess extends child_process.ChildProcess {
   readonly _error: Error;
   constructor(error?: unknown) {
     super({ captureRejections: false });
@@ -71,7 +97,14 @@ export class ChildProcessWrapper {
     timed: false,
   };
 
-  #childProcess: ChildProcess;
+  public static defaultSpawnOptions: Omit<SpawnOrForkOptions, "title"> = {
+    stdio: "inherit",
+    env: process.env,
+    throwOnExitCode: true,
+    timed: true,
+  };
+
+  #childProcess: child_process.ChildProcess;
   #exitCode: number | NodeJS.Signals | null;
   #error: Error | null;
   #terminationPromise: ChildProcessPromise<this>;
@@ -309,7 +342,7 @@ export class ChildProcessWrapper {
   }
 
   /** The child process currently running */
-  public get childProcess(): ChildProcess {
+  public get childProcess(): child_process.ChildProcess {
     return this.#childProcess;
   }
 
@@ -484,6 +517,114 @@ export class ChildProcessWrapper {
   public [util.inspect.custom](): unknown {
     return this.toJSON();
   }
+
+  public static normalizeArgs(args: readonly SpawnArg[] | null | undefined): string[] {
+    if (args === null || args === undefined) {
+      return [];
+    }
+    const result: string[] = [];
+    const append = (array: readonly SpawnArg[], level: number) => {
+      for (const arg of array) {
+        if (arg !== null && arg !== undefined && arg !== false) {
+          if (isArray(arg)) {
+            if (level > 8) {
+              throw new Error("getDevChildTaskArgs array overflow");
+            }
+            append(arg, level + 1);
+          } else {
+            result.push(typeof arg !== "string" ? `${arg}` : arg);
+          }
+        }
+      }
+    };
+    append(args, 0);
+    return result;
+  }
+
+  public static extractSpawnOptions<TOptions extends SpawnOptions | ForkOptions>(
+    inputArgs: readonly SpawnArg[] | undefined,
+    command: string,
+    options: TOptions | null | undefined,
+  ) {
+    const args = ChildProcessWrapper.normalizeArgs(inputArgs);
+    const cmd = [command, ...args].join(" ");
+    const opts = { ...ChildProcessWrapper.defaultSpawnOptions, ...options };
+    if (typeof opts.title !== "string") {
+      opts.title = cmd.length < 40 ? cmd : command;
+    }
+    if (typeof opts.cwd !== "string") {
+      opts.cwd = process.cwd();
+    }
+    const signal = "signal" in opts ? opts.signal : abortSignals.getSignal(opts.signal);
+    opts.signal = undefined;
+    return { command, args, opts, signal };
+  }
+
+  /** Spawn a new process, redirect stdio and await for completion. */
+  public static spawn(command: string, inputArgs?: readonly SpawnArg[], options?: SpawnOptions | null) {
+    const { args, opts, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, command, options);
+    return new ChildProcessWrapper(
+      () => {
+        return { childProcess: child_process.spawn(command, args, opts) };
+      },
+      opts,
+      signal,
+    );
+  }
+
+  /** Forks the node process that runs the given module, redirect stdio and await for completion. */
+  public static fork(moduleId: string, inputArgs?: readonly SpawnArg[], options?: ForkOptions | null) {
+    const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
+    return new ChildProcessWrapper(
+      () => {
+        return { childProcess: child_process.fork(moduleId, args, opts) };
+      },
+      opts,
+      signal,
+    );
+  }
+
+  /** Forks the node process that runs the given bin command for the given package, redirect stdio and await for completion. */
+  public static runModuleBin(
+    moduleId: string,
+    executableId: string,
+    inputArgs: readonly SpawnArg[] = [],
+    options?: ForkOptions,
+  ) {
+    options = { ...options };
+    if (typeof options.title !== "string") {
+      options = { ...options, title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId };
+    }
+    const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
+
+    return new ChildProcessWrapper(
+      () => {
+        const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, opts.cwd);
+        if (!resolved) {
+          throw new Error(`runModuleBin: Could not find ${moduleId}:${executableId}`);
+        }
+        return { childProcess: child_process.fork(resolved, args, opts) };
+      },
+      opts,
+      signal,
+    );
+  }
+
+  /** Executes npm run <command> [args] */
+  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
+    options = { title: `npm run ${command}`, ...options };
+    return ChildProcessWrapper.spawn(
+      process.platform === "win32" ? "npm.cmd" : "npm",
+      ["run", command, ...args],
+      options,
+    );
+  }
+
+  /** Executes npm <command> [args] */
+  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
+    options = { title: `npm ${command}`, ...options };
+    return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  }
 }
 
 export class ChildProcessPromise<T = ChildProcessWrapper>
@@ -520,12 +661,12 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     }
   }
 
-  public addPendingPromise(promise: Promise<unknown>): void {
-    this.childProcessWrapper.addPendingPromise(promise);
+  public [util.inspect.custom](): unknown {
+    return this.toJSON();
   }
 
-  public [util.inspect.custom](): unknown {
-    throw new Error("Method not implemented.");
+  public addPendingPromise(promise: Promise<unknown>): void {
+    this.childProcessWrapper.addPendingPromise(promise);
   }
 
   self: ChildProcessWrapper;
@@ -575,7 +716,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     return this.childProcessWrapper.processTerminated;
   }
 
-  public get childProcess(): ChildProcess {
+  public get childProcess(): child_process.ChildProcess {
     return this.childProcessWrapper.childProcess;
   }
 

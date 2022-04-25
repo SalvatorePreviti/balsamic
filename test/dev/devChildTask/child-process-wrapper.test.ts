@@ -1,7 +1,6 @@
 import { expect } from "chai";
 import child_process, { ChildProcess } from "child_process";
-import { AbortError } from "../../../packages/dev/src";
-import { ChildProcessWrapper } from "../../../packages/dev/src/processes/child-process-wrapper";
+import { AbortError, abortSignals, ChildProcessWrapper } from "../../../packages/dev/src";
 
 const options: ChildProcessWrapper.Options = {
   title: "my title",
@@ -83,7 +82,7 @@ describe("ChildProcessWrapper", () => {
 
     const wrapper = new ChildProcessWrapper(process, options, abortController.signal);
 
-    setTimeout(() => abortController.abort(), 100);
+    setTimeout(() => abortSignals.abort(abortController), 100);
 
     await wrapper.terminationPromise();
 

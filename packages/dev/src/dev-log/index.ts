@@ -6,7 +6,7 @@ import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import type { ChalkFunction } from "chalk";
-import { Deferred } from "../promises/promises";
+import type { Deferred } from "../promises/deferred";
 
 export { ChalkFunction };
 

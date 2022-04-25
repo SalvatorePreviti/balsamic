@@ -2,7 +2,6 @@ import { setImmediate } from "node:timers/promises";
 import { devError } from "../dev-error";
 import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
-import { devLog, DevLogTimeOptions } from "../dev-log";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
 
@@ -22,7 +21,6 @@ export namespace ServicesRunner {
     abortOnServiceError?: boolean;
     abortOnServiceTermination?: boolean;
     onTerminate?: (error: Error | null) => void | Promise<void>;
-    timed?: boolean;
   }
 
   export interface RunOptions {
@@ -41,7 +39,7 @@ export namespace ServicesRunner {
   }
 
   export interface AwaitAllOptions {
-    onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+    onError?: ((error: Error, serviceName?: string | undefined) => void | Promise<void>) | null | undefined;
     abortOnError?: boolean;
     awaitRun?: boolean;
   }
@@ -56,8 +54,6 @@ export class ServicesRunner implements AbortController {
   public abortController: AbortController;
 
   #pending: ServiceRunnerPendingEntry[] = [];
-  #abortHandlers: ((reason?: unknown) => void)[] | null = null;
-  #pendingPromises: Promise<unknown>[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
   #registerProcessTerminationDuringRun: boolean | undefined;
 
@@ -78,7 +74,6 @@ export class ServicesRunner implements AbortController {
     this.getAbortReason = this.getAbortReason.bind(this);
     this.abort = this.abort.bind(this);
     this.setTimeout = this.setTimeout.bind(this);
-    this.addAbortHandler = this.addAbortHandler.bind(this);
   }
 
   public get aborted(): boolean {
@@ -94,9 +89,13 @@ export class ServicesRunner implements AbortController {
     return abortSignals.rejectIfAborted(this.signal);
   }
 
+  public throwIfAborted(): void {
+    return abortSignals.throwIfAborted(this.signal);
+  }
+
   /** If a signal is aborted, it returns the abort reason. Returns undefined otherwise. */
-  public getAbortReason(): unknown {
-    return abortSignals.getAbortReason(this.signal);
+  public getAbortReason<Reason = unknown>(): Reason | undefined {
+    return abortSignals.getAbortReason<Reason>(this.signal);
   }
 
   /** Aborts the abort controller, with a reason. */
@@ -108,85 +107,59 @@ export class ServicesRunner implements AbortController {
     return setTimeout(delay, value, { signal: this.signal });
   }
 
-  /**
-   * Adds a new function to execute on abort.
-   * If already aborted, the function will be called straight away.
-   */
-  public addAbortHandler(
-    handler:
-      | abortSignals.AbortHandler
-      | (<Reason = unknown>(reason: Reason) => Promise<void>)
-      | null
-      | undefined
-      | false,
-  ): void {
-    let abortHandler: (reason?: unknown) => void;
-    if (typeof handler === "function") {
-      abortHandler = (reason) => this.#addPendingPromise(handler(reason));
-    } else if (typeof handler === "object" && handler !== null && "abort" in handler) {
-      if ("signal" in handler) {
-        abortHandler = (reason) => abortSignals.abort(handler as AbortController, reason);
-      } else {
-        abortHandler = (reason) => this.#addPendingPromise((handler as { abort(reason?: unknown): any }).abort(reason));
-      }
-    } else {
-      return;
-    }
-
-    if (this.aborted) {
-      abortHandler(this.getAbortReason());
-      return;
-    }
-
-    const handlers = this.#abortHandlers;
-    if (handlers) {
-      handlers.push(abortHandler);
-      return;
-    }
-
-    const onAbort = async (reason: unknown) => {
-      for (;;) {
-        const pendingHandler = await _pendingPop(this.#abortHandlers);
-        if (!pendingHandler) {
-          break;
-        }
-        try {
-          this.#addPendingPromise(pendingHandler(reason));
-        } catch (e) {
-          if (e) {
-            this.#addPendingPromise(Promise.reject(devError(e)));
-          }
-        }
-      }
-    };
-
-    this.#abortHandlers = [abortHandler];
-    abortSignals.addAbortHandler(this.signal, onAbort);
-  }
-
   public get runningServices(): number {
     return this.#pending.length;
   }
 
   public runSequential(...functionsOrPromises: unknown[]): Promise<void> {
     if (abortSignals.getSignal() !== this.signal) {
-      return abortSignals.run(this.signal, () => runSequential(functionsOrPromises));
+      return abortSignals.withAbortSignal(this.signal, () => runSequential(functionsOrPromises));
     }
     return runSequential(functionsOrPromises);
   }
 
   public runParallel(...functionsOrPromises: unknown[]): Promise<void> {
     if (abortSignals.getSignal() !== this.signal) {
-      return abortSignals.run(this.signal, () => runParallel(functionsOrPromises));
+      return abortSignals.withAbortSignal(this.signal, () => runParallel(functionsOrPromises));
     }
     return runParallel(functionsOrPromises);
   }
 
-  public timed<T>(title: string, fnOrPromise: (() => Promise<T> | T) | Promise<T> | T, options?: DevLogTimeOptions) {
-    if (typeof fnOrPromise === "function" && abortSignals.getSignal() !== this.signal) {
-      return abortSignals.run(this.signal, () => devLog.timed(title, fnOrPromise, options));
-    }
-    return devLog.timed(title, fnOrPromise, options);
+  /**
+   * Adds a new asynchronous function to be executed on abort.
+   * If already aborted, the function will be called straight away.
+   * The promise will be added to the signal with `signalAddPendingPromise`.
+   * User is responsible to await for those promises with `signalAwaitPendingPromises`.
+   *
+   * @returns A function that when called removes the abort handler.
+   * If the handler was not added, the function noop() will be returned.
+   * You can check for equality with noop function to check if the handler was not added.
+   */
+  public addAbortHandler(handler: abortSignals.AddAbortAsyncHandlerArg | null | undefined | false | void) {
+    return abortSignals.addAsyncAbortHandler(this.signal, handler);
+  }
+
+  /**
+   * Removes an abort handler previously registered with addAbortHandler
+   */
+  public removeAbortHandler(
+    handler: abortSignals.AddAbortAsyncHandlerArg | abortSignals.AddAbortHandlerArg | null | undefined | false | void,
+  ) {
+    return abortSignals.removeAbortHandler(this.signal, handler);
+  }
+
+  /**
+   * Adds a pending promise. You can await all pending promises with this.awaitAll.
+   * You can wait all pending promises with this.awaitAll() or this,run().
+   * @returns a function that if called removes the promise from the pending promises.
+   */
+  public addPendingPromise(promise: Promise<unknown> | null | undefined | void): () => void {
+    return abortSignals.signalAddPendingPromise(this.signal, promise);
+  }
+
+  /** Removes a pending promise previously added with addPendingPromise. */
+  public removePendingPromise(promise: Promise<unknown> | null | undefined | void): boolean {
+    return abortSignals.signalRemovePendingPromise(this.signal, promise);
   }
 
   public startService(
@@ -210,7 +183,7 @@ export class ServicesRunner implements AbortController {
           }
 
           if (abortSignals.getSignal() !== this.signal) {
-            await abortSignals.run(this.signal, fnOrPromise);
+            await abortSignals.withAbortSignal(this.signal, fnOrPromise);
           } else {
             await fnOrPromise();
           }
@@ -248,11 +221,15 @@ export class ServicesRunner implements AbortController {
 
     defineProperty(runService, "name", { value: title, configurable: true, enumerable: false });
 
-    const promise = options?.timed ? this.timed(title, runService, { abortErrorIsWarning: true }) : runService();
+    const promise = runService();
     this.#pending.push({ promise, title });
     return true;
   }
 
+  /**
+   * Awaits all pending promises.
+   * Throws the first error or the reject reason if an error or an AbortError.
+   */
   public async awaitAll(options?: ServicesRunner.AwaitAllOptions): Promise<void> {
     const abortReason = this.getAbortReason();
     let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
@@ -283,24 +260,12 @@ export class ServicesRunner implements AbortController {
       }
     }
 
-    for (;;) {
-      const promise = await _pendingPop(this.#pendingPromises);
-      if (promise === undefined) {
-        break;
-      }
-      try {
-        await promise;
-      } catch (e) {
-        if (e) {
-          const error = devError(e);
-          if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
-            errorToThrow = error;
-          }
-
-          if (options && typeof options.onError === "function") {
-            await options.onError(error, undefined);
-          }
-        }
+    try {
+      abortSignals.signalAwaitPendingPromises(this.signal, options);
+    } catch (e) {
+      const error = devError(e);
+      if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
+        errorToThrow = error;
       }
     }
 
@@ -346,19 +311,9 @@ export class ServicesRunner implements AbortController {
     return this.rejectIfAborted();
   }
 
-  protected onRunGracefulExit(signal: string, _details?: object): void | Promise<void> {
-    if (!this.aborted) {
-      if (signal) {
-        devLog.log();
-        devLog.hr("red");
-        devLog.logRedBright(`😵 EXIT: ${signal}`);
-        devLog.hr("red");
-        devLog.log();
-      }
-      this.abort(signal);
-    }
-  }
-
+  /**
+   * Runs a function with this abort controller as shared abort controller.
+   */
   public async run<T>(callback: (() => T | Promise<T>) | Promise<T>, options?: ServicesRunner.RunOptions): Promise<T> {
     let promise: Promise<T> | undefined;
     let error: null | Error = null;
@@ -423,23 +378,9 @@ export class ServicesRunner implements AbortController {
       }
     };
 
-    promise = abortSignals.run(this.signal, run);
+    promise = abortSignals.withAbortSignal(this.signal, run);
     this.#activeRunPromises.push(promise);
     return promise;
-  }
-
-  #addPendingPromise(promise: Promise<unknown> | undefined | null | boolean | void) {
-    if (typeof promise === "object" && promise !== null && typeof promise.then === "function") {
-      promise.then(() => {
-        const index = this.#pendingPromises.indexOf(promise);
-        if (index >= 0) {
-          this.#pendingPromises.splice(index, 1);
-        }
-      });
-      if (this.#pendingPromises.indexOf(promise) < 0) {
-        this.#pendingPromises.push(promise);
-      }
-    }
   }
 }
 
