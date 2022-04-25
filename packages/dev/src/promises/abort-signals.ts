@@ -26,6 +26,24 @@ export const abortSignals = {
   run,
 
   registerProcessTermination,
+
+  /** Global options for registerProcessTermination. */
+  processTerminationOptions: {
+    /** True if signals should be logged */
+    logSignals: true,
+
+    /** True if unhandled exceptions should be logged. */
+    logUnhandledExceptions: true,
+
+    /** True if unhandled rejections should be handled as well. Default is false. */
+    handleUnhandledRejections: false,
+
+    /**
+     * Number of milliseconds to wait after a signal is received twice before process.exit(1) is called.
+     * 0, null, undefined means infinity.
+     */
+    processKillOnDoubleSignalsTimeout: 2000 as number | undefined | null | false,
+  },
 };
 
 function run<R = void>(signal: MaybeSignal, callback: () => R): R {
@@ -170,23 +188,29 @@ function signalHandler(signal: NodeJS.Signals) {
   const raisedCount = _signalsRaised.get(signal) || 0;
   _signalsRaised.set(signal, raisedCount + 1);
 
-  devLog.log();
-  devLog.hr("red");
-  devLog.logRedBright(`😵 ABORT: ${signal}${raisedCount ? ` +${raisedCount}` : ""}`);
-  devLog.hr("red");
-  devLog.log();
-
-  if (!_terminating && raisedCount > 0) {
-    _terminating = signal;
-    setTimeout(() => {
-      _unregisterHandlers();
-      devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
-      process.exit(1);
-    }, 650).unref();
+  if (abortSignals.processTerminationOptions.logSignals) {
+    devLog.log();
+    devLog.hr("red");
+    devLog.logRedBright(`😵 ABORT: ${signal}${raisedCount ? ` +${raisedCount}` : ""}`);
+    devLog.hr("red");
+    devLog.log();
   }
 
-  if (raisedCount > 1) {
-    _unregisterHandlers();
+  const delay = abortSignals.processTerminationOptions.processKillOnDoubleSignalsTimeout;
+  if (delay && Number.isFinite(delay)) {
+    if (!_terminating && raisedCount > 0) {
+      _terminating = signal;
+      setTimeout(() => {
+        _unregisterHandlers();
+        if (abortSignals.processTerminationOptions.logSignals) {
+          devLog.logRedBright(`💀 process.exit(1) - ${signal} received ${_signalsRaised.get(signal)} times.`);
+        }
+        process.exit(1);
+      }, delay).unref();
+    }
+    if (raisedCount > 1) {
+      _unregisterHandlers();
+    }
   }
 }
 
@@ -196,6 +220,29 @@ function uncaughtExceptionHandler(error: Error) {
     if (abortController) {
       abortSignals.abort(abortController, error);
     }
+  }
+  if (abortSignals.processTerminationOptions.logUnhandledExceptions && !AbortError.isAbortError(error)) {
+    devLog.log();
+    devLog.hr("red");
+    devLog.logException(`😵 ABORT: unhancled exception`, error);
+    devLog.hr("red");
+    devLog.log();
+  }
+}
+
+function unhandledRejectionHandler(error: Error) {
+  while (_registeredAbortControllers.length > 0) {
+    const abortController = _registeredAbortControllers.pop();
+    if (abortController) {
+      abortSignals.abort(abortController, error);
+    }
+  }
+  if (abortSignals.processTerminationOptions.logUnhandledExceptions && !AbortError.isAbortError(error)) {
+    devLog.log();
+    devLog.hr("red");
+    devLog.logException(`😵 ABORT: unhancled rejection`, error);
+    devLog.hr("red");
+    devLog.log();
   }
 }
 
@@ -208,6 +255,7 @@ function _unregisterHandlers() {
     process.off("SIGBREAK", signalHandler);
     process.off("SIGHUP", signalHandler);
     process.off("uncaughtException", uncaughtExceptionHandler);
+    process.off("unhandledRejection", uncaughtExceptionHandler);
     if (!_terminating) {
       _signalsRaised.clear();
     }
@@ -221,6 +269,9 @@ function _registerHandlers() {
     process.on("SIGBREAK", signalHandler);
     process.on("SIGHUP", signalHandler);
     process.on("uncaughtException", uncaughtExceptionHandler);
+    if (abortSignals.processTerminationOptions.handleUnhandledRejections) {
+      process.on("unhandledRejection", unhandledRejectionHandler);
+    }
   }
 }
 
