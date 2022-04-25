@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
+import { millisecondsToString } from "../utils";
 
 /** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
 export function isMainModule(
@@ -50,11 +51,20 @@ function stripExt(name: string) {
 export function devRunMain<T = unknown>(
   main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
   processTitle?: string,
+  options?: devRunMain.Options<T>,
 ): Promise<T | Error>;
 
-export function devRunMain<T extends null | false | undefined>(main: T, processTitle?: string): Promise<T>;
+export function devRunMain<T extends null | false | undefined>(
+  main: T,
+  processTitle?: string,
+  options?: devRunMain.Options<T>,
+): Promise<T>;
 
-export function devRunMain<T = unknown>(main: any, processTitle?: string): Promise<T | Error> {
+export function devRunMain<T = unknown>(
+  main: any,
+  processTitle?: string,
+  options?: devRunMain.Options<T>,
+): Promise<T | Error> {
   let handledError: Error | undefined;
 
   if (main === false || main === undefined || main === null) {
@@ -62,23 +72,17 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
   }
 
   function devRunMainError(error: any) {
-    if (handledError !== error) {
-      handledError = error;
-      error = devError(error, devRunMain);
-      devError.handleUncaughtException(error);
-    } else if (!(error instanceof Error)) {
-      error = devError(error, devRunMain);
-    }
+    try {
+      if (handledError !== error) {
+        handledError = error;
+        error = devError(error, devRunMain);
+        devError.handleUncaughtException(error);
+      } else if (!(error instanceof Error)) {
+        error = devError(error, devRunMain);
+      }
+    } catch {}
     return error;
   }
-
-  const handlePromise = async (result: any) => {
-    try {
-      return await result;
-    } catch (error) {
-      return devRunMainError(error);
-    }
-  };
 
   try {
     devError.initErrorHandling();
@@ -107,12 +111,89 @@ export function devRunMain<T = unknown>(main: any, processTitle?: string): Promi
       result = (main as any)();
     }
 
+    const onTerminated = (ret: T | Error) => {
+      if (options) {
+        if (typeof options.onTerminated === "function") {
+          options.onTerminated(ret);
+        }
+        if (options?.processExitTimeout) {
+          devRunMain.processExitTimeout(options?.processExitTimeout);
+        }
+      }
+    };
+
     if (typeof result === "object" && result !== null && typeof result.then === "function") {
-      return handlePromise(result);
+      const devRunMainPromise = async (ret: any) => {
+        try {
+          ret = await ret;
+          if (ret instanceof Error) {
+            ret = devRunMainError(result);
+          }
+        } catch (error) {
+          ret = devRunMainError(error);
+        }
+        onTerminated(ret);
+        return ret;
+      };
+
+      return devRunMainPromise(result);
     }
+
+    if (result instanceof Error) {
+      result = devRunMainError(result);
+    }
+
+    onTerminated(result);
 
     return Promise.resolve(result);
   } catch (error) {
     return Promise.resolve(devRunMainError(error));
+  }
+}
+
+export namespace devRunMain {
+  export interface Options<T = unknown> {
+    /**
+     * If non zero, invokes process.exit(2) after the specific time if the application does not terminate.
+     * Useful to make a script terminate also if there are pending asynchronous operations.
+     */
+    processExitTimeout?: number;
+
+    /** Function to be executed at the end */
+    onTerminated?(result: Error | T): void;
+  }
+
+  /**
+   * Ensures that the application terminates with a timer, in case some service did hang.
+   * Returns a cancellation object
+   */
+  export function processExitTimeout(
+    milliseconds: number = 5100,
+    exitCode: number = 2,
+  ): { cancel(): void; restart(): void } {
+    devLog.warn();
+    devLog.warn("termination...");
+
+    const processExitTimeoutReached = () => {
+      devLog.error();
+      const code = process.exitCode || exitCode || 2;
+      devLog.error(`💀 Process exit timeout of ${millisecondsToString(milliseconds)} reached. exitCode:${code}`);
+      // eslint-disable-next-line no-process-exit
+      process.exit(code);
+    };
+
+    const start = () => setTimeout(processExitTimeoutReached, milliseconds).unref();
+
+    const timeout = start();
+
+    return {
+      cancel() {
+        clearTimeout(timeout);
+      },
+      restart() {
+        clearTimeout(timeout);
+        start();
+      },
+    };
   }
 }

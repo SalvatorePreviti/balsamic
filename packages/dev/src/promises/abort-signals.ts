@@ -10,7 +10,10 @@ const { defineProperty } = Reflect;
 export type MaybeSignal = AbortController | AbortSignal | null | undefined;
 
 export namespace abortSignals {
-  export type AbortHandler = <Reason = unknown>(reason: Reason) => void;
+  export type AbortHandler =
+    | (<Reason = unknown>(reason: Reason) => void)
+    | AbortController
+    | { abort(reason?: unknown): unknown };
 }
 
 export const abortSignals = {
@@ -172,15 +175,27 @@ function getAbortReason(signal?: MaybeSignal): unknown | undefined {
  * If already aborted, the function will be called straight away.
  * The function should not return a Promise.
  */
-function addAbortHandler(signal: MaybeSignal, fn: abortSignals.AbortHandler | null | undefined | false): void {
+function addAbortHandler(signal: MaybeSignal, handler: abortSignals.AbortHandler | null | undefined | false): void {
   signal = abortSignals.getSignal(signal);
-  if (!signal || typeof fn !== "function") {
+  if (!signal) {
+    return;
+  }
+  let abortHandler: () => void;
+  if (typeof handler === "function") {
+    abortHandler = () => handler(abortSignals.getAbortReason(signal));
+  } else if (typeof handler === "object" && handler !== null && "abort" in handler) {
+    if ("signal" in handler) {
+      abortHandler = () => abortSignals.abort(handler as AbortController, abortSignals.getAbortReason(signal));
+    } else {
+      abortHandler = () => (handler as { abort(reason?: unknown): void }).abort(abortSignals.getAbortReason(signal));
+    }
+  } else {
     return;
   }
   if (signal.aborted) {
-    fn(abortSignals.getAbortReason(signal));
+    abortHandler();
   } else {
-    signal.addEventListener("abort", () => fn(abortSignals.getAbortReason(signal)), { once: true });
+    signal.addEventListener("abort", () => abortHandler(), { once: true });
   }
 }
 

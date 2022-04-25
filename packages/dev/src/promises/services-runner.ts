@@ -56,7 +56,7 @@ export class ServicesRunner implements AbortController {
   public abortController: AbortController;
 
   #pending: ServiceRunnerPendingEntry[] = [];
-  #abortHandlers: (() => void | Promise<void>)[] | null = null;
+  #abortHandlers: ((reason?: unknown) => void)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
   #registerProcessTerminationDuringRun: boolean | undefined;
@@ -112,29 +112,46 @@ export class ServicesRunner implements AbortController {
    * Adds a new function to execute on abort.
    * If already aborted, the function will be called straight away.
    */
-  public addAbortHandler(fn: (() => void | Promise<void>) | null | undefined | false): void {
-    if (typeof fn !== "function") {
+  public addAbortHandler(
+    handler:
+      | abortSignals.AbortHandler
+      | (<Reason = unknown>(reason: Reason) => Promise<void>)
+      | null
+      | undefined
+      | false,
+  ): void {
+    let abortHandler: (reason?: unknown) => void;
+    if (typeof handler === "function") {
+      abortHandler = (reason) => this.#addPendingPromise(handler(reason));
+    } else if (typeof handler === "object" && handler !== null && "abort" in handler) {
+      if ("signal" in handler) {
+        abortHandler = (reason) => abortSignals.abort(handler as AbortController, reason);
+      } else {
+        abortHandler = (reason) => this.#addPendingPromise((handler as { abort(reason?: unknown): any }).abort(reason));
+      }
+    } else {
       return;
     }
+
     if (this.aborted) {
-      this.#addPendingPromise(fn());
-    } else {
-      (this.#abortHandlers || this.#initPendingPromisesArray()).push(fn);
+      abortHandler(this.getAbortReason());
+      return;
     }
-  }
 
-  #initPendingPromisesArray() {
-    const handlers: (() => void | Promise<void>)[] = [];
-    this.#abortHandlers = handlers;
+    const handlers = this.#abortHandlers;
+    if (handlers) {
+      handlers.push(abortHandler);
+      return;
+    }
 
-    const onAbort = async () => {
+    const onAbort = async (reason: unknown) => {
       for (;;) {
-        const handler = await _pendingPop(handlers);
-        if (!handler) {
+        const pendingHandler = await _pendingPop(this.#abortHandlers);
+        if (!pendingHandler) {
           break;
         }
         try {
-          this.#addPendingPromise(handler());
+          this.#addPendingPromise(pendingHandler(reason));
         } catch (e) {
           if (e) {
             this.#addPendingPromise(Promise.reject(devError(e)));
@@ -143,8 +160,8 @@ export class ServicesRunner implements AbortController {
       }
     };
 
+    this.#abortHandlers = [abortHandler];
     abortSignals.addAbortHandler(this.signal, onAbort);
-    return handlers;
   }
 
   public get runningServices(): number {
@@ -411,7 +428,7 @@ export class ServicesRunner implements AbortController {
     return promise;
   }
 
-  #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {
+  #addPendingPromise(promise: Promise<unknown> | undefined | null | boolean | void) {
     if (typeof promise === "object" && promise !== null && typeof promise.then === "function") {
       promise.then(() => {
         const index = this.#pendingPromises.indexOf(promise);
@@ -426,14 +443,16 @@ export class ServicesRunner implements AbortController {
   }
 }
 
-async function _pendingPop<T>(array: T[]): Promise<T | undefined> {
-  let item: T | undefined;
-  for (let tick = 0; tick < 3; ++tick) {
-    item = array.pop();
-    if (item !== undefined) {
-      return item;
+async function _pendingPop<T>(array: T[] | null): Promise<T | undefined> {
+  if (array) {
+    let item: T | undefined;
+    for (let tick = 0; tick < 3; ++tick) {
+      item = array.pop();
+      if (item !== undefined) {
+        return item;
+      }
+      await setImmediate();
     }
-    await setImmediate();
   }
   return undefined;
 }
