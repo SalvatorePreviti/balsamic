@@ -11,7 +11,7 @@ const { defineProperty } = Reflect;
 export namespace ServicesRunner {
   export interface Options {
     abortController?: AbortController;
-    abortOnServiceTermination?: boolean;
+    abortOnServiceTerminationDuringRun?: boolean;
     abortOnServiceError?: boolean;
   }
 
@@ -52,7 +52,6 @@ export class ServicesRunner implements AbortController {
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
-  #registerGracefulExit: boolean = false;
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
@@ -60,7 +59,7 @@ export class ServicesRunner implements AbortController {
   public constructor(options: ServicesRunner.Options) {
     this.abortController = options.abortController || new AbortController();
 
-    this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
+    this.abortOnServiceTermination = options.abortOnServiceTerminationDuringRun ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
 
     this.startService = this.startService.bind(this);

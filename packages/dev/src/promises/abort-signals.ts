@@ -182,6 +182,8 @@ function signalHandler(signal: NodeJS.Signals) {
     }, 650).unref();
     _unregisterHandlers();
   }
+
+  _signalsRaised.add(signal);
 }
 
 function uncaughtExceptionHandler(error: Error) {
@@ -238,6 +240,7 @@ function registerProcessTermination(abortController: AbortController) {
         } else {
           _registrationsCount = 0;
           _unregisterHandlers();
+          _signalsRaised.clear();
         }
       }
     },
