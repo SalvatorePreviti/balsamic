@@ -25,6 +25,7 @@ describe("ChildProcessWrapper", () => {
     expect(wrapper.error).to.equal(null);
     expect(wrapper.exitCode).to.equal(0);
 
+    expect(process.listeners("close").length).to.equal(0);
     expect(process.listeners("exit").length).to.equal(0);
     expect(process.listeners("error").length).to.equal(0);
   });
@@ -44,6 +45,7 @@ describe("ChildProcessWrapper", () => {
     expect(wrapper.error).to.equal(error);
     expect(wrapper.exitCode).to.equal(-1);
 
+    expect(wrapper.childProcess.listeners("close").length).to.equal(0);
     expect(wrapper.childProcess.listeners("exit").length).to.equal(0);
     expect(wrapper.childProcess.listeners("error").length).to.equal(0);
   });
@@ -69,6 +71,7 @@ describe("ChildProcessWrapper", () => {
     expect(wrapper.error?.message).to.include("failed");
     expect(wrapper.exitCode).to.equal("SIGTERM");
 
+    expect(process.listeners("close").length).to.equal(0);
     expect(process.listeners("exit").length).to.equal(0);
     expect(process.listeners("error").length).to.equal(0);
   });
@@ -96,12 +99,12 @@ function processToPromise(fn: () => ChildProcess) {
   return new Promise<ChildProcess>((resolve) => {
     const process = fn();
 
-    process.once("exit", onExit);
-    process.once("error", onExit);
+    process.once("close", onClose);
+    process.once("error", onClose);
 
-    function onExit() {
-      process.off("exit", onExit);
-      process.off("error", onExit);
+    function onClose() {
+      process.off("close", onClose);
+      process.off("error", onClose);
       resolve(process);
     }
   });
