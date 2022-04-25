@@ -26,9 +26,13 @@ export namespace ServicesRunner {
   }
 
   export interface RunOptions {
-    onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+    onServiceError?:
+      | ((error: Error, serviceName: string | undefined) => void | Promise<void>)
+      | null
+      | undefined
+      | false;
+
     onFinally?: (error: Error | null) => void | Promise<void>;
-    onGracefulExit?: (signal: string, details?: object) => void | Promise<void>;
 
     /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
     registerProcessTermination?: boolean;
@@ -55,7 +59,7 @@ export class ServicesRunner implements AbortController {
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
-  #registerProcessTerminationDuringRun: boolean;
+  #registerProcessTerminationDuringRun: boolean | undefined;
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
@@ -65,10 +69,7 @@ export class ServicesRunner implements AbortController {
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-    this.#registerProcessTerminationDuringRun =
-      options.registerProcessTerminationDuringRun ??
-      abortSignals.processTerminationOptions.registerProcessTerminationDuringRun ??
-      false;
+    this.#registerProcessTerminationDuringRun = options.registerProcessTerminationDuringRun;
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -347,8 +348,10 @@ export class ServicesRunner implements AbortController {
 
     const run = async () => {
       const abortOnError = options?.abortOnError ?? true;
-      const termination =
-        options?.registerProcessTermination ?? this.#registerProcessTerminationDuringRun
+      const terminationRegistered =
+        options?.registerProcessTermination ??
+        this.#registerProcessTerminationDuringRun ??
+        abortSignals.processTerminationOptions.registerProcessTerminationDuringRun
           ? abortSignals.registerProcessTermination(this)
           : null;
 
@@ -392,7 +395,7 @@ export class ServicesRunner implements AbortController {
             await options.onFinally(error);
           } catch {}
         }
-        termination?.unregister();
+        terminationRegistered?.unregister();
         if (promise) {
           const indexOfPromise = this.#activeRunPromises.indexOf(promise);
           if (indexOfPromise >= 0) {

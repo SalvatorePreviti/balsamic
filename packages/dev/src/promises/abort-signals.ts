@@ -330,21 +330,19 @@ function _registerHandlers() {
 }
 
 function processAbort(code: number | undefined = process.exitCode) {
+  const error = code === 0 ? new AbortError.AbortOk("process.exit(0)") : new AbortError(`process.exit(${code}')`);
+
   if (!_signalsRaised.has("process_exit")) {
     _signalsRaised.set("process_exit", 1);
     if (abortSignals.processTerminationOptions.logProcessExitRequest) {
-      devLog.hr("red");
-      devLog.logRedBright(`😵 process.exit(${code}) requested.`);
-      devLog.hr("red");
+      devLog.logException("😵", error, { abortErrorIsWarning: false, showStack: true });
     }
   }
+
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
-      abortSignals.abort(
-        abortController,
-        code === 0 ? new AbortError.AbortOk("process.exit(0)") : new AbortError(`process.exit(${code}')`),
-      );
+      abortSignals.abort(abortController, error);
     }
   }
 }
