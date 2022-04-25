@@ -5,24 +5,39 @@ import { AbortError } from "./abort-error";
 import { devLog, DevLogTimeOptions } from "../dev-log";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
+import nodeGraceful from "node-graceful";
+
+export { nodeGraceful };
 
 const { defineProperty } = Reflect;
 
-export interface ServicesRunnerOptions {
-  abortController?: AbortController;
-  abortOnServiceTermination?: boolean;
-  abortOnServiceError?: boolean;
-}
+export namespace ServicesRunner {
+  export interface Options {
+    abortController?: AbortController;
+    abortOnServiceTermination?: boolean;
+    abortOnServiceError?: boolean;
+  }
 
-export interface ServicesRunnerServiceOptions {
-  abortOnServiceError?: boolean;
-  abortOnServiceTermination?: boolean;
-  onTerminate?: (error: Error | null) => void | Promise<void>;
-  timed?: boolean;
-}
+  export interface ServiceOptions {
+    abortOnServiceError?: boolean;
+    abortOnServiceTermination?: boolean;
+    onTerminate?: (error: Error | null) => void | Promise<void>;
+    timed?: boolean;
+  }
 
-export interface ServiceRunnerRunOptions {
-  onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+  export interface RunOptions {
+    onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+
+    onFinally?: (error: Error | null) => void | Promise<void>;
+
+    abortOnError?: boolean;
+    registerGracefulExit?: boolean;
+  }
+
+  export interface AwaitAllOptions {
+    onError?: ((error: Error, serviceName: string | undefined) => void | Promise<void>) | null | undefined | false;
+    abortOnError?: boolean;
+  }
 }
 
 interface ServiceRunnerPendingEntry {
@@ -36,11 +51,13 @@ export class ServicesRunner implements AbortController {
   #pending: ServiceRunnerPendingEntry[] = [];
   #abortHandlers: (() => void | Promise<void>)[] | null = null;
   #pendingPromises: Promise<unknown>[] = [];
+  #activeRunPromises: Promise<unknown>[] = [];
+  #registeredGracefulExit: boolean = false;
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
 
-  public constructor(options: ServicesRunnerOptions) {
+  public constructor(options: ServicesRunner.Options) {
     this.abortController = options.abortController || new AbortController();
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
@@ -150,7 +167,7 @@ export class ServicesRunner implements AbortController {
   public startService(
     title: string,
     fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void) | null | undefined | false,
-    options?: ServicesRunnerServiceOptions,
+    options?: ServicesRunner.ServiceOptions,
   ): boolean {
     if (!fnOrPromise) {
       return false;
@@ -211,9 +228,10 @@ export class ServicesRunner implements AbortController {
     return true;
   }
 
-  public async awaitAll(options?: ServiceRunnerRunOptions): Promise<void> {
+  public async awaitAll(options?: ServicesRunner.AwaitAllOptions): Promise<void> {
     const abortReason = this.getAbortReason();
     let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
+    const abortOnError = options?.abortOnError ?? true;
     for (;;) {
       const entry = await _pendingPop(this.#pending);
       if (entry === undefined) {
@@ -230,7 +248,7 @@ export class ServicesRunner implements AbortController {
         if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
           errorToThrow = error;
         }
-        if (!this.aborted) {
+        if (!this.aborted && abortOnError) {
           this.abort(error);
         }
 
@@ -279,8 +297,71 @@ export class ServicesRunner implements AbortController {
     return this.rejectIfAborted();
   }
 
-  public async run<T>(callback: (() => T | Promise<T>) | Promise<T>, options?: ServiceRunnerRunOptions): Promise<T> {
+  public async awaitAllRuns(options?: ServicesRunner.AwaitAllOptions): Promise<void> {
+    const abortReason = this.getAbortReason();
+    const abortOnError = options?.abortOnError ?? true;
+    let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
+    try {
+      this.awaitAll(options);
+    } catch (error) {
+      errorToThrow = devError(error);
+    }
+    for (;;) {
+      const promise = await _pendingPop(this.#activeRunPromises);
+      if (!promise) {
+        break;
+      }
+      let error: Error | null = null;
+      try {
+        await promise;
+      } catch (e) {
+        error = devError(e);
+      }
+
+      if (error) {
+        if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
+          errorToThrow = error;
+        }
+        if (!this.aborted && abortOnError) {
+          this.abort(error);
+        }
+      }
+    }
+  }
+
+  public registerGracefulExit(value = true) {
+    const onExitHandler = (signal: string) => {
+      if (!this.aborted) {
+        if (signal) {
+          devLog.error(signal);
+        }
+        this.abort(signal);
+      }
+      return this.awaitAllRuns();
+    };
+
+    if (value) {
+      if (!this.#registeredGracefulExit) {
+        nodeGraceful.on("exit", onExitHandler);
+        this.#registeredGracefulExit = true;
+      }
+    } else if (this.#registeredGracefulExit) {
+      nodeGraceful.off("exit", onExitHandler);
+      this.#registeredGracefulExit = false;
+    }
+  }
+
+  public async run<T>(callback: (() => T | Promise<T>) | Promise<T>, options?: ServicesRunner.RunOptions): Promise<T> {
+    let promise: Promise<T> | undefined;
+    let error: null | Error = null;
+
+    let gracefulExitRegistered = false;
     const run = async () => {
+      if (options?.registerGracefulExit && !this.#registeredGracefulExit) {
+        this.registerGracefulExit(true);
+        gracefulExitRegistered = true;
+      }
+      const abortOnError = options?.abortOnError ?? true;
       try {
         if (this.aborted) {
           const reason = this.getAbortReason();
@@ -293,14 +374,13 @@ export class ServicesRunner implements AbortController {
         await this.awaitAll(options);
         return result;
       } catch (e) {
-        let error: Error;
         if (AbortError.isAbortError(e)) {
           const reason = this.getAbortReason();
           error = reason instanceof Error ? reason : e;
         } else {
           error = devError(e);
         }
-        if (!this.aborted) {
+        if (abortOnError && !this.aborted) {
           this.abort(error);
         }
         try {
@@ -316,9 +396,28 @@ export class ServicesRunner implements AbortController {
           }
         }
         throw error;
+      } finally {
+        if (typeof options?.onFinally === "function") {
+          try {
+            await options.onFinally(error);
+          } catch {}
+        }
+        if (promise) {
+          const indexOfPromise = this.#activeRunPromises.indexOf(promise);
+          if (indexOfPromise >= 0) {
+            this.#activeRunPromises.splice(indexOfPromise, 1);
+          }
+          promise = undefined;
+        }
+        if (gracefulExitRegistered) {
+          this.registerGracefulExit(false);
+        }
       }
     };
-    return abortSignals.run(this.signal, run);
+
+    promise = abortSignals.run(this.signal, run);
+    this.#activeRunPromises.push(promise);
+    return promise;
   }
 
   #addPendingPromise(promise: Promise<unknown> | undefined | null | false | void) {
