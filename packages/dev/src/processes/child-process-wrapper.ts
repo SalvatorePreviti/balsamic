@@ -46,7 +46,6 @@ export namespace ChildProcessWrapper {
     killChildren?: boolean;
 
     title?: string;
-    caller?: Function;
   }
 
   export type ConstructorInput =
@@ -70,12 +69,12 @@ class ErroredChildProcess extends ChildProcess {
 }
 
 export class ChildProcessWrapper {
-  public static defaultOptions: Omit<ChildProcessWrapper.Options, "title" | "caller"> = {
+  public static defaultOptions: Omit<ChildProcessWrapper.Options, "title"> = {
     exitErrorTimeout: 6000,
     rejectOnAbort: true,
     rejectOnNonZeroStatusCode: true,
-    killSignal: "SIGTERM",
     killChildren: false,
+    timed: false,
   };
 
   #childProcess: ChildProcess;
@@ -116,12 +115,11 @@ export class ChildProcessWrapper {
           options = _sanitizeOptions(newOptions, options);
         }
       } catch (error) {
-        input = devError(error, options.caller ?? new.target);
+        input = devError(error, new.target);
       }
     }
 
-    const { caller, showStack, exitErrorTimeout, rejectOnAbort, rejectOnNonZeroStatusCode, killSignal, killChildren } =
-      options;
+    const { showStack, exitErrorTimeout, rejectOnAbort, rejectOnNonZeroStatusCode, killSignal, killChildren } = options;
     this.#killSignal = killSignal;
     this.#killChildren = !!killChildren;
 
@@ -133,7 +131,7 @@ export class ChildProcessWrapper {
       typeof input !== "object" || input === null || input instanceof Error ? new ErroredChildProcess(input) : input;
 
     const initialError = new ChildProcessError("Child process error.");
-    Error.captureStackTrace(initialError, caller);
+    Error.captureStackTrace(initialError, new.target);
 
     let exited = false;
 
@@ -697,9 +695,6 @@ function _sanitizeOptions(
   options: ChildProcessWrapper.Options,
   defaultOptions: Omit<ChildProcessWrapper.Options, "title" | "caller">,
 ) {
-  if (typeof options.caller !== "function") {
-    options.caller = new.target;
-  }
   if (options.showStack === undefined) {
     options.showStack = defaultOptions.showStack;
   }

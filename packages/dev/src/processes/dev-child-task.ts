@@ -38,10 +38,6 @@ function spawn(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.SpawnOptions | null,
 ): ChildProcessPromise {
-  const opts = { ...options };
-  if (!opts?.caller) {
-    opts.caller = spawn;
-  }
   return childProcess.spawn(command, inputArgs, options).promise();
 }
 
@@ -51,10 +47,6 @@ function fork(
   inputArgs?: readonly devChildTask.SpawnArg[],
   options?: devChildTask.ForkOptions | null,
 ): ChildProcessPromise {
-  const opts = { ...options };
-  if (!opts?.caller) {
-    opts.caller = fork;
-  }
   return childProcess.fork(moduleId, inputArgs, options).promise();
 }
 
@@ -65,10 +57,6 @@ function runModuleBin(
   inputArgs: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.ForkOptions,
 ): ChildProcessPromise {
-  const opts = { ...options };
-  if (!opts?.caller) {
-    opts.caller = runModuleBin;
-  }
   return childProcess.runModuleBin(moduleId, executableId, inputArgs, options).promise();
 }
 
@@ -78,10 +66,6 @@ function npmRun(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  const opts = { ...options };
-  if (!opts?.caller) {
-    opts.caller = npmRun;
-  }
   return childProcess.npmRun(command, args, options).promise();
 }
 
@@ -91,9 +75,5 @@ function npmCommand(
   args: readonly devChildTask.SpawnArg[] = [],
   options?: devChildTask.SpawnOptions,
 ): ChildProcessPromise {
-  const opts = { ...options };
-  if (!opts?.caller) {
-    opts.caller = npmCommand;
-  }
   return childProcess.npmCommand(command, args, options).promise();
 }

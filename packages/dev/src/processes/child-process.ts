@@ -36,7 +36,7 @@ export const childProcess = {
     env: process.env,
     throwOnExitCode: true,
     timed: true,
-  } as Omit<SpawnOrForkOptions, "title" | "caller">,
+  } as Omit<SpawnOrForkOptions, "title">,
 
   normalizeArgs,
   extractSpawnOptions,
@@ -75,7 +75,6 @@ function extractSpawnOptions<TOptions extends SpawnOptions | ForkOptions>(
   inputArgs: readonly SpawnArg[] | undefined,
   command: string,
   options: TOptions | null | undefined,
-  caller?: Function,
 ) {
   const args = childProcess.normalizeArgs(inputArgs);
   const cmd = [command, ...args].join(" ");
@@ -88,15 +87,12 @@ function extractSpawnOptions<TOptions extends SpawnOptions | ForkOptions>(
   }
   const signal = "signal" in opts ? opts.signal : abortSignals.getSignal(opts.signal);
   opts.signal = undefined;
-  if (!opts.caller) {
-    opts.caller = caller;
-  }
   return { command, args, opts, signal };
 }
 
 /** Spawn a new process, redirect stdio and await for completion. */
 function spawn(command: string, inputArgs?: readonly SpawnArg[], options?: SpawnOptions | null) {
-  const { args, opts, signal } = childProcess.extractSpawnOptions(inputArgs, command, options, spawn);
+  const { args, opts, signal } = childProcess.extractSpawnOptions(inputArgs, command, options);
   return new ChildProcessWrapper(
     () => {
       return { childProcess: child_process.spawn(command, args, opts) };
@@ -108,7 +104,7 @@ function spawn(command: string, inputArgs?: readonly SpawnArg[], options?: Spawn
 
 /** Forks the node process that runs the given module, redirect stdio and await for completion. */
 function fork(moduleId: string, inputArgs?: readonly SpawnArg[], options?: ForkOptions | null) {
-  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options, fork);
+  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options);
   return new ChildProcessWrapper(
     () => {
       return { childProcess: child_process.fork(moduleId, args, opts) };
@@ -129,13 +125,13 @@ function runModuleBin(
   if (typeof options.title !== "string") {
     options = { ...options, title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId };
   }
-  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options, runModuleBin);
+  const { opts, args, signal } = childProcess.extractSpawnOptions(inputArgs, moduleId, options);
 
   return new ChildProcessWrapper(
     () => {
       const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, opts.cwd);
       if (!resolved) {
-        throw new Error(`Could not find ${moduleId}:${executableId}`);
+        throw new Error(`runModuleBin: Could not find ${moduleId}:${executableId}`);
       }
       return { childProcess: child_process.fork(resolved, args, opts) };
     },
@@ -147,17 +143,11 @@ function runModuleBin(
 /** Executes npm run <command> [args] */
 function npmRun(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
   options = { title: `npm run ${command}`, ...options };
-  if (!options.caller) {
-    options.caller = npmRun;
-  }
   return childProcess.spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", command, ...args], options);
 }
 
 /** Executes npm <command> [args] */
 function npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
   options = { title: `npm ${command}`, ...options };
-  if (!options.caller) {
-    options.caller = npmCommand;
-  }
   return childProcess.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
 }
