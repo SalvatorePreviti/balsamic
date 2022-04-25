@@ -5,9 +5,6 @@ import { AbortError } from "./abort-error";
 import { devLog, DevLogTimeOptions } from "../dev-log";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
-import nodeGraceful from "node-graceful";
-
-export { nodeGraceful };
 
 const { defineProperty } = Reflect;
 
@@ -16,7 +13,6 @@ export namespace ServicesRunner {
     abortController?: AbortController;
     abortOnServiceTermination?: boolean;
     abortOnServiceError?: boolean;
-    registerGracefulExit?: boolean;
   }
 
   export interface ServiceOptions {
@@ -31,8 +27,10 @@ export namespace ServicesRunner {
     onFinally?: (error: Error | null) => void | Promise<void>;
     onGracefulExit?: (signal: string, details?: object) => void | Promise<void>;
 
+    /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
+    registerProcessTermination?: boolean;
+
     abortOnError?: boolean;
-    registerGracefulExit?: boolean;
   }
 
   export interface AwaitAllOptions {
@@ -64,7 +62,6 @@ export class ServicesRunner implements AbortController {
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-    this.#registerGracefulExit = !!options.registerGracefulExit;
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -341,21 +338,10 @@ export class ServicesRunner implements AbortController {
     let promise: Promise<T> | undefined;
     let error: null | Error = null;
 
-    const onExitHandler = async (signal: string, details?: object) => {
-      await this.onRunGracefulExit(signal, details);
-      if (typeof options?.onGracefulExit === "function") {
-        await options?.onGracefulExit(signal, details);
-      }
-      return this.awaitAll({ awaitRun: true });
-    };
-
     const run = async () => {
-      let gracefulExitRegistered = false;
-      if (options?.registerGracefulExit ?? this.#registerGracefulExit) {
-        gracefulExitRegistered = true;
-        nodeGraceful.on("exit", onExitHandler);
-      }
       const abortOnError = options?.abortOnError ?? true;
+      const termination = options?.registerProcessTermination ? abortSignals.registerProcessTermination(this) : null;
+
       try {
         if (this.aborted) {
           const reason = this.getAbortReason();
@@ -396,9 +382,7 @@ export class ServicesRunner implements AbortController {
             await options.onFinally(error);
           } catch {}
         }
-        if (gracefulExitRegistered) {
-          nodeGraceful.off("exit", onExitHandler);
-        }
+        termination?.unregister();
         if (promise) {
           const indexOfPromise = this.#activeRunPromises.indexOf(promise);
           if (indexOfPromise >= 0) {
