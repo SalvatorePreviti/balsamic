@@ -36,6 +36,9 @@ export const abortSignals = {
     /** True if unhandled exceptions should be logged. */
     logUnhandledExceptions: true,
 
+    /** If preventProcessExit is true and logProcessExitRequest is true, process.exit requests will be logged as well. */
+    logProcessExitRequest: false,
+
     /** True if unhandled rejections should be handled as well. Default is false. */
     handleUnhandledRejections: false,
 
@@ -327,6 +330,14 @@ function _registerHandlers() {
 }
 
 function processAbort(code: number | undefined = process.exitCode) {
+  if (!_signalsRaised.has("process_exit")) {
+    _signalsRaised.set("process_exit", 1);
+    if (abortSignals.processTerminationOptions.logProcessExitRequest) {
+      devLog.hr("red");
+      devLog.logRedBright(`😵 process.exit(${code}) requested.`);
+      devLog.hr("red");
+    }
+  }
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
