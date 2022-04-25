@@ -326,7 +326,6 @@ export class ServicesRunner implements AbortController {
 
   protected onRunGracefulExit(signal: string, _details?: object): void | Promise<void> {
     if (!this.aborted) {
-      this.abort(signal);
       if (signal) {
         devLog.log();
         devLog.hr("red");
@@ -334,6 +333,7 @@ export class ServicesRunner implements AbortController {
         devLog.hr("red");
         devLog.log();
       }
+      this.abort(signal);
     }
   }
 

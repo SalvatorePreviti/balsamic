@@ -80,10 +80,11 @@ export class ChildProcessWrapper {
   #error: Error | null;
   #terminationPromise: ChildProcessPromise<this>;
   #promise: ChildProcessPromise<this> | null;
-  #unreffed: boolean = false;
   #timed: DevLogTimed;
   #killSignal: NodeJS.Signals | number | undefined;
   #killChildren: boolean;
+  #unreffed: boolean = false;
+  #killingChildren: number = 0;
 
   public constructor(
     input: ChildProcessWrapper.ConstructorInput,
@@ -215,7 +216,11 @@ export class ChildProcessWrapper {
 
     const waitTermination = () => {
       const maxTimeout = this.#unreffed ? 10 : exitErrorTimeout;
-      if (this.processTerminated || this.#unreffed || performance.now() - this.#timed.starTime >= maxTimeout!) {
+      if (
+        (this.processTerminated && this.#killingChildren <= 0) ||
+        this.#unreffed ||
+        performance.now() - this.#timed.starTime >= maxTimeout!
+      ) {
         onExit();
         return;
       }
@@ -419,8 +424,13 @@ export class ChildProcessWrapper {
     this.killChildrenAsync(signal).catch(noop);
   }
 
-  public killChildrenAsync(signal?: NodeJS.Signals | number | undefined): Promise<boolean> {
-    return killProcessChildren(this, signal ?? this.#killSignal);
+  public async killChildrenAsync(signal?: NodeJS.Signals | number | undefined): Promise<boolean> {
+    ++this.#killingChildren;
+    try {
+      return killProcessChildren(this, signal ?? this.#killSignal ?? "SIGTERM");
+    } finally {
+      --this.#killingChildren;
+    }
   }
 
   /**
