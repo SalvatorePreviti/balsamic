@@ -156,12 +156,6 @@ let _terminating = false;
 let _registrationsCount = 0;
 
 function signalHandler(signal: NodeJS.Signals) {
-  devLog.log();
-  devLog.hr("red");
-  devLog.logRedBright(`😵 ABORT: ${signal}`);
-  devLog.hr("red");
-  devLog.log();
-
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
@@ -169,21 +163,28 @@ function signalHandler(signal: NodeJS.Signals) {
     }
   }
 
-  if (_signalsRaised.has(signal) && !_terminating) {
-    _terminating = true;
-    devLog.log();
-    devLog.hr("red");
-    devLog.logRedBright(`😱 ABORT: ${signal} +1, terminating.`);
-    devLog.hr("red");
-    devLog.log();
-    setTimeout(() => {
-      devLog.logRedBright(`process.exit due to ${signal}`);
-      process.exit(1);
-    }, 650).unref();
-    _unregisterHandlers();
+  if (!_terminating) {
+    if (!_signalsRaised.has(signal)) {
+      _signalsRaised.add(signal);
+      devLog.log();
+      devLog.hr("red");
+      devLog.logRedBright(`😵 ABORT: ${signal}`);
+      devLog.hr("red");
+      devLog.log();
+    } else {
+      _terminating = true;
+      devLog.log();
+      devLog.hr("red");
+      devLog.logRedBright(`😱 ABORT: ${signal} +1, terminating...`);
+      devLog.hr("red");
+      devLog.log();
+      setTimeout(() => {
+        devLog.logRedBright(`process.exit due to ${signal}`);
+        process.exit(1);
+      }, 650).unref();
+      _unregisterHandlers();
+    }
   }
-
-  _signalsRaised.add(signal);
 }
 
 function uncaughtExceptionHandler(error: Error) {
