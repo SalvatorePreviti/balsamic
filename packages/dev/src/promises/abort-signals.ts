@@ -1,8 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { setImmediate } from "node:timers/promises";
+import {
+  setImmediate as timers_setImmediate,
+  setTimeout as timers_setTimeout,
+  setInterval as timers_setInterval,
+} from "node:timers/promises";
 import { devLog } from "../dev-log";
 import { millisecondsToString, noop } from "../utils";
 import { AbortError } from "./abort-error";
+import type { TimerOptions } from "node:timers";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
 const { defineProperty } = Reflect;
@@ -64,6 +69,9 @@ export const abortSignals = {
   signalRemovePendingPromise,
 
   registerProcessTermination,
+
+  setTimeout,
+  setInterval,
 
   /** Global options for registerProcessTermination. */
   processTerminationOptions: {
@@ -166,7 +174,7 @@ function isAborted(signal?: MaybeSignal | { aborted?: boolean }): boolean {
 async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
   signal = abortSignals.getSignal(signal);
   if (signal && signal.aborted) {
-    return setImmediate(undefined, { signal });
+    return timers_setImmediate(undefined, { signal });
   }
   return undefined;
 }
@@ -459,7 +467,7 @@ async function signalAwaitPendingPromises(signal?: MaybeSignal): Promise<void> {
   for (;;) {
     let item = array.pop();
     if (item === undefined) {
-      await setImmediate();
+      await timers_setImmediate();
       item = array.pop();
       if (item === undefined) {
         break;
@@ -531,13 +539,15 @@ function signalHandler(signal: NodeJS.Signals) {
   if (shouldTerminate) {
     _unregisterHandlers(true);
     _terminating = signal;
-    setTimeout(() => {
-      _unregisterHandlers(true);
-      if (abortSignals.processTerminationOptions.logSignals) {
-        devLog.logRedBright(`💀 process.exit(1) due to ${signal}`);
-      }
-      process.exit(1);
-    }, delay).unref();
+    global
+      .setTimeout(() => {
+        _unregisterHandlers(true);
+        if (abortSignals.processTerminationOptions.logSignals) {
+          devLog.logRedBright(`💀 process.exit(1) due to ${signal}`);
+        }
+        process.exit(1);
+      }, delay)
+      .unref();
   }
 }
 
@@ -684,4 +694,43 @@ function registerProcessTermination(abortController: AbortController) {
   };
 
   return result;
+}
+
+/**
+ * ```js
+ * import {
+ *   setTimeout,
+ * } from 'timers/promises';
+ *
+ * const res = await setTimeout(100, 'result');
+ *
+ * console.log(res);  // Prints 'result'
+ * ```
+ * @param [delay=1] The number of milliseconds to wait before fulfilling the promise.
+ * @param value A value with which the promise is fulfilled.
+ */
+function setTimeout<T = void>(delay?: number, value?: T, options?: TimerOptions): Promise<T> {
+  return timers_setTimeout(delay, value, { ...options, signal: abortSignals.getSignal(options?.signal) });
+}
+
+/**
+ * Returns an async iterator that generates values in an interval of `delay` ms.
+ *
+ * ```js
+ * import {
+ *   setInterval,
+ * } from 'timers/promises';
+ *
+ * const interval = 100;
+ * for await (const startTime of setInterval(interval, Date.now())) {
+ *   const now = Date.now();
+ *   console.log(now);
+ *   if ((now - startTime) > 1000)
+ *     break;
+ * }
+ * console.log(Date.now());
+ * ```
+ */
+function setInterval<T = void>(delay?: number, value?: T, options?: TimerOptions): AsyncIterable<T> {
+  return timers_setInterval(delay, value, { ...options, signal: abortSignals.getSignal(options?.signal) });
 }
