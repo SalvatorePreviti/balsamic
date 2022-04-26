@@ -169,7 +169,6 @@ function isAborted(signal?: MaybeSignal | { aborted?: boolean }): boolean {
 
 /**
  * If the signal was aborted, throws an AbortError. If not, does nothing.
- * Prefer rejectIfAborted to throwIfAborted until throwIfAborted is not implemented in AbortSignal in the next node versions.
  */
 async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
   signal = abortSignals.getSignal(signal);
@@ -181,7 +180,6 @@ async function rejectIfAborted(signal?: MaybeSignal): Promise<void> {
 
 /**
  * This implementation of throwIfAborted is far from perfect since it loses the stack trace of the abort call.
- * Prefer rejectIfAborted to throwIfAborted until throwIfAborted is not implemented in AbortSignal in the next node versions.
  */
 function throwIfAborted(signal?: MaybeSignal): void | never {
   signal = abortSignals.getSignal(signal);

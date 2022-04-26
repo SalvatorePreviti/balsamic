@@ -94,6 +94,7 @@ export class ServicesRunner implements AbortController {
     this.awaitAll = this.awaitAll.bind(this);
     this.run = this.run.bind(this);
     this.rejectIfAborted = this.rejectIfAborted.bind(this);
+    this.throwIfAborted = this.throwIfAborted.bind(this);
     this.getAbortReason = this.getAbortReason.bind(this);
     this.abort = this.abort.bind(this);
     this.setTimeout = this.setTimeout.bind(this);
@@ -107,11 +108,12 @@ export class ServicesRunner implements AbortController {
     return this.abortController.signal;
   }
 
-  /** If the signal was aborted, throws an AbortError. If not, does nothing. */
+  /** If the signal was aborted, returns a promise that rejects to an AbortError. If not, does nothing. */
   public rejectIfAborted(): Promise<void> {
     return abortSignals.rejectIfAborted(this.signal);
   }
 
+  /** If the signal was aborted,throws an AbortError. If not, does nothing. */
   public throwIfAborted(): void {
     return abortSignals.throwIfAborted(this.signal);
   }
@@ -217,7 +219,7 @@ export class ServicesRunner implements AbortController {
 
         if (typeof fnOrPromise === "function") {
           if (this.aborted) {
-            await this.rejectIfAborted();
+            this.throwIfAborted();
           }
 
           const fn = fnOrPromise;
@@ -354,7 +356,7 @@ export class ServicesRunner implements AbortController {
         throw reason;
       }
 
-      await this.rejectIfAborted();
+      this.throwIfAborted();
     }
   }
 
@@ -383,7 +385,7 @@ export class ServicesRunner implements AbortController {
           if (reason instanceof Error) {
             throw reason;
           }
-          await this.rejectIfAborted();
+          this.throwIfAborted();
         }
         const result = await (typeof callback === "function" ? callback() : callback);
         await this.awaitAll(options);

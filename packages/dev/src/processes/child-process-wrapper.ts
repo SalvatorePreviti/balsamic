@@ -200,7 +200,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       updateErrorProperties(e);
     };
 
+    let removeAbortRegistration = noop;
+
     const onClose = () => {
+      removeAbortRegistration();
+
       if (exited) {
         return;
       }
@@ -247,15 +251,18 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     const self = this;
 
     function onError(e: Error) {
+      removeAbortRegistration();
       if (!exited) {
         setError(e);
         if (!childProcess.pid) {
           onClose();
-        } else if (
-          AbortError.isAbortError(e) &&
-          !self.processTerminated &&
-          (killChildren || !self.#childProcess.killed)
-        ) {
+          return;
+        }
+
+        if (AbortError.isAbortError(e) && !self.processTerminated && (killChildren || !self.#childProcess.killed)) {
+          if (killChildren) {
+            self.killChildren();
+          }
           self.kill();
         }
       }
@@ -267,11 +274,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     if (!exited) {
       if (abortSignal !== undefined) {
         if (abortSignals.isAborted(abortSignal)) {
-          abortSignals.rejectIfAborted(abortSignal).catch(onError);
+          onError(new AbortError());
         } else {
-          abortSignals.addAbortHandler(abortSignal, () => {
-            abortSignals.rejectIfAborted(abortSignal).catch(onError);
-          });
+          const abort = () => {
+            onError(new AbortError());
+          };
+          removeAbortRegistration = abortSignals.addAbortHandler(abortSignal, abort);
         }
       }
 
@@ -421,7 +429,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * returns `true` if [`kill(2)`](http://man7.org/linux/man-pages/man2/kill.2.html) succeeds, and `false` otherwise.
    */
   public kill(signal?: NodeJS.Signals | number | undefined, options?: { killChildren?: boolean }): boolean {
-    if (this.processTerminated) {
+    if (!this.pid) {
       return false;
     }
     const killChildren = options?.killChildren ?? this.#killChildren;

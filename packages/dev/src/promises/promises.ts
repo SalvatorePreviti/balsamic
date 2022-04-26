@@ -7,7 +7,7 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
     if (typeof p === "function") {
       const signal = abortSignals.getSignal();
       if (signal && signal.aborted) {
-        await abortSignals.rejectIfAborted(signal);
+        abortSignals.throwIfAborted(signal);
       }
       p = p();
     }
@@ -37,7 +37,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
       if (typeof p === "function") {
         const signal = abortSignals.getSignal();
         if (signal && signal.aborted) {
-          await abortSignals.rejectIfAborted(signal);
+          abortSignals.throwIfAborted(signal);
         }
         p = error === undefined && p();
       }
