@@ -18,10 +18,10 @@ export namespace ChangeWatcherLogic {
     filesChangedDuringBuildDebounceTimer?: number;
     loggingEnabled?: boolean;
 
-    onBuild: (error: Error | null) => void | Promise<void>;
+    onBuild?: (error: Error | null) => void | Promise<unknown>;
   }
 
-  export type BuildFunction = (this: ChangeWatcherLogic) => void | Promise<void>;
+  export type BuildFunction = (this: ChangeWatcherLogic) => void | Promise<unknown>;
 }
 
 export class ChangeWatcherLogic {
@@ -42,8 +42,8 @@ export class ChangeWatcherLogic {
   #closedDeferred: Deferred<void> | null = null;
   #fileChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   #filesChangedDuringBuild: boolean = false;
+  #onBuild: ((error: Error | null) => void | Promise<unknown>) | undefined;
   #runBuild: () => Promise<void>;
-  #onBuild: ((error: Error | null) => void | Promise<void>) | undefined;
 
   public buildFunction: ChangeWatcherLogic.BuildFunction;
 
