@@ -19,6 +19,7 @@ export namespace ChangeWatcherLogic {
     loggingEnabled?: boolean;
 
     onBuild?: (error: Error | null) => void | Promise<unknown>;
+    onClose?: () => void | Promise<unknown>;
   }
 
   export type BuildFunction = (this: ChangeWatcherLogic, buildRunner: ServicesRunner) => void | Promise<unknown>;
@@ -46,6 +47,7 @@ export class ChangeWatcherLogic {
   #fileChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   #filesChangedDuringBuild: boolean = false;
   #onBuild: ((error: Error | null) => void | Promise<unknown>) | undefined;
+  #onClose: (() => void | Promise<unknown>) | undefined;
   #runBuild: () => Promise<void>;
 
   public buildFunction: ChangeWatcherLogic.BuildFunction;
@@ -239,13 +241,18 @@ export class ChangeWatcherLogic {
         }
         devLog.logBlackBright(`* ${this.title} watcher stop.`);
         this.buildRunner.abort("Stop");
-        await Promise.allSettled([
+        this.#fileChanged = null;
+        const [onCloseResult] = await Promise.allSettled([
+          this.#onClose?.(),
           this.buildRunner.awaitAll({ awaitRun: true, rejectOnError: false }),
           this.#buildingPromise?.catch(noop),
         ]);
+        this.#fileChanged = null;
         this.#firstBuildDeferred.reject(new AbortError(`${this.title}: stopped`));
         this.#closedDeferred?.resolve();
-        this.#fileChanged = null;
+        if (onCloseResult.status === "rejected" && onCloseResult.reason instanceof Error) {
+          throw onCloseResult.reason;
+        }
       };
       this.#closePromise = doStop();
     }

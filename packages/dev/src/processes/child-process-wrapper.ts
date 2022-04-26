@@ -10,6 +10,7 @@ import { killProcessChildren } from "./lib/kill-process-children";
 import type { Deferred } from "../promises/deferred";
 import type { Abortable } from "events";
 import { NodeResolver } from "../modules/node-resolver";
+import { ServicesRunner } from "../promises/services-runner";
 
 const { defineProperty } = Reflect;
 
@@ -625,6 +626,10 @@ export class ChildProcessWrapper {
     options = { title: `npm ${command}`, ...options };
     return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
   }
+
+  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
+    await this.promise();
+  }
 }
 
 export class ChildProcessPromise<T = ChildProcessWrapper>
@@ -825,6 +830,10 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
       result.childProcessWrapper = reason.childProcessWrapper;
     }
     return result;
+  }
+
+  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
+    await this;
   }
 }
 
