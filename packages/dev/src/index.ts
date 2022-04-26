@@ -20,6 +20,8 @@ export * from "./promises/abort-signals";
 
 export * from "./promises/services-runner";
 
+export * from "./promises/change-watcher-logic";
+
 export * from "./dev-error";
 
 export * from "./dev-log";

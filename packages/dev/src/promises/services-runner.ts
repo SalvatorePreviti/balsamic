@@ -46,6 +46,10 @@ export namespace ServicesRunner {
     awaitRun?: boolean;
     rejectOnError?: boolean;
   }
+
+  export interface Service {
+    [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner): void | Promise<void>;
+  }
 }
 
 interface ServiceRunnerPendingEntry {
@@ -58,6 +62,17 @@ export class ServicesRunner implements AbortController {
 
   #pending: ServiceRunnerPendingEntry[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
+
+  public static readonly serviceRunnerServiceSymbol: unique symbol = Symbol.for(ServicesRunner.name);
+
+  public static isServiceRunnerService(value: unknown): value is ServicesRunner.Service {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      ServicesRunner.serviceRunnerServiceSymbol in value &&
+      typeof (value as ServicesRunner.Service)[ServicesRunner.serviceRunnerServiceSymbol] === "function"
+    );
+  }
 
   public static defaultRunOptions: ServicesRunner.RunOptions = {
     abortOnError: true,
@@ -173,7 +188,16 @@ export class ServicesRunner implements AbortController {
 
   public startService(
     title: string,
-    fnOrPromise: Promise<unknown> | (() => Promise<unknown> | void) | null | undefined | false,
+    fnOrPromise:
+      | Promise<unknown>
+      | Promise<ServicesRunner.Service>
+      | ((this: ServicesRunner) => Promise<unknown>)
+      | ((this: ServicesRunner) => unknown)
+      | ((this: ServicesRunner) => Promise<ServicesRunner.Service>)
+      | ((this: ServicesRunner) => ServicesRunner.Service)
+      | null
+      | undefined
+      | false,
     options?: ServicesRunner.ServiceOptions,
   ): boolean {
     if (!fnOrPromise) {
@@ -186,15 +210,28 @@ export class ServicesRunner implements AbortController {
       let error = null;
 
       try {
+        if (ServicesRunner.isServiceRunnerService(fnOrPromise)) {
+          const svc = fnOrPromise;
+          fnOrPromise = () => svc[ServicesRunner.serviceRunnerServiceSymbol](this);
+        }
+
         if (typeof fnOrPromise === "function") {
           if (this.aborted) {
             await this.rejectIfAborted();
           }
 
+          const fn = fnOrPromise;
+          const _runService = async () => {
+            const result = await fn.call(this);
+            return ServicesRunner.isServiceRunnerService(result)
+              ? result[ServicesRunner.serviceRunnerServiceSymbol](this)
+              : result;
+          };
+
           if (abortSignals.getSignal() !== this.signal) {
-            await abortSignals.withAbortSignal(this.signal, fnOrPromise);
+            await abortSignals.withAbortSignal(this.signal, _runService);
           } else {
-            await fnOrPromise();
+            await _runService();
           }
         } else {
           await fnOrPromise;

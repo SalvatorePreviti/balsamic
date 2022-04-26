@@ -180,7 +180,11 @@ devLog.logException = function logException(
       if (isOk) {
         devLog.info(message, err);
       } else if (options.abortErrorIsWarning ?? devLog.abortErrorIsWarning) {
-        devLog.warn(message, err);
+        if (err === "AbortError: The operation was aborted") {
+          devLog.warn(message);
+        } else {
+          devLog.warn(message, err);
+        }
       } else {
         devLog.error(message, err);
       }
