@@ -1,6 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { setImmediate } from "node:timers/promises";
-import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
 import { millisecondsToString, noop } from "../utils";
 import { AbortError } from "./abort-error";
@@ -336,6 +335,7 @@ function addAbortHandler(
  * If already aborted, the function will be called straight away.
  * The promise will be added to the signal with `signalAddPendingPromise`.
  * User is responsible to await for those promises with `signalAwaitPendingPromises`.
+ * Async errors will be ignored.
  *
  * @returns A function that when called removes the abort handler.
  * If the handler was not added, the function noop() will be returned.
@@ -362,7 +362,7 @@ function addAsyncAbortHandler(
   if (!ahandler) {
     ahandler = function asyncAbortHandler(this: AbortSignal, event: Event) {
       const result = (handler as Function).call(this, event);
-      if (typeof result === "object" && result !== null && typeof (result as Promise<unknown>).catch === "function") {
+      if (typeof result === "object" && result !== null && typeof (result as Promise<unknown>).then === "function") {
         abortSignals.signalAddPendingPromise(result);
       }
       return result;
@@ -376,6 +376,8 @@ function addAsyncAbortHandler(
 /**
  * Adds a pending promise to an AbortSignal.
  * You can await all pending promises with awaitSignalPendingPromises.
+ *
+ * Note: Errors may be ignored!
  *
  * @returns A function that if called removes the added pending promise.
  */
@@ -392,14 +394,8 @@ function signalAddPendingPromise(
   }
 
   let pendingPromises = _pendingPromisesBySignalMap.get(signal as AbortSignal);
-  if (!pendingPromises) {
-    pendingPromises = [promise];
-    _pendingPromisesBySignalMap.set(signal as AbortSignal, pendingPromises);
-  } else {
-    pendingPromises.push(promise);
-  }
 
-  return () => {
+  const removePendingPromise = () => {
     if (pendingPromises) {
       const index = pendingPromises.indexOf(promise);
       if (index >= 0) {
@@ -408,6 +404,17 @@ function signalAddPendingPromise(
       pendingPromises = undefined;
     }
   };
+
+  if (!pendingPromises) {
+    pendingPromises = [promise];
+    _pendingPromisesBySignalMap.set(signal as AbortSignal, pendingPromises);
+  } else {
+    pendingPromises.push(promise);
+  }
+
+  promise.then(removePendingPromise, removePendingPromise);
+
+  return removePendingPromise;
 }
 
 /**
@@ -435,24 +442,16 @@ function signalRemovePendingPromise(
 
 /**
  * If an AbortSignal has some registered pending promises to flush,
- * this function await for them all.
- * It await for all promises and throws the first error encountered, excluding AbortError.
+ * this function await for them all, without throwing on error.
  *
  * You can add a pending promise to an AbortSignal with addSignalPendingPromise
- * @param signal
- * @returns
  */
-async function signalAwaitPendingPromises(
-  signal?: MaybeSignal,
-  options?: { onError?: ((error: Error) => void) | null | undefined },
-): Promise<void> {
-  const onError = options?.onError;
+async function signalAwaitPendingPromises(signal?: MaybeSignal): Promise<void> {
   signal = abortSignals.getSignal(signal);
   const array = signal && _pendingPromisesBySignalMap.get(signal);
   if (!array) {
     return;
   }
-  let errorToThrow: Error | null = null;
   for (;;) {
     let item = array.pop();
     if (item === undefined) {
@@ -464,17 +463,7 @@ async function signalAwaitPendingPromises(
     }
     try {
       await item;
-    } catch (e) {
-      if (errorToThrow === null && !AbortError.isAbortError(e)) {
-        errorToThrow = devError(e);
-        await onError?.(errorToThrow);
-      } else if (onError) {
-        await onError?.(devError(e));
-      }
-    }
-  }
-  if (errorToThrow) {
-    throw errorToThrow;
+    } catch {}
   }
 }
 

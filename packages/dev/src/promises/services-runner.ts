@@ -42,6 +42,7 @@ export namespace ServicesRunner {
     onError?: ((error: Error, serviceName?: string | undefined) => void | Promise<void>) | null | undefined;
     abortOnError?: boolean;
     awaitRun?: boolean;
+    rejectOnError?: boolean;
   }
 }
 
@@ -151,6 +152,7 @@ export class ServicesRunner implements AbortController {
   /**
    * Adds a pending promise. You can await all pending promises with this.awaitAll.
    * You can wait all pending promises with this.awaitAll() or this,run().
+   * Errors will be ignored.
    * @returns a function that if called removes the promise from the pending promises.
    */
   public addPendingPromise(promise: Promise<unknown> | null | undefined | void): () => void {
@@ -261,13 +263,8 @@ export class ServicesRunner implements AbortController {
     }
 
     try {
-      abortSignals.signalAwaitPendingPromises(this.signal, options);
-    } catch (e) {
-      const error = devError(e);
-      if (!errorToThrow || (AbortError.isAbortError(errorToThrow) && !AbortError.isAbortError(error))) {
-        errorToThrow = error;
-      }
-    }
+      await abortSignals.signalAwaitPendingPromises(this.signal);
+    } catch {}
 
     if (options?.awaitRun) {
       for (;;) {
@@ -291,24 +288,30 @@ export class ServicesRunner implements AbortController {
           }
         }
       }
+
+      try {
+        await abortSignals.signalAwaitPendingPromises(this.signal);
+      } catch {}
     }
 
-    if (errorToThrow) {
-      if (AbortError.isAbortError(errorToThrow)) {
-        const reason = this.getAbortReason();
-        if (reason instanceof Error) {
-          throw reason;
+    if (options?.rejectOnError ?? true) {
+      if (errorToThrow) {
+        if (AbortError.isAbortError(errorToThrow)) {
+          const reason = this.getAbortReason();
+          if (reason instanceof Error) {
+            throw reason;
+          }
         }
+        throw errorToThrow;
       }
-      throw errorToThrow;
-    }
 
-    const reason = this.getAbortReason();
-    if (reason instanceof Error) {
-      throw reason;
-    }
+      const reason = this.getAbortReason();
+      if (reason instanceof Error) {
+        throw reason;
+      }
 
-    return this.rejectIfAborted();
+      await this.rejectIfAborted();
+    }
   }
 
   /**
