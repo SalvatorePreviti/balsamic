@@ -3,6 +3,7 @@ import { devLog, DevLogTimeOptions } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
 import { noop } from "../utils";
 import { AbortError } from "./abort-error";
+import { abortSignals } from "./abort-signals";
 import { Deferred } from "./deferred";
 import { ServicesRunner } from "./services-runner";
 
@@ -11,6 +12,7 @@ export namespace ChangeWatcherLogic {
     title: string;
     timed?: boolean;
     buildRunner?: ServicesRunner | ServicesRunner.Options | null;
+    signal?: AbortSignal | undefined | null;
 
     devLogTimedOptions?: DevLogTimeOptions;
     initialDebounceTimer?: number;
@@ -48,6 +50,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   #filesChangedDuringBuild: boolean = false;
   #onBuild: ((error: Error | null) => void | Promise<unknown>) | undefined;
   #onClose: (() => void | Promise<unknown>) | undefined;
+  #removeInitialSignalHandler = noop;
   #runBuild: () => Promise<void>;
 
   public buildFunction: ChangeWatcherLogic.BuildFunction;
@@ -64,6 +67,17 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
       this.devLogTimedOptions.timed = false;
     }
     this.#onBuild = options.onBuild;
+    this.#onClose = options.onClose;
+
+    this.close = this.close.bind(this);
+    this.notify = this.notify.bind(this);
+    this.awaitFirstBuild = this.awaitFirstBuild.bind(this);
+    this.awaitClosed = this.awaitClosed.bind(this);
+    this.startFirstBuild = this.startFirstBuild.bind(this);
+
+    this.#removeInitialSignalHandler = abortSignals.addAbortHandler(options.signal, () => {
+      this.close();
+    });
 
     this.buildFunction = buildFunction;
     if (typeof buildFunction !== "function") {
@@ -235,6 +249,8 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   public close(): Promise<void> {
     if (!this.#closePromise) {
       const doStop = async () => {
+        this.#removeInitialSignalHandler();
+        this.#removeInitialSignalHandler = noop;
         if (this.#fileChangeDebounceTimer) {
           clearTimeout(this.#fileChangeDebounceTimer);
           this.#fileChangeDebounceTimer = null;
