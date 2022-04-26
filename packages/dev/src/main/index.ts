@@ -179,11 +179,11 @@ export namespace devRunMain {
       process.exit(code);
     };
 
-    if (milliseconds > 250) {
+    if (milliseconds > 500) {
       setTimeout(() => {
         devLog.warn();
         devLog.warn("terminating...");
-      }, 125);
+      }, 350).unref();
     }
 
     const start = () => setTimeout(processExitTimeoutReached, milliseconds).unref();
