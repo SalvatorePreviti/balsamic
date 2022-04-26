@@ -36,6 +36,9 @@ export namespace ServicesRunner {
     registerProcessTermination?: boolean;
 
     abortOnError?: boolean;
+
+    /** If not undefined, the abort controller will be aborted with the given reason on end.  */
+    abortThenReason?: unknown;
   }
 
   export interface AwaitAllOptions {
@@ -340,6 +343,9 @@ export class ServicesRunner implements AbortController {
         }
         const result = await (typeof callback === "function" ? callback() : callback);
         await this.awaitAll(options);
+        if (options?.abortThenReason !== undefined && !this.aborted) {
+          this.abort(options.abortThenReason);
+        }
         return result;
       } catch (e) {
         if (AbortError.isAbortError(e)) {
