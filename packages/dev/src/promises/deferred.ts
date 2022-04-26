@@ -21,7 +21,7 @@ export class Deferred<T = void> {
   public reject: (error: unknown) => void;
   private _unhandledRejectionIgnored?: true;
 
-  public constructor() {
+  public constructor(fn?: (this: Deferred<T>, resolve: (value: T) => void, reject: (error: unknown) => void) => void) {
     this.promise = new Promise<T>((_resolve, _reject) => {
       const resolve = (value: any) => {
         if (this.status === "pending") {
@@ -38,6 +38,7 @@ export class Deferred<T = void> {
       };
       this.resolve = resolve as any;
       this.reject = reject;
+      fn?.call(this, resolve, reject);
     });
   }
 

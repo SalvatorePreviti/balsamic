@@ -32,4 +32,6 @@ export * from "./processes/dev-child-task";
 
 export * from "./modules";
 
+export * from "./net/net";
+
 export * from "./main";

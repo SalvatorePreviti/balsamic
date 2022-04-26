@@ -4,6 +4,7 @@ import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
 import { millisecondsToString } from "../utils";
+import { mainProcessRef } from "./main-process-ref";
 
 /** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */
 export function isMainModule(
@@ -113,35 +114,34 @@ export function devRunMain<T = unknown>(
 
     const onTerminated = (ret: T | Error) => {
       if (options) {
-        if (typeof options.onTerminated === "function") {
-          options.onTerminated(ret);
-        }
         if (options?.processExitTimeout) {
           devRunMain.processExitTimeout(options?.processExitTimeout);
+        }
+        if (typeof options.onTerminated === "function") {
+          options.onTerminated(ret);
         }
       }
     };
 
     if (typeof result === "object" && result !== null && typeof result.then === "function") {
       const devRunMainPromise = async (ret: any) => {
-        // Keeps NodeJS running while the promise is running.
-        let eternal: ReturnType<typeof setTimeout>;
-        const startEternal = (): ReturnType<typeof setTimeout> => (eternal = setTimeout(startEternal, 2147483647));
-        eternal = startEternal();
-
+        const unref = mainProcessRef();
         try {
           try {
             ret = await ret;
+          } catch (error) {
+            ret = error;
+          }
+          try {
             if (ret instanceof Error) {
               ret = devRunMainError(result);
             }
-          } catch (error) {
-            ret = devRunMainError(error);
+          } finally {
+            onTerminated(ret);
           }
-          onTerminated(ret);
           return ret;
         } finally {
-          clearTimeout(eternal);
+          unref();
         }
       };
 
