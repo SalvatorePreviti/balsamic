@@ -59,16 +59,21 @@ export class ServicesRunner implements AbortController {
   #pending: ServiceRunnerPendingEntry[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
 
+  public static defaultRunOptions: ServicesRunner.RunOptions = {
+    abortOnError: true,
+    abortWhenFinished: true,
+  };
+
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
-  public defaultRunOptions: ServicesRunner.RunOptions = {};
+  public defaultRunOptions: ServicesRunner.RunOptions;
 
   public constructor(options: ServicesRunner.Options = {}) {
     this.abortController = options.abortController || new AbortController();
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-    this.defaultRunOptions = { ...options.runOptions };
+    this.defaultRunOptions = { ...ServicesRunner.defaultRunOptions, ...options.runOptions };
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
