@@ -134,7 +134,7 @@ export function devRunMain<T = unknown>(
           }
           try {
             if (ret instanceof Error) {
-              ret = devRunMainError(result);
+              ret = devRunMainError(ret);
             }
           } finally {
             onTerminated(ret);
