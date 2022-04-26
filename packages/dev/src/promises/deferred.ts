@@ -8,7 +8,7 @@ export namespace Deferred {
   export interface Options {}
 }
 
-export class Deferred<T> {
+export class Deferred<T = void> {
   public static readonly STATUS_PENDING = "pending" as const;
   public static readonly STATUS_SUCCEEDED = "succeeded" as const;
   public static readonly STATUS_REJECTED = "rejected" as const;

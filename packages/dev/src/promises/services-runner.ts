@@ -61,7 +61,7 @@ export class ServicesRunner implements AbortController {
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
 
-  public constructor(options: ServicesRunner.Options) {
+  public constructor(options: ServicesRunner.Options = {}) {
     this.abortController = options.abortController || new AbortController();
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;

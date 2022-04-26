@@ -171,9 +171,6 @@ export namespace devRunMain {
     milliseconds: number = 5100,
     exitCode: number = 2,
   ): { cancel(): void; restart(): void } {
-    devLog.warn();
-    devLog.warn("termination...");
-
     const processExitTimeoutReached = () => {
       devLog.error();
       const code = process.exitCode || exitCode || 2;
@@ -181,6 +178,13 @@ export namespace devRunMain {
       // eslint-disable-next-line no-process-exit
       process.exit(code);
     };
+
+    if (milliseconds > 250) {
+      setTimeout(() => {
+        devLog.warn();
+        devLog.warn("terminating...");
+      }, 125);
+    }
 
     const start = () => setTimeout(processExitTimeoutReached, milliseconds).unref();
 
