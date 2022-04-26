@@ -12,9 +12,7 @@ export namespace ServicesRunner {
     abortController?: AbortController;
     abortOnServiceTermination?: boolean;
     abortOnServiceError?: boolean;
-
-    /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
-    registerProcessTerminationDuringRun?: boolean;
+    runOptions?: ServicesRunner.RunOptions;
   }
 
   export interface ServiceOptions {
@@ -35,10 +33,11 @@ export namespace ServicesRunner {
     /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
     registerProcessTermination?: boolean;
 
+    /** Default to true */
     abortOnError?: boolean;
 
-    /** If not undefined, the abort controller will be aborted with the given reason on end.  */
-    abortThenReason?: unknown;
+    /** Default to true */
+    abortWhenFinished?: boolean;
   }
 
   export interface AwaitAllOptions {
@@ -59,17 +58,17 @@ export class ServicesRunner implements AbortController {
 
   #pending: ServiceRunnerPendingEntry[] = [];
   #activeRunPromises: Promise<unknown>[] = [];
-  #registerProcessTerminationDuringRun: boolean | undefined;
 
   public abortOnServiceTermination: boolean;
   public abortOnServiceError: boolean;
+  public defaultRunOptions: ServicesRunner.RunOptions = {};
 
   public constructor(options: ServicesRunner.Options = {}) {
     this.abortController = options.abortController || new AbortController();
 
     this.abortOnServiceTermination = options.abortOnServiceTermination ?? true;
     this.abortOnServiceError = options.abortOnServiceError ?? true;
-    this.#registerProcessTerminationDuringRun = options.registerProcessTerminationDuringRun;
+    this.defaultRunOptions = { ...options.runOptions };
 
     this.startService = this.startService.bind(this);
     this.awaitAll = this.awaitAll.bind(this);
@@ -320,16 +319,19 @@ export class ServicesRunner implements AbortController {
   /**
    * Runs a function with this abort controller as shared abort controller.
    */
-  public async run<T>(callback: (() => T | Promise<T>) | Promise<T>, options?: ServicesRunner.RunOptions): Promise<T> {
+  public async run<T>(
+    callback: (() => T | Promise<T>) | Promise<T>,
+    options: ServicesRunner.RunOptions = {},
+  ): Promise<T> {
+    options = { ...this.defaultRunOptions, ...options };
+
     let promise: Promise<T> | undefined;
     let error: null | Error = null;
 
     const run = async () => {
-      const abortOnError = options?.abortOnError ?? true;
+      const abortOnError = options.abortOnError ?? true;
       const terminationRegistered =
-        options?.registerProcessTermination ??
-        this.#registerProcessTerminationDuringRun ??
-        abortSignals.processTerminationOptions.registerProcessTerminationDuringRun
+        options.registerProcessTermination ?? abortSignals.processTerminationOptions.registerProcessTerminationDuringRun
           ? abortSignals.registerProcessTermination(this)
           : null;
 
@@ -343,8 +345,16 @@ export class ServicesRunner implements AbortController {
         }
         const result = await (typeof callback === "function" ? callback() : callback);
         await this.awaitAll(options);
-        if (options?.abortThenReason !== undefined && !this.aborted) {
-          this.abort(options.abortThenReason);
+        if (options.abortWhenFinished) {
+          const ok = new AbortError.AbortOk();
+          this.abort(ok);
+          try {
+            await this.awaitAll(options);
+          } catch (e) {
+            if (e !== ok) {
+              throw devError(e);
+            }
+          }
         }
         return result;
       } catch (e) {
@@ -371,7 +381,7 @@ export class ServicesRunner implements AbortController {
         }
         throw error;
       } finally {
-        if (typeof options?.onFinally === "function") {
+        if (typeof options.onFinally === "function") {
           try {
             await options.onFinally(error);
           } catch {}
