@@ -96,6 +96,10 @@ export const abortSignals = {
      * Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during ServicesRunner.run function.
      */
     registerProcessTerminationDuringRun: false,
+
+    minimumNumberOfTimesASignelNeedsToBeRaisedToForceTermination: 1,
+
+    ignoreRepeatedSignalsTimeoutMilliseconds: 100,
   },
 };
 
@@ -468,7 +472,7 @@ async function signalAwaitPendingPromises(signal?: MaybeSignal): Promise<void> {
 }
 
 const _registeredAbortControllers: AbortController[] = [];
-const _signalsRaised = new Map<string, number>();
+const _signalsRaised = new Map<string, { counter: number; time: number }>();
 let _terminating: string | null = null;
 let _registrationsCount = 0;
 let _overriddenProcessExit: typeof process.exit | null = null;
@@ -485,22 +489,36 @@ function signalHandler(signal: NodeJS.Signals) {
     }
   }
 
-  const raisedCount = _signalsRaised.get(signal) || 0;
-  _signalsRaised.set(signal, raisedCount + 1);
+  const now = performance.now();
+  let state = _signalsRaised.get(signal);
+  if (!state) {
+    state = { counter: 0, time: now };
+    _signalsRaised.set(signal, state);
+  } else {
+    if (now - state.time < abortSignals.processTerminationOptions.ignoreRepeatedSignalsTimeoutMilliseconds) {
+      return; // Ignore, no enough time passed since the last signal
+    }
+    ++state.counter;
+    state.time = now;
+  }
 
   let delay = abortSignals.processTerminationOptions.processKillOnDoubleSignalsTimeout;
   if (!delay || !Number.isFinite(delay)) {
     delay = 0;
   }
 
-  const shouldTerminate = raisedCount > 0 && delay > 0 && !_terminating;
+  const shouldTerminate =
+    state.counter >=
+      abortSignals.processTerminationOptions.minimumNumberOfTimesASignelNeedsToBeRaisedToForceTermination &&
+    delay > 0 &&
+    !_terminating;
 
   if (abortSignals.processTerminationOptions.logSignals) {
     devLog.log();
     devLog.hr("red");
     let msg = `😵 ABORT: ${signal}`;
-    if (raisedCount > 0) {
-      msg += ` +${raisedCount}`;
+    if (state.counter > 0) {
+      msg += ` +${state.counter}`;
     }
     if (shouldTerminate) {
       msg += ` - process will be killed in ${millisecondsToString(delay)}`;
@@ -616,7 +634,7 @@ function processAbort(code: number | undefined = process.exitCode) {
   const error = code === 0 ? new AbortError.AbortOk("process.exit(0)") : new AbortError(`process.exit(${code}')`);
 
   if (!_signalsRaised.has("process_exit")) {
-    _signalsRaised.set("process_exit", 1);
+    _signalsRaised.set("process_exit", { counter: 0, time: 0 });
     if (abortSignals.processTerminationOptions.logProcessExitRequest) {
       devLog.logException("😵", error, { abortErrorIsWarning: false, showStack: true });
     }

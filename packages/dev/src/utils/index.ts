@@ -102,6 +102,8 @@ export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | b
 
 export const noop = () => {};
 
+export type noop = () => void;
+
 export const returnArg = <T>(arg: T): T => arg;
 
 export const returnArg1 = <T>(_: unknown, arg: T): T => arg;
