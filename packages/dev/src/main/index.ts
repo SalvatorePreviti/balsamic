@@ -124,16 +124,25 @@ export function devRunMain<T = unknown>(
 
     if (typeof result === "object" && result !== null && typeof result.then === "function") {
       const devRunMainPromise = async (ret: any) => {
+        // Keeps NodeJS running while the promise is running.
+        let eternal: ReturnType<typeof setTimeout>;
+        const startEternal = (): ReturnType<typeof setTimeout> => (eternal = setTimeout(startEternal, 2147483647));
+        eternal = startEternal();
+
         try {
-          ret = await ret;
-          if (ret instanceof Error) {
-            ret = devRunMainError(result);
+          try {
+            ret = await ret;
+            if (ret instanceof Error) {
+              ret = devRunMainError(result);
+            }
+          } catch (error) {
+            ret = devRunMainError(error);
           }
-        } catch (error) {
-          ret = devRunMainError(error);
+          onTerminated(ret);
+          return ret;
+        } finally {
+          clearTimeout(eternal);
         }
-        onTerminated(ret);
-        return ret;
       };
 
       return devRunMainPromise(result);
