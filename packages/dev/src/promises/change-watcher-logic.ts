@@ -25,7 +25,7 @@ export namespace ChangeWatcherLogic {
   export type BuildFunction = (this: ChangeWatcherLogic, buildRunner: ServicesRunner) => void | Promise<unknown>;
 }
 
-export class ChangeWatcherLogic {
+export class ChangeWatcherLogic implements ServicesRunner.Service {
   public buildRunner: ServicesRunner;
   public title: string;
 
@@ -259,8 +259,15 @@ export class ChangeWatcherLogic {
     return this.#closePromise;
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
-    await this.awaitFirstBuild();
-    await this.awaitClosed();
+  public async [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner) {
+    const removeAbortHandler = !this.closed && runner.addAbortHandler(this);
+    try {
+      await this.awaitFirstBuild();
+      await this.awaitClosed();
+    } finally {
+      if (removeAbortHandler) {
+        removeAbortHandler();
+      }
+    }
   }
 }

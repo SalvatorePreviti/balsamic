@@ -90,7 +90,7 @@ class ErroredChildProcess extends child_process.ChildProcess {
   }
 }
 
-export class ChildProcessWrapper {
+export class ChildProcessWrapper implements ServicesRunner.Service {
   public static defaultOptions: Omit<ChildProcessWrapper.Options, "title"> = {
     rejectOnAbort: true,
     rejectOnNonZeroStatusCode: true,
