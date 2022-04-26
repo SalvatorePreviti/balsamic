@@ -21,7 +21,7 @@ export namespace ChangeWatcherLogic {
     onBuild?: (error: Error | null) => void | Promise<unknown>;
   }
 
-  export type BuildFunction = (this: ChangeWatcherLogic) => void | Promise<unknown>;
+  export type BuildFunction = (this: ChangeWatcherLogic, buildRunner: ServicesRunner) => void | Promise<unknown>;
 }
 
 export class ChangeWatcherLogic {
@@ -32,6 +32,9 @@ export class ChangeWatcherLogic {
   public filesChangedDuringBuildDebounceTimer: number;
   public devLogTimedOptions: DevLogTimeOptions;
   public loggingEnabled: boolean;
+
+  /** A number that gets incremented each time a new build starts */
+  public buildCount: number = 0;
 
   #initialDebounceTimer: number;
   #building: boolean = false;
@@ -85,6 +88,7 @@ export class ChangeWatcherLogic {
           return;
         }
 
+        ++this.buildCount;
         this.#building = true;
         this.#filesChangedDuringBuild = false;
         this.#fileChanged = false;
@@ -95,7 +99,7 @@ export class ChangeWatcherLogic {
             devLog.timed(
               this.title,
               async () => {
-                await this.buildFunction();
+                await this.buildFunction(this.buildRunner);
                 this.#firstBuildDeferred.resolve();
               },
               { ...ChildProcessWrapper.defaultOptions, ...this.devLogTimedOptions },
