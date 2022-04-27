@@ -8,6 +8,7 @@ import { devLog } from "../dev-log";
 import { millisecondsToString, noop } from "../utils";
 import { AbortError } from "./abort-error";
 import type { TimerOptions } from "node:timers";
+import { devEnv } from "../dev-env";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
 const { defineProperty } = Reflect;
@@ -520,9 +521,10 @@ function signalHandler(signal: NodeJS.Signals) {
     !_terminating;
 
   if (abortSignals.processTerminationOptions.logSignals) {
+    const title = devEnv.getProcessTitle();
     devLog.log();
     devLog.hr("red");
-    let msg = `😵 ABORT: ${signal}`;
+    let msg = `😵 ABORT: ${title ? `${title}, ` : ""}${signal}`;
     if (state.counter > 0) {
       msg += ` +${state.counter}`;
     }
@@ -537,11 +539,12 @@ function signalHandler(signal: NodeJS.Signals) {
   if (shouldTerminate) {
     _unregisterHandlers(true);
     _terminating = signal;
+    const title = devEnv.getProcessTitle();
     global
       .setTimeout(() => {
         _unregisterHandlers(true);
         if (abortSignals.processTerminationOptions.logSignals) {
-          devLog.logRedBright(`💀 process.exit(1) due to ${signal}`);
+          devLog.logRedBright(`💀 ${title ? `${title}, ` : ""}process.exit(1) due to ${signal}`);
         }
         process.exit(1);
       }, delay)
@@ -557,9 +560,10 @@ function uncaughtExceptionHandler(error: Error) {
     }
   }
   if (abortSignals.processTerminationOptions.logUnhandledExceptions && !AbortError.isAbortError(error)) {
+    const title = devEnv.getProcessTitle();
     devLog.log();
     devLog.hr("red");
-    devLog.logException(`😵 ABORT: unhancled exception`, error);
+    devLog.logException(`😵 ABORT: ${title ? `${title}, ` : ""}unhancled exception`, error);
     devLog.hr("red");
     devLog.log();
   }
@@ -573,9 +577,10 @@ function unhandledRejectionHandler(error: Error) {
     }
   }
   if (abortSignals.processTerminationOptions.logUnhandledExceptions && !AbortError.isAbortError(error)) {
+    const title = devEnv.getProcessTitle();
     devLog.log();
     devLog.hr("red");
-    devLog.logException(`😵 ABORT: unhancled rejection`, error);
+    devLog.logException(`😵 ABORT: ${title ? `${title}, ` : ""}unhancled rejection`, error);
     devLog.hr("red");
     devLog.log();
   }
@@ -644,7 +649,8 @@ function processAbort(code: number | undefined = process.exitCode) {
   if (!_signalsRaised.has("process_exit")) {
     _signalsRaised.set("process_exit", { counter: 0, time: 0 });
     if (abortSignals.processTerminationOptions.logProcessExitRequest) {
-      devLog.logException("😵", error, { abortErrorIsWarning: false, showStack: true });
+      const title = devEnv.getProcessTitle();
+      devLog.logException(title ? `😵 ${title},` : "😵", error, { abortErrorIsWarning: false, showStack: true });
     }
   }
 
