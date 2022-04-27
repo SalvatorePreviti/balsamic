@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.1.82",
+  "version": "0.1.83",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,6 +25,9 @@
     "node": ">=16.0.0"
   },
   "type": "commonjs",
+  "scripts": {
+    "prepare": "rm -fr dist && npx tsc --project tsconfig-build.json"
+  },
   "dependencies": {
     "chalk": "^4.1.2",
     "tree-kill": "^1.2.2"
