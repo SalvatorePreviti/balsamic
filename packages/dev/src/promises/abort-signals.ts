@@ -9,6 +9,7 @@ import { millisecondsToString, noop } from "../utils";
 import { AbortError } from "./abort-error";
 import type { TimerOptions } from "node:timers";
 import { devEnv } from "../dev-env";
+import { performance } from "node:perf_hooks";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
 const { defineProperty } = Reflect;
@@ -21,11 +22,11 @@ export namespace abortSignals {
   export type AsyncAbortHandler = <R = unknown>(this: AbortSignal, event: Event) => Promise<R>;
 
   export interface HasAbortMethod {
-    abort(reason?: unknown): void;
+    abort(reason?: unknown | undefined): void;
   }
 
   export interface HasRejectMethod {
-    reject(reason?: unknown): void;
+    reject(reason?: unknown | undefined): void;
   }
 
   export interface HasDisposeMethod {
@@ -219,7 +220,11 @@ function abort(
     }
     if (reason !== undefined) {
       const signal = "signal" in abortController ? abortController.signal : undefined;
-      if (typeof signal === "object" && signal !== null && (signal as { reason?: unknown }).reason === undefined) {
+      if (
+        typeof signal === "object" &&
+        signal !== null &&
+        (signal as { reason?: unknown | undefined }).reason === undefined
+      ) {
         defineProperty(signal, "reason", {
           value: reason,
           configurable: true,
@@ -259,7 +264,7 @@ function getAbortReason<Reason = unknown>(signal?: MaybeSignal): Reason | undefi
   }
   signal = abortSignals.getSignal(signal);
   if (signal && signal.aborted) {
-    return (signal as { reason?: Reason }).reason;
+    return (signal as { reason?: Reason | undefined }).reason;
   }
   return undefined;
 }
@@ -328,7 +333,7 @@ function addAbortHandler(
     return noop;
   }
   if (signal.aborted) {
-    func.call(signal, new Event("abort"));
+    func.call(signal, new (global as unknown as { Event: { new (x: string): Event } }).Event("abort"));
     return noop;
   }
   signal.addEventListener("abort", func, _addAbortHandlerOptions);
@@ -692,7 +697,7 @@ function registerProcessTermination(abortController: AbortController) {
       _unregisterHandlers();
       return true;
     },
-    abort(reason?: unknown) {
+    abort(reason?: unknown | undefined) {
       return abortSignals.abort(abortController, reason);
     },
   };
@@ -713,7 +718,11 @@ function registerProcessTermination(abortController: AbortController) {
  * @param [delay=1] The number of milliseconds to wait before fulfilling the promise.
  * @param value A value with which the promise is fulfilled.
  */
-function setTimeout<T = void>(delay?: number, value?: T, options?: TimerOptions): Promise<T> {
+function setTimeout<T = void>(
+  delay?: number | undefined,
+  value?: T | undefined,
+  options?: TimerOptions | undefined,
+): Promise<T> {
   return timers_setTimeout(delay, value, { ...options, signal: abortSignals.getSignal(options?.signal) });
 }
 
@@ -735,6 +744,10 @@ function setTimeout<T = void>(delay?: number, value?: T, options?: TimerOptions)
  * console.log(Date.now());
  * ```
  */
-function setInterval<T = void>(delay?: number, value?: T, options?: TimerOptions): AsyncIterable<T> {
+function setInterval<T = void>(
+  delay?: number | undefined,
+  value?: T | undefined,
+  options?: TimerOptions | undefined,
+): AsyncIterable<T> {
   return timers_setInterval(delay, value, { ...options, signal: abortSignals.getSignal(options?.signal) });
 }

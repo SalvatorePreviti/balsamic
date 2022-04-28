@@ -94,7 +94,7 @@ export const endsWithSlash = (s: string): s is `${string}\\` => {
 
 /** Removes the final slash at the end of a path, if it was there. */
 export const removeTrailingSlash = (path: string): string =>
-  path.replace(WIN32_TRAIL_SEP_REGEX, "") || (startsWithSlash(path) ? path[0] : "");
+  path.replace(WIN32_TRAIL_SEP_REGEX, "") || (startsWithSlash(path) ? path[0] || "" : "");
 
 /** Appends the final slash at the end of a path, if it was not already there. */
 export const appendTrailingSlash = (path: string): string => {
@@ -185,7 +185,7 @@ export const absolutePathToFileURL = (path: string): URL => {
     throw new TypeError(`Invalid win32 path "${path}"`);
   }
   const hostname = match[1];
-  const pathname = match[2];
+  const pathname = match[2] || "";
   const url = new URL("file:///");
   url.pathname = _encodeWhitespace(pathname.replace(/%/g, "%25"));
   if (hostname && hostname !== "localhost") {

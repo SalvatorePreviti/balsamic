@@ -283,7 +283,7 @@ const jsRules = {
   "no-useless-rename": [1, { ignoreDestructuring: false, ignoreExport: false, ignoreImport: false }],
   "no-useless-return": 1,
   "no-var": 2,
-  "no-void": 2,
+  "no-void": [2, { allowAsStatement: true }],
   "no-whitespace-before-property": 0,
   "no-wrap-func": 0,
   "node/exports-style": [0, "module.exports"],

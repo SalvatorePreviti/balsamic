@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
@@ -13,12 +14,15 @@
     "emitDecoratorMetadata": false,
     "esModuleInterop": true,
     "experimentalDecorators": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
     "importHelpers": false,
     "importsNotUsedAsValues": "remove",
     "jsx": "react",
-    "lib": ["dom", "dom.iterable", "esnext", "webworker"],
-    "module": "esnext",
+    "lib": ["ESNext", "dom", "dom.iterable", "esnext", "webworker"],
+    "module": "ESNext",
     "moduleResolution": "node",
     "newLine": "lf",
     "noEmit": true,
@@ -44,7 +48,7 @@
     "stripInternal": true,
     "suppressExcessPropertyErrors": true,
     "suppressImplicitAnyIndexErrors": false,
-    "target": "ESNext",
+    "target": "es2021",
     "useDefineForClassFields": false
   },
   "compileOnSave": false,

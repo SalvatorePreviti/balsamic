@@ -3,10 +3,13 @@ import { devError } from "../dev-error";
 export class AbortError extends Error {
   public static code = "ABORT_ERR";
 
-  public serviceTitle?: string;
-  public isOk?: boolean;
+  public serviceTitle?: string | undefined;
+  public isOk?: boolean | undefined;
 
-  public constructor(message: string = "The operation was aborted", options?: Readonly<AbortError.Options>) {
+  public constructor(
+    message: string = "The operation was aborted",
+    options?: Readonly<AbortError.Options> | undefined,
+  ) {
     super(message, options);
 
     const caller = options?.caller;
@@ -36,13 +39,13 @@ AbortError.prototype.showStack = "once";
 
 export namespace AbortError {
   export interface Options extends ErrorOptions {
-    caller?: Function;
-    serviceTitle?: string;
-    isOk?: boolean;
+    caller?: Function | undefined;
+    serviceTitle?: string | undefined;
+    isOk?: boolean | undefined;
   }
 
   export class ServiceTerminatedError extends AbortError {
-    public constructor(message?: string, options?: Readonly<AbortError.Options>) {
+    public constructor(message?: string | undefined, options?: Readonly<AbortError.Options> | undefined) {
       if (!options || !options.caller) {
         options = { ...options, caller: new.target };
       }
@@ -59,7 +62,7 @@ export namespace AbortError {
   }
 
   export class AbortOk extends AbortError {
-    public constructor(message?: string, options?: Readonly<AbortError.Options>) {
+    public constructor(message?: string | undefined, options?: Readonly<AbortError.Options> | undefined) {
       let isOk = options && options.isOk;
       if (isOk === undefined) {
         isOk = true;

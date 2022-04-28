@@ -6,6 +6,7 @@ import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import type { ChalkFunction } from "chalk";
+import { performance } from "perf_hooks";
 import type { Deferred } from "../promises/deferred";
 
 export { ChalkFunction };
@@ -253,7 +254,7 @@ devLog.printProcessBanner = function printProcessBanner() {
 /** Developer debug log. Appends the line where this function was called. */
 devLog.dev = function (...args: unknown[]): void {
   const oldStackTraceLimit = Error.stackTraceLimit;
-  const err: { stack?: string } = {};
+  const err: { stack?: string | undefined } = {};
   Error.stackTraceLimit = 1;
   try {
     Error.captureStackTrace(err, devLog.dev);
@@ -355,7 +356,7 @@ devLog.initProcessTime = function () {
 };
 
 /** Prints an horizontal line */
-devLog.hr = function hr(color?: ChalkFunction | devLog.TermBasicColor, char = "⎯") {
+devLog.hr = function hr(color?: ChalkFunction | devLog.TermBasicColor | undefined, char = "⎯") {
   let columns = 10;
 
   if (devLog.colors.level < 1 || !process.stdout.isTTY) {
@@ -374,29 +375,29 @@ devLog.hr = function hr(color?: ChalkFunction | devLog.TermBasicColor, char = "�
 };
 
 export interface LogExceptionOptions {
-  showStack?: boolean | "once";
-  abortErrorIsWarning?: boolean;
+  showStack?: boolean | "once" | undefined;
+  abortErrorIsWarning?: boolean | undefined;
 }
 
 export interface DevLogTimeOptions extends LogExceptionOptions {
-  printStarted?: boolean;
-  logError?: boolean;
-  timed?: boolean;
-  elapsed?: number;
+  printStarted?: boolean | undefined;
+  logError?: boolean | undefined;
+  timed?: boolean | undefined;
+  elapsed?: number | undefined;
 }
 
 /** Prints how much time it takes to run something */
 async function timed<T>(
   title: string,
   fnOrPromise: (() => Promise<T> | T) | Promise<T> | T,
-  options?: DevLogTimeOptions,
+  options?: DevLogTimeOptions | undefined,
 ): Promise<Awaited<T>>;
 
 /** Prints how much time it takes to run something */
 async function timed<T>(
   title: string,
   fnOrPromise: null | undefined | (() => Promise<T> | T) | Promise<T> | T,
-  options?: DevLogTimeOptions,
+  options?: DevLogTimeOptions | undefined,
 ): Promise<null | undefined | T>;
 
 async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOptions = {}) {
@@ -455,7 +456,7 @@ export class DevLogTimed {
     return millisecondsToString(this.elapsed);
   }
 
-  public end(text?: string): void {
+  public end(text?: string | undefined): void {
     if (this.status !== "pending" && this.status !== "starting") {
       return;
     }
@@ -514,8 +515,8 @@ devLog.logOperationStart = function logOperationStart(
 devLog.logOperationSuccess = function logOperationSuccess(
   title: string,
   options: DevLogTimeOptions = { printStarted: true },
-  elapsed?: number,
-  text?: string,
+  elapsed?: number | undefined,
+  text?: string | undefined,
 ) {
   let { timed: isTimed, printStarted } = options;
   if (isTimed === undefined) {
@@ -541,7 +542,7 @@ devLog.logOperationError = function logOperationError(
   title: string,
   error: unknown,
   options: DevLogTimeOptions = { logError: true },
-  elapsed?: number,
+  elapsed?: number | undefined,
 ) {
   let { timed: isTimed, logError } = options;
   if (logError === undefined) {

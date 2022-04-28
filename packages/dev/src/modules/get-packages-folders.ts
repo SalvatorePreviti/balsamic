@@ -18,19 +18,19 @@ export interface PackagesFolderInput {
   path: string;
 
   /** True if this input entry should be included in the result. Default is false. */
-  include?: boolean;
+  include?: boolean | undefined;
 
   /** True if production dependencies has to be included. Default is true. */
-  dependencies?: boolean;
+  dependencies?: boolean | undefined;
 
   /** True if development dependencies has to be included. Default is false. */
-  devDependencies?: boolean;
+  devDependencies?: boolean | undefined;
 
   /** True if peer dependencies has to be included. Default is true. */
-  peerDependencies?: boolean;
+  peerDependencies?: boolean | undefined;
 
   /** True if optional dependencies has to be included. Default is true. */
-  optionalDependencies?: boolean;
+  optionalDependencies?: boolean | undefined;
 }
 
 export interface PackagesFoldersEntry {
@@ -44,7 +44,7 @@ export interface PackagesFoldersEntry {
   manifest: PackageJson;
 
   /** The directory of the module that has this module in its node_modules */
-  parent?: string;
+  parent?: string | undefined;
 }
 
 export interface PackagesFolderResult {
@@ -164,7 +164,7 @@ export function getPackagesFolders(
 
   while (queuePosition < queue.length) {
     while (queuePosition < queue.length) {
-      const entry = queue[queuePosition++];
+      const entry = queue[queuePosition++]!;
       enqueuePackage(entry.package, (packagesLevels.get(entry.parent) || 0) + 1);
     }
 

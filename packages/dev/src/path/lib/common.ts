@@ -19,13 +19,13 @@ export const isUNCPath = (win32Path: string): boolean => UNC_PATH_REGEX.test(win
 export const isGlob = (glob: string): boolean => {
   for (;;) {
     const match = GLOB_IS_REGEX.exec(glob);
-    if (!match) {
+    if (!match || match.length) {
       break;
     }
     if (match[2]) {
       return true;
     }
-    let i = match.index + match[0].length;
+    let i = match.index + match[0]!.length;
     const open = match[1];
     const close = open ? GLOB_MATCHING_CHARS[open] : null;
     if (open && close) {

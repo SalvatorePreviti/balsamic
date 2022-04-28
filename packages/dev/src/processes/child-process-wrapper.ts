@@ -2,7 +2,7 @@ import util from "util";
 import child_process from "child_process";
 import { devError } from "../dev-error";
 import { millisecondsToString, noop } from "../utils";
-import { InterfaceFromClass } from "../types";
+import type { InterfaceFromClass } from "../types";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
@@ -43,20 +43,20 @@ export type SpawnArg =
 export namespace ChildProcessWrapper {
   export interface Options extends DevLogTimeOptions {
     /** Initial elapsed time, defaults to 0 */
-    elapsed?: number;
+    elapsed?: number | undefined;
 
     /**
      * True if the promise will be rejected on AbortError.
      * If false, the promise will just succeed instead.
      * Default is true.
      */
-    rejectOnAbort?: boolean;
+    rejectOnAbort?: boolean | undefined;
 
     /**
      * True if the promise will be rejected if the statusCode is a non zero number.
      * Default is true.
      */
-    rejectOnNonZeroStatusCode?: boolean;
+    rejectOnNonZeroStatusCode?: boolean | undefined;
 
     /**
      * The signal value to be used when the spawned process will be killed by calling kill without parameters or by the abort signal.
@@ -67,9 +67,9 @@ export namespace ChildProcessWrapper {
     /**
      * If true, process children will be killed as well if an abort signal is received.
      */
-    killChildren?: boolean;
+    killChildren?: boolean | undefined;
 
-    title?: string;
+    title?: string | undefined;
   }
 
   export type ConstructorInput =
@@ -82,7 +82,7 @@ export namespace ChildProcessWrapper {
 
 class ErroredChildProcess extends child_process.ChildProcess {
   readonly _error: Error;
-  constructor(error?: unknown) {
+  constructor(error?: unknown | undefined) {
     super({ captureRejections: false });
     this._error = devError(error, new.target);
     defineProperty(this, "exitCode", { value: -1, configurable: true });
@@ -117,8 +117,8 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
   public constructor(
     input: ChildProcessWrapper.ConstructorInput,
-    options?: ChildProcessWrapper.Options | null,
-    abortSignal?: AbortSignal,
+    options?: ChildProcessWrapper.Options | undefined | null,
+    abortSignal?: AbortSignal | undefined,
   ) {
     this.#error = null;
     this.#exitCode = null;
@@ -185,7 +185,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       devError.setProperty(e, "process_exitCode", exitCode);
     };
 
-    const setError = (e?: Error) => {
+    const setError = (e?: Error | undefined) => {
       if (this.#error) {
         return;
       }
@@ -428,7 +428,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * The `subprocess.kill()` method sends a signal to the child process.
    * returns `true` if [`kill(2)`](http://man7.org/linux/man-pages/man2/kill.2.html) succeeds, and `false` otherwise.
    */
-  public kill(signal?: NodeJS.Signals | number | undefined, options?: { killChildren?: boolean }): boolean {
+  public kill(signal?: NodeJS.Signals | number | undefined, options?: { killChildren?: boolean | undefined }): boolean {
     if (!this.pid) {
       return false;
     }
@@ -570,7 +570,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Spawn a new process, redirect stdio and await for completion. */
-  public static spawn(command: string, inputArgs?: readonly SpawnArg[], options?: SpawnOptions | null) {
+  public static spawn(
+    command: string,
+    inputArgs?: readonly SpawnArg[] | undefined,
+    options?: SpawnOptions | null | undefined,
+  ) {
     const { args, opts, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, command, options);
     return new ChildProcessWrapper(
       () => {
@@ -582,7 +586,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Forks the node process that runs the given module, redirect stdio and await for completion. */
-  public static fork(moduleId: string, inputArgs?: readonly SpawnArg[], options?: ForkOptions | null) {
+  public static fork(moduleId: string, inputArgs?: readonly SpawnArg[] | undefined, options?: ForkOptions | null) {
     const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
     return new ChildProcessWrapper(
       () => {
@@ -598,7 +602,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     moduleId: string,
     executableId: string,
     inputArgs: readonly SpawnArg[] = [],
-    options?: ForkOptions,
+    options?: ForkOptions | undefined,
   ) {
     options = { ...options };
     if (typeof options.title !== "string") {
@@ -620,7 +624,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Executes npm run <command> [args] */
-  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
+  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
     options = { title: `npm run ${command}`, ...options };
     return ChildProcessWrapper.spawn(
       process.platform === "win32" ? "npm.cmd" : "npm",
@@ -630,7 +634,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Executes npm <command> [args] */
-  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions) {
+  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
     options = { title: `npm ${command}`, ...options };
     return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
   }
@@ -645,9 +649,11 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   implements InterfaceFromClass<ChildProcessWrapper>
 {
   #childProcessWrapper: ChildProcessWrapper | undefined;
-  #error?: Error;
+  #error?: Error | undefined;
 
-  public constructor(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) {
+  public constructor(
+    executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any | undefined) => void) => void,
+  ) {
     let wrapper: ChildProcessWrapper | undefined;
     let error: Error | undefined;
     super((resolve, reject) => {
@@ -769,15 +775,15 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     return this.childProcessWrapper.exitCode;
   }
 
-  public kill(signal?: number | NodeJS.Signals, options?: { killChildren?: boolean }): boolean {
+  public kill(signal?: number | NodeJS.Signals | undefined, options?: { killChildren?: boolean | undefined }): boolean {
     return this.childProcessWrapper.kill(signal, options);
   }
 
-  public killChildren(signal?: number | NodeJS.Signals): void {
+  public killChildren(signal?: number | NodeJS.Signals | undefined): void {
     return this.childProcessWrapper.killChildren(signal);
   }
 
-  public killChildrenAsync(signal?: number | NodeJS.Signals): Promise<boolean> {
+  public killChildrenAsync(signal?: number | NodeJS.Signals | undefined): Promise<boolean> {
     return this.childProcessWrapper.killChildrenAsync(signal);
   }
 
@@ -796,24 +802,24 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     };
   }
 
-  public then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+  public override then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): ChildProcessPromise<TResult1 | TResult2> {
     const result = super.then(onfulfilled, onrejected) as ChildProcessPromise<TResult1 | TResult2>;
     result.childProcessWrapper = this.childProcessWrapper;
     return result;
   }
 
-  public catch<TResult = never>(
-    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null,
+  public override catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
   ): ChildProcessPromise<T | TResult> {
     const result = super.catch(onrejected) as ChildProcessPromise<T | TResult>;
     result.childProcessWrapper = this.childProcessWrapper;
     return result;
   }
 
-  public finally(onfinally?: (() => void) | null): ChildProcessPromise<T> {
+  public override finally(onfinally?: (() => void) | null | undefined): ChildProcessPromise<T> {
     const result = super.finally(onfinally) as ChildProcessPromise<T>;
     result.childProcessWrapper = this.childProcessWrapper;
     return result;
@@ -830,7 +836,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
    * @param reason The reason the promise was rejected.
    * @returns A new rejected Promise.
    */
-  public static reject<T = never>(reason?: any): ChildProcessPromise<T> {
+  public static override reject<T = never>(reason?: any | undefined): ChildProcessPromise<T> {
     const result = new ChildProcessPromise<T>((_, reject) => {
       reject(reason);
     });

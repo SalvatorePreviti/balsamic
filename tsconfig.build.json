@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": false,
+    "importsNotUsedAsValues": "remove"
+  },
+  "buildOptions": {
+    "incremental": true
+  },
+  "references": [
+    { "@balsamic/dev": "./packages/dev/tsconfig.build.json" },
+    { "@balsamic/workspace": "./packages/workspace/tsconfig.build.json" }
+  ],
+  "exclude": ["**/node_modules", "**/dist", "**/test", "**/*.spec.ts", "**/*.test.ts"]
+}

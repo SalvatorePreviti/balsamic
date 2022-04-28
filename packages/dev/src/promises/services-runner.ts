@@ -9,16 +9,16 @@ const { defineProperty } = Reflect;
 
 export namespace ServicesRunner {
   export interface Options {
-    abortController?: AbortController;
-    abortOnServiceTermination?: boolean;
-    abortOnServiceError?: boolean;
-    runOptions?: ServicesRunner.RunOptions;
+    abortController?: AbortController | undefined;
+    abortOnServiceTermination?: boolean | undefined;
+    abortOnServiceError?: boolean | undefined;
+    runOptions?: ServicesRunner.RunOptions | undefined;
   }
 
   export interface ServiceOptions {
-    abortOnServiceError?: boolean;
-    abortOnServiceTermination?: boolean;
-    onTerminate?: (error: Error | null) => void | Promise<void>;
+    abortOnServiceError?: boolean | undefined;
+    abortOnServiceTermination?: boolean | undefined;
+    onTerminate?: ((error: Error | null) => void | Promise<void>) | undefined;
   }
 
   export interface RunOptions {
@@ -28,23 +28,23 @@ export namespace ServicesRunner {
       | undefined
       | false;
 
-    onFinally?: (error: Error | null) => void | Promise<void>;
+    onFinally?: ((error: Error | null) => void | Promise<void>) | undefined;
 
     /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
-    registerProcessTermination?: boolean;
+    registerProcessTermination?: boolean | undefined;
 
     /** Default to true */
-    abortOnError?: boolean;
+    abortOnError?: boolean | undefined;
 
     /** Default to true */
-    abortWhenFinished?: boolean;
+    abortWhenFinished?: boolean | undefined;
   }
 
   export interface AwaitAllOptions {
     onError?: ((error: Error, serviceName?: string | undefined) => void | Promise<void>) | null | undefined;
-    abortOnError?: boolean;
-    awaitRun?: boolean;
-    rejectOnError?: boolean;
+    abortOnError?: boolean | undefined;
+    awaitRun?: boolean | undefined;
+    rejectOnError?: boolean | undefined;
   }
 
   export interface Service {
@@ -104,7 +104,7 @@ export class ServicesRunner implements AbortController {
     return this.abortController.signal.aborted;
   }
 
-  public get signal(): AbortSignal & { reason?: any } {
+  public get signal(): AbortSignal & { reason?: any | undefined } {
     return this.abortController.signal;
   }
 
@@ -128,7 +128,7 @@ export class ServicesRunner implements AbortController {
     return abortSignals.abort(this.abortController, reason);
   }
 
-  public async setTimeout<R = void>(delay: number, value?: R): Promise<R> {
+  public async setTimeout<R = void>(delay: number, value?: R | undefined): Promise<R> {
     return setTimeout(delay, value, { signal: this.signal });
   }
 
@@ -200,7 +200,7 @@ export class ServicesRunner implements AbortController {
       | null
       | undefined
       | false,
-    options?: ServicesRunner.ServiceOptions,
+    options?: ServicesRunner.ServiceOptions | undefined,
   ): boolean {
     if (!fnOrPromise) {
       return false;
@@ -278,7 +278,7 @@ export class ServicesRunner implements AbortController {
    * Awaits all pending promises.
    * Throws the first error or the reject reason if an error or an AbortError.
    */
-  public async awaitAll(options?: ServicesRunner.AwaitAllOptions): Promise<void> {
+  public async awaitAll(options?: ServicesRunner.AwaitAllOptions | undefined): Promise<void> {
     const abortReason = this.getAbortReason();
     let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
     const abortOnError = options?.abortOnError ?? true;

@@ -1,3 +1,5 @@
+import { performance } from "node:perf_hooks";
+
 const { round, floor, ceil, min, log, abs } = Math;
 
 export const initialCwd = process.cwd();
@@ -58,7 +60,7 @@ export function utf8ByteLength(b: number | string | Buffer | Uint8Array | null |
 /** Gets a size in bytes in an human readable form. */
 export function prettySize(
   bytes: number | string | Buffer | Uint8Array | null | undefined,
-  options?: { appendBytes?: boolean },
+  options?: { appendBytes?: boolean | undefined } | undefined,
 ) {
   if (bytes === null || bytes === undefined) {
     bytes = 0;

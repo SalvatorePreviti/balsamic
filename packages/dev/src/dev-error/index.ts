@@ -31,11 +31,11 @@ export function devError<TError>(error: TError, caller: Function): TError extend
 export function devError<TError, TFields extends {}>(
   error: TError,
   fields: TFields,
-  caller?: Function,
+  caller?: Function | undefined | null,
 ): (TError extends Error ? TError : Error) & TFields;
 
 /** Fixes an error, the return value is always an Error instance */
-export function devError(error?: any, a?: any, b?: any) {
+export function devError(error?: any | undefined, a?: any | undefined, b?: any | undefined | null) {
   try {
     if (!(error instanceof Error)) {
       if (typeof error === "object" && error !== null) {
@@ -137,7 +137,7 @@ devError.ignoreProcessWarning = function ignoreProcessWarning(name: string, valu
       _ignoredWarnings = new Set();
       const _emitWarning = process.emitWarning;
 
-      const emitWarning = (warning: string | Error, a: any, b?: any): void => {
+      const emitWarning = (warning: string | Error, a: any, b?: any | undefined): void => {
         if (typeof a === "object" && a !== null) {
           a = { ...a, ctor: a.ctor || emitWarning };
           if (
@@ -176,7 +176,12 @@ devError.isProcessWarningIgnored = function isProcessWarningIgnored(name: string
   return _ignoredWarnings !== null && _ignoredWarnings.has(name);
 };
 
-devError.setProperty = function setProperty(error: Error, name: string, value: unknown, enumerable?: boolean): void {
+devError.setProperty = function setProperty(
+  error: Error,
+  name: string,
+  value: unknown,
+  enumerable?: boolean | undefined,
+): void {
   if (typeof error === "object" && error !== null) {
     if (enumerable === undefined) {
       if (
@@ -203,7 +208,12 @@ devError.setProperty = function setProperty(error: Error, name: string, value: u
   }
 };
 
-devError.addProperty = function addProperty(error: Error, name: string, value: unknown, enumerable?: boolean): boolean {
+devError.addProperty = function addProperty(
+  error: Error,
+  name: string,
+  value: unknown,
+  enumerable?: boolean | undefined,
+): boolean {
   if (!(name in error)) {
     devError.setProperty(error, name, value, enumerable);
     return true;
@@ -211,7 +221,7 @@ devError.addProperty = function addProperty(error: Error, name: string, value: u
   return false;
 };
 
-devError.addProperties = function addProperties(error: Error, obj: {}, enumerable?: boolean) {
+devError.addProperties = function addProperties(error: Error, obj: {}, enumerable?: boolean | undefined) {
   for (const [key, value] of Object.entries(obj)) {
     devError.addProperty(error, key, value, enumerable);
   }

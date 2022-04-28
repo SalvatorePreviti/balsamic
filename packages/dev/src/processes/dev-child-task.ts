@@ -1,4 +1,4 @@
-import child_process from "child_process";
+import type child_process from "node:child_process";
 import {
   ChildProcessWrapper,
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
@@ -35,8 +35,8 @@ export const devChildTask = {
 /** Spawn a new process, redirect stdio and await for completion. */
 function spawn(
   command: string,
-  inputArgs?: readonly devChildTask.SpawnArg[],
-  options?: devChildTask.SpawnOptions | null,
+  inputArgs?: readonly devChildTask.SpawnArg[] | undefined,
+  options?: devChildTask.SpawnOptions | null | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.spawn(command, inputArgs, options).promise();
 }
@@ -44,8 +44,8 @@ function spawn(
 /** Forks the node process that runs the given module, redirect stdio and await for completion. */
 function fork(
   moduleId: string,
-  inputArgs?: readonly devChildTask.SpawnArg[],
-  options?: devChildTask.ForkOptions | null,
+  inputArgs?: readonly devChildTask.SpawnArg[] | undefined,
+  options?: devChildTask.ForkOptions | null | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.fork(moduleId, inputArgs, options).promise();
 }
@@ -55,7 +55,7 @@ function runModuleBin(
   moduleId: string,
   executableId: string,
   inputArgs: readonly devChildTask.SpawnArg[] = [],
-  options?: devChildTask.ForkOptions,
+  options?: devChildTask.ForkOptions | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.runModuleBin(moduleId, executableId, inputArgs, options).promise();
 }
@@ -64,7 +64,7 @@ function runModuleBin(
 function npmRun(
   command: string,
   args: readonly devChildTask.SpawnArg[] = [],
-  options?: devChildTask.SpawnOptions,
+  options?: devChildTask.SpawnOptions | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.npmRun(command, args, options).promise();
 }
@@ -73,7 +73,7 @@ function npmRun(
 function npmCommand(
   command: string,
   args: readonly devChildTask.SpawnArg[] = [],
-  options?: devChildTask.SpawnOptions,
+  options?: devChildTask.SpawnOptions | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.npmCommand(command, args, options).promise();
 }

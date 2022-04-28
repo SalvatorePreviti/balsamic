@@ -2,7 +2,7 @@ import Module from "module";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { PackageJson } from "../types";
+import type { PackageJson } from "../types";
 import { toUTF8 } from "../utils";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
@@ -90,7 +90,7 @@ export abstract class NodeFsEntry {
   }
 
   /** Resolves the bin executable of the base package.json for this directory */
-  public resolvePackageBin(moduleId: string, executableId?: string): string | null {
+  public resolvePackageBin(moduleId: string, executableId?: string | undefined): string | null {
     const packageJson = moduleId ? this.resolvePackage(moduleId) : this.packageJson;
     if (packageJson) {
       const dir = packageJson.file.parentDirectory;
@@ -220,7 +220,7 @@ export class NodeDirectory extends NodeFsEntry {
   }
 
   /** Resolves a module package.json from this directory. Returns null if a package is not found. */
-  public resolvePackage(id: string): NodePackageJson | null {
+  public override resolvePackage(id: string): NodePackageJson | null {
     if (!id || id === "." || id === "./") {
       return this.packageJson;
     }
@@ -417,7 +417,7 @@ export class NodeResolver {
   /** Resolves the bin executable of a package */
   public resolvePackageBin(
     moduleId: string,
-    executableId?: string,
+    executableId?: string | undefined,
     cwd?: string | URL | null | undefined,
   ): string | null {
     const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory;

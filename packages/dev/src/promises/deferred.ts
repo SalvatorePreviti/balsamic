@@ -19,9 +19,11 @@ export class Deferred<T = void> {
   public promise: Promise<T>;
   public resolve: T extends undefined ? () => void : (value: T) => void;
   public reject: (error: unknown) => void;
-  private _unhandledRejectionIgnored?: true;
+  private _unhandledRejectionIgnored?: true | undefined;
 
-  public constructor(fn?: (this: Deferred<T>, resolve: (value: T) => void, reject: (error: unknown) => void) => void) {
+  public constructor(
+    fn?: ((this: Deferred<T>, resolve: (value: T) => void, reject: (error: unknown) => void) => void) | undefined,
+  ) {
     this.promise = new Promise<T>((_resolve, _reject) => {
       const resolve = (value: any) => {
         if (this.status === "pending") {

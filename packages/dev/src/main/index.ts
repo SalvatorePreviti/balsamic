@@ -12,9 +12,9 @@ export function isMainModule(
     | string
     | URL
     | Partial<Readonly<NodeModule>>
-    | { url?: string }
-    | { filename?: string }
-    | { href?: string }
+    | { url?: string | undefined }
+    | { filename?: string | undefined }
+    | { href?: string | undefined }
     | false
     | null
     | undefined,
@@ -31,15 +31,16 @@ export function isMainModule(
   if (typeof module !== "string" || !module.length) {
     return false;
   }
+  const argv1 = process.argv[1] || "";
   if (/^file:\/\//i.test(module)) {
-    if (process.argv[1] === module) {
+    if (argv1 === module) {
       return true;
     }
     try {
       module = path.resolve(fileURLToPath(module));
     } catch (_) {}
   }
-  const scriptPath = path.resolve(process.argv[1]);
+  const scriptPath = path.resolve(argv1);
   return module === scriptPath || stripExt(module) === scriptPath;
 }
 
@@ -51,20 +52,20 @@ function stripExt(name: string) {
 /** Top level run of functions and promises */
 export function devRunMain<T = unknown>(
   main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
-  processTitle?: string,
-  options?: devRunMain.Options<T>,
+  processTitle?: string | undefined,
+  options?: devRunMain.Options<T> | undefined,
 ): Promise<T | Error>;
 
 export function devRunMain<T extends null | false | undefined>(
   main: T,
-  processTitle?: string,
-  options?: devRunMain.Options<T>,
+  processTitle?: string | undefined,
+  options?: devRunMain.Options<T> | undefined,
 ): Promise<T>;
 
 export function devRunMain<T = unknown>(
   main: any,
-  processTitle?: string,
-  options?: devRunMain.Options<T>,
+  processTitle?: string | undefined,
+  options?: devRunMain.Options<T> | undefined,
 ): Promise<T | Error> {
   let handledError: Error | undefined;
 
@@ -166,7 +167,7 @@ export namespace devRunMain {
      * If non zero, invokes process.exit(2) after the specific time if the application does not terminate.
      * Useful to make a script terminate also if there are pending asynchronous operations.
      */
-    processExitTimeout?: number;
+    processExitTimeout?: number | undefined;
 
     /** Function to be executed at the end */
     onTerminated?(result: Error | T): void;

@@ -1,6 +1,7 @@
 import { mainProcessRef } from "../main/main-process-ref";
 import { Deferred } from "../promises/deferred";
 import net from "net";
+import { performance } from "perf_hooks";
 
 /** Returns true if the given network port can be used for listening */
 export function netTcpPortIsAvailable(port: number | string | undefined | null): Promise<boolean> {
@@ -21,9 +22,9 @@ export function netTcpPortIsAvailable(port: number | string | undefined | null):
 
 export namespace netTryConnect {
   export interface Options {
-    host?: string;
+    host?: string | undefined;
     port?: string | number | undefined | null;
-    timeout?: number;
+    timeout?: number | undefined;
   }
 
   export interface Result {

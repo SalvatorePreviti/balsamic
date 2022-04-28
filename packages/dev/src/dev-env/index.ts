@@ -57,7 +57,7 @@ hasColors.set = (value: number | boolean) => {
 };
 
 /** Loads .env file */
-function loadDotEnv(dotenvPath?: string | boolean): boolean {
+function loadDotEnv(dotenvPath?: string | boolean | undefined): boolean {
   try {
     if (dotenvPath === false) {
       return false;
@@ -76,7 +76,7 @@ function loadDotEnv(dotenvPath?: string | boolean): boolean {
     for (const line of fs.readFileSync(dotenvPath, "utf8").split(REGEX_NEWLINES_MATCH)) {
       const keyValueArr = line.match(REGEX_INI_KEY_VAL);
       if (keyValueArr !== null) {
-        const key = keyValueArr[1];
+        const key = keyValueArr[1]!;
         let val = (keyValueArr[2] || "").trim();
         const singleQuoted = val.startsWith("'") && val.endsWith("'");
         const doubleQuoted = val.startsWith('"') && val.endsWith('"');
@@ -110,7 +110,9 @@ function getProcessTitle() {
   return _processTitle;
 }
 
-const setProcessTitle = (value: string | { filename?: string; id?: string; path?: string }) => {
+const setProcessTitle = (
+  value: string | { filename?: string | undefined; id?: string | undefined; path?: string | undefined },
+) => {
   _processTitle = _extrapolateProcessTitle(value);
 };
 
@@ -132,7 +134,11 @@ getProcessTitle.set = function _setProcessTitle(value: string | { filename?: str
 };
 
 function _extrapolateProcessTitle(
-  value: string | { filename?: string; id?: string; path?: string } | null | undefined,
+  value:
+    | string
+    | { filename?: string | undefined; id?: string | undefined; path?: string | undefined }
+    | null
+    | undefined,
 ) {
   if (typeof value === "object" && value !== null) {
     let fname = value.filename;

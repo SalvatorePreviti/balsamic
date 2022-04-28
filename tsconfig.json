@@ -1,6 +1,22 @@
 {
   "extends": "./packages/eslint-config/tsconfig.json",
   "compilerOptions": {
-    "module": "CommonJS"
-  }
+    "noEmit": true,
+    "baseUrl": ".",
+    "module": "CommonJS",
+    "resolveJsonModule": true,
+    "importsNotUsedAsValues": "error",
+    "exactOptionalPropertyTypes": true,
+    "lib": ["ESNext"],
+    "target": "es2021",
+    "paths": {
+      "@balsamic/*": ["./packages/*/src", "./packages/*"]
+    }
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "swc": true,
+    "require": ["tsconfig-paths/register"]
+  },
+  "exclude": ["**/node_modules", "**/dist"]
 }

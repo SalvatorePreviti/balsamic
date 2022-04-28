@@ -9,9 +9,37 @@ export * from "./package-json";
 export * from "./tsconfig-json";
 
 declare global {
+  export interface Event {}
+
   export interface Error {
-    showStack?: boolean | "once";
-    [key: string]: unknown;
+    showStack?: boolean | "once" | undefined;
+    [key: string]: unknown | undefined;
+  }
+
+  export interface AddEventListenerOptions {
+    capture?: boolean | undefined;
+    once?: boolean | undefined;
+    passive?: boolean | undefined;
+  }
+
+  export interface AbortSignal {
+    readonly aborted: boolean;
+
+    addEventListener: (
+      type: "abort",
+      listener: (this: AbortSignal, event: any) => any,
+      options?: boolean | AddEventListenerOptions,
+    ) => void;
+
+    removeEventListener: (
+      type: "abort",
+      listener: (this: AbortSignal, event: any) => any,
+      options?: boolean | { capture?: boolean },
+    ) => void;
+
+    dispatchEvent: (event: any) => boolean;
+
+    onabort: null | ((this: AbortSignal, event: any) => void);
   }
 }
 

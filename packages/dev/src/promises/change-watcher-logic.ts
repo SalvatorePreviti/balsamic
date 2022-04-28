@@ -10,18 +10,18 @@ import { ServicesRunner } from "./services-runner";
 export namespace ChangeWatcherLogic {
   export interface Options {
     title: string;
-    timed?: boolean;
-    buildRunner?: ServicesRunner | ServicesRunner.Options | null;
+    timed?: boolean | undefined;
+    buildRunner?: ServicesRunner | ServicesRunner.Options | null | undefined;
     signal?: AbortSignal | undefined | null;
 
-    devLogTimedOptions?: DevLogTimeOptions;
-    initialDebounceTimer?: number;
-    defaultDebounceTimer?: number;
-    filesChangedDuringBuildDebounceTimer?: number;
-    loggingEnabled?: boolean;
+    devLogTimedOptions?: DevLogTimeOptions | undefined;
+    initialDebounceTimer?: number | undefined;
+    defaultDebounceTimer?: number | undefined;
+    filesChangedDuringBuildDebounceTimer?: number | undefined;
+    loggingEnabled?: boolean | undefined;
 
-    onBuild?: (error: Error | null) => void | Promise<unknown>;
-    onClose?: () => void | Promise<unknown>;
+    onBuild?: ((error: Error | null) => void | Promise<unknown>) | undefined;
+    onClose?: (() => void | Promise<unknown>) | undefined;
   }
 
   export type BuildFunction = (this: ChangeWatcherLogic, buildRunner: ServicesRunner) => void | Promise<unknown>;
@@ -183,7 +183,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   }
 
   /** Starts a first build. This function does nothing if called multiple times. */
-  public startFirstBuild(options?: { debounceTimer?: number }): boolean {
+  public startFirstBuild(options?: { debounceTimer?: number | undefined }): boolean {
     if (this.#fileChanged !== null || this.closed) {
       return false;
     }
@@ -193,7 +193,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   }
 
   /** Starts the first build and await for it. */
-  public firstBuild(options?: { debounceTimer?: number }): Promise<void> {
+  public firstBuild(options?: { debounceTimer?: number | undefined } | undefined): Promise<void> {
     this.startFirstBuild(options);
     return this.awaitFirstBuild();
   }
@@ -215,7 +215,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   }
 
   /** Notifies something changed and buildFunction need to execute again. */
-  public notify(options?: { debounceTimer?: number }) {
+  public notify(options?: { debounceTimer?: number | undefined } | undefined) {
     if (!this.#closePromise) {
       if (!this.#fileChanged && this.#fileChanged !== null) {
         devLog.info();
