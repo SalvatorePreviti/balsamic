@@ -7,6 +7,7 @@ import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
+import { plainObjects } from "../utils/plain-objects";
 
 const { isArray } = Array;
 const { keys: objectKeys, entries: objectEntries } = Object;
@@ -26,13 +27,7 @@ export class PackageJsonParseMessage {
 
   public toString(): string {
     const { severity, message, field } = this;
-    let result = severity || "error";
-    result += ": ";
-    if (field && !message.startsWith(field)) {
-      result += field;
-      result += ": ";
-    }
-    return result + message;
+    return `${severity.toUpperCase()}: ${field ? `[${field}] ${message}` : message}`;
   }
 }
 
@@ -94,15 +89,7 @@ export class PackageJsonParsed {
 
   private [private_WorkspacesSymbol]?: PackageJsonParsed[] | undefined = undefined;
 
-  public content: PackageJson.Sanitized = {
-    name: "",
-    version: "",
-    private: true,
-    dependencies: {},
-    devDependencies: {},
-    optionalDependencies: {},
-    peerDependencies: {},
-  };
+  public content: PackageJson.Sanitized = PackageJson.Sanitized.empty();
 
   protected constructor(filePath: string | undefined | null) {
     if (filePath !== undefined && filePath !== null) {
@@ -115,7 +102,7 @@ export class PackageJsonParsed {
 
   /** Returns a normalized, formatted, sorted, cleaned up package.json content, good to be written on disk. */
   public toJSON(): PackageJson {
-    const result = PackageJson.sortPackageJsonFields(_sanitize(this.content) as PackageJson);
+    const result = PackageJson.sortPackageJsonFields(PackageJson.sanitize(this.content) as PackageJson);
     for (const dep of PackageJson.dependencyFields) {
       const item = result[dep];
       if (item !== undefined && objectKeys(item).length === 0) {
@@ -202,6 +189,9 @@ export class PackageJsonParsed {
             this.informations.splice(this.informations.indexOf(found), 1);
             break;
           case "warning":
+            if (err.severity === "info") {
+              return;
+            }
             this.warnings.splice(this.informations.indexOf(found), 1);
             break;
           case "error":
@@ -225,14 +215,14 @@ export class PackageJsonParsed {
 
   public validateWorkspaceDependenciesVersions(): void {
     const deps = new Map<string, { pkg: PackageJsonParsed; version: string }>();
-
-    const workspaceNames = new Set<string>();
-    for (const workspace of this.workspaces) {
-      workspaceNames.add(workspace.content.name);
+    const workspaces = this.workspaces;
+    if (workspaces.length === 0) {
+      return;
     }
 
-    if (workspaceNames.size === 0) {
-      return;
+    const workspaceNames = new Set<string>();
+    for (const workspace of workspaces) {
+      workspaceNames.add(workspace.content.name);
     }
 
     const addDependency = (pkg: PackageJsonParsed, field: string, name: string, version: string) => {
@@ -262,7 +252,7 @@ export class PackageJsonParsed {
     }
 
     for (const field of ["dependencies", "devDependencies", "optionalDependencies"] as const) {
-      for (const workspace of this.workspaces) {
+      for (const workspace of workspaces) {
         for (const [name, version] of objectEntries(workspace.content[field])) {
           if (name && typeof name === "string" && version && typeof version === "string") {
             addDependency(workspace, field, name, version);
@@ -273,7 +263,7 @@ export class PackageJsonParsed {
 
     deps.clear();
 
-    for (const workspace of this.workspaces) {
+    for (const workspace of workspaces) {
       for (const [name, version] of objectEntries(workspace.content.peerDependencies)) {
         if (name && typeof name === "string" && version && typeof version === "string") {
           addDependency(workspace, "peerDependencies", name, version);
@@ -290,25 +280,6 @@ export class PackageJsonParsed {
       result.addValidationMessage("error", `${error}`);
     }
     return result;
-  }
-
-  public validationToString(): string {
-    let message = "";
-    const processFile = (item: PackageJsonParsed) => {
-      if (this.errors.length > 0 || item.warnings.length > 0) {
-        message += `${makePathRelative(item.filePath)} has ${item.errors.length > 0 ? "errors" : "warnings"}:\n`;
-        for (const error of item.errors) {
-          message += `    - ${error}\n`;
-        }
-        for (const warning of item.warnings) {
-          message += `    - ${warning}\n`;
-        }
-        message += "\n";
-      }
-    };
-    processFile(this);
-    this.workspaces.forEach(processFile);
-    return message;
   }
 
   public static readSync(packageJsonFilePath: string, options?: PackageJsonParsed.ReadOptions): PackageJsonParsed {
@@ -401,23 +372,11 @@ export class PackageJsonParsed {
     }
 
     if (!isReadable) {
-      content = {
-        name: "",
-        version: "",
-        private: true,
-        dependencies: {},
-        devDependencies: {},
-        optionalDependencies: {},
-        peerDependencies: {},
-      };
+      content = PackageJson.Sanitized.empty();
     } else {
       _packageJsonValidateSchema(packageJson, addError);
 
-      try {
-        content = JSON.parse(JSON.stringify(packageJson));
-      } catch {
-        content = { ...content };
-      }
+      content = plainObjects.deepClone(packageJson) as PackageJson.Sanitized;
 
       if (content.version === undefined) {
         addError(new PackageJsonParseMessage("error", "No version", "version"));
@@ -439,7 +398,7 @@ export class PackageJsonParsed {
 
     let readme: string;
     ({ content, packageNameAndVersion, readme } = _npmNormalizePackageJson(
-      _sanitize(content),
+      PackageJson.sanitize(content),
       isReadable && result.strict,
       addError,
     ));
@@ -450,7 +409,7 @@ export class PackageJsonParsed {
       const parent = path.basename(path.dirname(result.filePath));
       if (parent && path.dirname(parent) !== parent) {
         const base = path.basename(result.filePath);
-        content.name = parent.charAt(0) === "@" ? `${parent}/${base}` : base;
+        content.name = parent.startsWith("@") ? `${parent}/${base}` : base;
       }
     }
 
@@ -462,15 +421,32 @@ export class PackageJsonParsed {
     }
 
     result.content = content;
-
     if (isReadable && (options?.loadWorkspaces ?? true) && result.filePath) {
       result.workspaces = _loadWorskpcesSync(result.filePath, content, options);
       if (result.errors.length === 0 && options?.validateWorkspaceDependenciesVersions) {
         result.validateWorkspaceDependenciesVersions();
       }
     }
-
     return result;
+  }
+
+  public validationToString(): string {
+    let message = "";
+    const processFile = (item: PackageJsonParsed) => {
+      if (this.errors.length > 0 || item.warnings.length > 0) {
+        message += `${makePathRelative(item.filePath)} has ${item.errors.length > 0 ? "errors" : "warnings"}:\n`;
+        for (const error of item.errors) {
+          message += `    - ${error}\n`;
+        }
+        for (const warning of item.warnings) {
+          message += `    - ${warning}\n`;
+        }
+        message += "\n";
+      }
+    };
+    processFile(this);
+    this.workspaces.forEach(processFile);
+    return message;
   }
 }
 
@@ -627,19 +603,8 @@ function _npmNormalizePackageJson(
       delete normalizedContent.readme;
     }
 
-    if (normalizedContent.dependencies === undefined) {
-      normalizedContent.dependencies = {};
-    }
-
-    if (normalizedContent.devDependencies === undefined) {
-      normalizedContent.devDependencies = {};
-    }
-
-    if (normalizedContent.peerDependencies === undefined) {
-      normalizedContent.peerDependencies = {};
-    }
-    if (normalizedContent.optionalDependencies === undefined) {
-      normalizedContent.optionalDependencies = {};
+    for (const k of PackageJson.dependencyFields) {
+      normalizedContent[k] = normalizedContent[k] ?? {};
     }
 
     normalizedContent.private = isPrivate;
@@ -688,7 +653,6 @@ function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined) {
     case "No repository field":
       severity = "info";
       break;
-
     case "No README data":
       severity = "info";
       break;
@@ -751,47 +715,6 @@ function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
     useDefaults: true,
     coerceTypes: false,
   }).compile(packageJsonSchema) as ValidateFunction<PackageJson.Sanitized>;
-}
-
-function _sanitize(input: PackageJson): PackageJson.Sanitized {
-  const result = { ...input };
-
-  for (const key of ["name", "version", "description", "homepage", "license", "type", "main", "types", "module"]) {
-    if (result[key] !== undefined && typeof result[key] !== "string") {
-      delete result[key];
-    }
-  }
-
-  result.private = !!result.private;
-  if (result.flat && typeof result.flat !== "boolean") {
-    result.flat = !!result.flat;
-  }
-
-  if (result.dependencies === undefined) {
-    result.dependencies = {};
-  }
-
-  if (result.devDependencies === undefined) {
-    result.devDependencies = {};
-  }
-
-  if (result.peerDependencies === undefined) {
-    result.peerDependencies = {};
-  }
-  if (result.optionalDependencies === undefined) {
-    result.optionalDependencies = {};
-  }
-
-  result.name = result.name?.trim();
-  result.version = result.version?.trim();
-  if (!result.name) {
-    result.name = "";
-  }
-  if (!result.version) {
-    result.version = "0.0.0";
-  }
-
-  return result as PackageJson.Sanitized;
 }
 
 async function _loadWorskpcesAsync(
@@ -1001,13 +924,11 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
       pattern = pattern.slice(excl[0]?.length ?? 0);
     }
 
-    // strip off any / from the start of the pattern.  /foo => foo
-    pattern = pattern.replace(/^\/+/, "");
-
     // an odd number of ! means a negated pattern.  !!foo ==> foo
     const negate = !!(excl && excl[0]!.length % 2 === 1);
 
-    pattern = pattern.replace(/\\/g, "/");
+    // strip off any / from the start of the pattern.  /foo => foo
+    pattern = pattern.replace(/^\/+/, "").replace(/\\/g, "/");
     pattern = `${pattern.endsWith("/") ? pattern : `${pattern}/`}package.json`;
 
     results.push({ pattern, negate, index: index++ });

@@ -42,6 +42,9 @@ export namespace plainObjects {
     }
   }
 
+  export function deepClone<T>(value: T): T {
+    return _deepClone(new Map<unknown, unknown>(), value) as T;
+  }
   export function sortObjectKeys<T>(input: T, options?: sortObjectKeys.Options): T {
     return _sortObjectKeys(new Map<unknown, unknown>(), input, !!options?.sortArrays) as T;
   }
@@ -66,6 +69,24 @@ function _sortObjectKeys(processed: Map<unknown, unknown>, o: unknown, sortArray
   for (const key of objectKeys(o).sort()) {
     const value = (o as Record<string, unknown>)[key];
     result[key] = _sortObjectKeys(processed, value, sortArrays);
+  }
+  processed.set(o, result);
+  return result;
+}
+
+function _deepClone(processed: Map<unknown, unknown>, o: unknown) {
+  if (typeof o !== "object" || o === null) {
+    return o;
+  }
+  if (processed.has(o)) {
+    return processed.get(o);
+  }
+  if (isArray(o)) {
+    return o.slice();
+  }
+  const result: Record<string, unknown> = {};
+  for (const key of objectKeys(o)) {
+    result[key] = _deepClone(processed, (o as Record<string, unknown>)[key]);
   }
   processed.set(o, result);
   return result;

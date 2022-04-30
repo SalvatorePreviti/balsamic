@@ -385,6 +385,24 @@ export namespace PackageJson {
     devDependencies: Record<string, string>;
     peerDependencies: Record<string, string>;
     optionalDependencies: Record<string, string>;
+    bundledDependencies: string[];
+    bundleDependencies: undefined;
+  }
+
+  export namespace Sanitized {
+    export function empty(): Sanitized {
+      return {
+        name: "",
+        version: "",
+        private: true,
+        dependencies: {},
+        devDependencies: {},
+        optionalDependencies: {},
+        peerDependencies: {},
+        bundledDependencies: [],
+        bundleDependencies: undefined,
+      };
+    }
   }
 
   export const dependencyFields = [
@@ -647,5 +665,37 @@ export namespace PackageJson {
       name,
       subPath: slashIndex < 0 ? "." : path.posix.normalize(`.${specifier.slice(slashIndex)}`),
     };
+  }
+
+  export function sanitize(input: PackageJson): PackageJson.Sanitized {
+    const result = { ...input };
+
+    for (const key of ["name", "version", "description", "homepage", "license", "type", "main", "types", "module"]) {
+      if (result[key] !== undefined && typeof result[key] !== "string") {
+        delete result[key];
+      }
+    }
+
+    result.private = !!result.private;
+    if (result.flat && typeof result.flat !== "boolean") {
+      result.flat = !!result.flat;
+    }
+
+    for (const k of dependencyFields) {
+      if (result[k] === undefined) {
+        result[k] = {};
+      }
+    }
+
+    result.name = result.name?.trim();
+    result.version = result.version?.trim();
+    if (!result.name) {
+      result.name = "";
+    }
+    if (!result.version) {
+      result.version = "0.0.0";
+    }
+
+    return result as PackageJson.Sanitized;
   }
 }
