@@ -1,6 +1,5 @@
 import path from "node:path";
 import fs from "node:fs";
-import { builtinModules } from "node:module";
 import glob from "fast-glob";
 import Ajv, { ValidateFunction, ErrorObject } from "ajv";
 import normalizePackageData from "normalize-package-data";
@@ -8,7 +7,6 @@ import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
-import { plainObjects } from "../utils/plain-objects";
 
 const { isArray } = Array;
 const { keys: objectKeys, entries: objectEntries } = Object;
@@ -75,19 +73,6 @@ export namespace PackageJsonParsed {
       | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed | undefined)
       | undefined;
   }
-
-  export interface ParsedPackageName {
-    scope: string;
-    name: string;
-    subPath: string;
-  }
-
-  export interface PackageNameValidation {
-    status: "valid" | "valid-only-as-dependency" | "invalid";
-    message: string;
-    scope: string;
-    name: string;
-  }
 }
 
 const private_WorkspacesSymbol = Symbol.for("workspaces");
@@ -130,7 +115,7 @@ export class PackageJsonParsed {
 
   /** Returns a normalized, formatted, sorted, cleaned up package.json content, good to be written on disk. */
   public toJSON(): PackageJson {
-    const result = PackageJsonParsed.sortPackageJsonFields(_sanitize(this.content) as PackageJson);
+    const result = PackageJson.sortPackageJsonFields(_sanitize(this.content) as PackageJson);
     for (const dep of PackageJson.dependencyFields) {
       const item = result[dep];
       if (item !== undefined && objectKeys(item).length === 0) {
@@ -446,7 +431,7 @@ export class PackageJsonParsed {
         addError(new PackageJsonParseMessage("warning", "field private should be a boolean", "private"));
       }
 
-      const nameValidationResult = PackageJsonParsed.validatePackageName(content.name);
+      const nameValidationResult = PackageJson.validatePackageName(content.name);
       if (nameValidationResult.status !== "valid") {
         addError(new PackageJsonParseMessage("error", nameValidationResult.message, "name"));
       }
@@ -486,171 +471,6 @@ export class PackageJsonParsed {
     }
 
     return result;
-  }
-
-  public static validatePackageName(packageName: unknown): PackageJsonParsed.PackageNameValidation {
-    let scope = "";
-    let name = "";
-    if (typeof packageName !== "string") {
-      return {
-        status: "invalid",
-        message: `package name cannot be ${
-          !packageName ? `${packageName}` : isArray(packageName) ? "an array" : `a ${typeof packageName}`
-        }`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-    if (packageName.length === 0) {
-      return { status: "invalid", message: "package name cannot be empty", scope, name, subPath: "" };
-    }
-    if (packageName.length === 1) {
-      return { status: "invalid", message: "package name must have more than one character", scope, name, subPath: "" };
-    }
-    if (packageName.length > 214) {
-      return {
-        status: "invalid",
-        message: `package name cannot be longer than 214 character`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-    if (packageName.startsWith(".") || packageName.startsWith("_")) {
-      return {
-        status: "invalid",
-        message: `package name cannot start with a "${packageName[0]}"`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-    if (packageName.startsWith("node:")) {
-      return { status: "invalid", message: `package name cannot start with a "node:"`, scope, name, subPath: "" };
-    }
-    if (packageName.trim() !== packageName) {
-      return {
-        status: "invalid",
-        message: `package name must not contains spaces before or after`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-    if (encodeURIComponent(packageName) !== packageName) {
-      // Maybe it's a scoped package name, like @user/package
-      const nameMatch = packageName.match(/^(?:@([^/]+?)[/};?([^/]+?)$/);
-      if (nameMatch) {
-        scope = nameMatch[1] || "";
-        name = nameMatch[2] || "";
-        if (encodeURIComponent(scope) !== scope && encodeURIComponent(name) !== name) {
-          return { status: "invalid", message: `package name cannot contain ("~\\'!()*")`, scope, name, subPath: "" };
-        }
-      }
-    }
-
-    if (packageName.toLowerCase() !== packageName) {
-      return {
-        status: "valid-only-as-dependency",
-        message: `package name cannot contain capital letters`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-    if (/[~'!()*\\]/.test(packageName.split("/").slice(-1)[0] || "")) {
-      return {
-        status: "valid-only-as-dependency",
-        message: `package name cannot contain ("~\\'!()*")`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-
-    if (builtinModules.indexOf(packageName) >= 0) {
-      return {
-        status: "valid-only-as-dependency",
-        message: `package name cannot be a node native module`,
-        scope,
-        name,
-        subPath: "",
-      };
-    }
-
-    return { status: "valid", message: "", scope, name, subPath: "" };
-  }
-
-  /** Parses a node package path. Example hello/subpath or @xxx/hello/subpath */
-  public static parseNodePackageName = (specifier: string): PackageJsonParsed.ParsedPackageName | null => {
-    const first = specifier.charCodeAt(0);
-    if (!first) {
-      return null;
-    }
-    let slashIndex = specifier.indexOf("/");
-    let scope = "";
-    if (first === 64) {
-      if (slashIndex < 0) {
-        return null;
-      }
-      scope = specifier.slice(0, slashIndex);
-      if (scope.length < 1) {
-        return null;
-      }
-      slashIndex = specifier.indexOf("/", slashIndex + 1);
-    }
-    const name = slashIndex === -1 ? specifier : specifier.slice(0, slashIndex);
-    if (!name || /^\.|%|\\/.exec(name) !== null) {
-      return null;
-    }
-    return {
-      scope,
-      name,
-      subPath: slashIndex < 0 ? "." : path.posix.normalize(`.${specifier.slice(slashIndex)}`),
-    };
-  };
-
-  public static sortPackageJsonFields<T extends PackageJson>(packageJson: T): T {
-    if (typeof packageJson !== "object" || packageJson === null || isArray(packageJson)) {
-      return packageJson;
-    }
-    const map = new Map();
-    for (const key of PackageJson.fieldsSortOrder) {
-      if (packageJson[key] !== undefined) {
-        map.set(key, packageJson[key]);
-      }
-    }
-    for (const key of objectKeys(packageJson)) {
-      if (packageJson[key] !== undefined) {
-        map.set(key, packageJson[key]);
-      }
-    }
-
-    const result: PackageJson = {};
-    for (const [key, value] of map) {
-      result[key] = value;
-    }
-    for (const key of PackageJson.sortableFields) {
-      if (typeof result[key] === "object" && result[key] !== null) {
-        const v = result[key];
-        if (isArray(v)) {
-          if (v.length === 0) {
-            delete result[key];
-          } else {
-            v.sort();
-          }
-        } else {
-          const sorted = plainObjects.sortObjectKeys(v as Record<string, unknown>);
-          if (objectKeys(sorted).length === 0) {
-            delete result[key];
-          } else {
-            result[key] = sorted;
-          }
-        }
-      }
-    }
-    return result as T;
   }
 }
 
@@ -746,7 +566,7 @@ function _validateDependenciesDefinitions(
     // Validate dependency name
     for (const name of objectKeys(da)) {
       if (!erroredDependencies.has(name)) {
-        const depNameValidationResult = PackageJsonParsed.validatePackageName(name);
+        const depNameValidationResult = PackageJson.validatePackageName(name);
         if (depNameValidationResult.status === "invalid") {
           erroredDependencies.add(name);
           const stringName = JSON.stringify(name);
@@ -1195,5 +1015,3 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
 
   return results;
 }
-
-console.log(PackageJsonParsed.readSync("package.json").toJSON());
