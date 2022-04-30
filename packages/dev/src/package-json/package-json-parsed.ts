@@ -33,8 +33,6 @@ export class PackageJsonParseMessage {
 }
 
 export namespace PackageJsonParsed {
-  export type Status = "invalid" | "readable" | "valid";
-
   export interface ReadOptions {
     strict?: boolean | undefined;
 
@@ -86,10 +84,11 @@ export namespace PackageJsonParsed {
   }
 }
 
+const private_WorkspacesSymbol = Symbol.for("workspaces");
+
 export class PackageJsonParsed {
   public filePath: string | undefined = undefined;
   public packageDirectoryPath: string | undefined = undefined;
-  public validation: PackageJsonParsed.Status = "valid";
   public errors: PackageJsonParseMessage[] = [];
   public warnings: PackageJsonParseMessage[] = [];
   public informations: PackageJsonParseMessage[] = [];
@@ -107,23 +106,7 @@ export class PackageJsonParsed {
     peerDependencies: {},
   };
 
-  #workspaces?: PackageJsonParsed[] | undefined;
-
-  public get workspaces(): PackageJsonParsed[] {
-    let result = this.#workspaces;
-    if (result === undefined) {
-      result =
-        this.validation === "readable" && this.filePath
-          ? _loadWorskpcesSync(this.filePath, this.content as unknown as PackageJson)
-          : [];
-      this.#workspaces = result;
-    }
-    return result;
-  }
-
-  public set workspaces(value: PackageJsonParsed[] | undefined) {
-    this.#workspaces = value;
-  }
+  private [private_WorkspacesSymbol]?: PackageJsonParsed[] | undefined;
 
   protected constructor(filePath: string | undefined | null) {
     if (filePath !== undefined && filePath !== null) {
@@ -132,6 +115,19 @@ export class PackageJsonParsed {
         this.packageDirectoryPath = path.dirname(this.filePath);
       } catch {}
     }
+  }
+
+  public get workspaces(): PackageJsonParsed[] {
+    let result = this[private_WorkspacesSymbol];
+    if (result === undefined) {
+      result = this.filePath ? _loadWorskpcesSync(this.filePath, this.content as unknown as PackageJson) : [];
+      this[private_WorkspacesSymbol] = result;
+    }
+    return result;
+  }
+
+  public set workspaces(value: PackageJsonParsed[] | undefined) {
+    this[private_WorkspacesSymbol] = value;
   }
 
   public addValidationMessage(err: undefined | null): void;
@@ -158,9 +154,6 @@ export class PackageJsonParsed {
     }
     if (err === undefined || err === null) {
       return;
-    }
-    if (err.severity === "error" && this.validation === "valid") {
-      this.validation = "readable";
     }
     if (err.field) {
       if (this.fieldsWithErrors.has(err.field)) {
@@ -273,7 +266,6 @@ export class PackageJsonParsed {
     } else if (error) {
       result.addValidationMessage("error", `${error}`);
     }
-    result.validation = "invalid";
     return result;
   }
 
@@ -323,11 +315,9 @@ export class PackageJsonParsed {
         parseFromJSON: "parse",
         loadWorkspaces: false,
       });
-      if (loaded.validation === "valid" || loaded.validation === "readable") {
-        loaded.workspaces = await _loadWorskpcesAsync(packageJsonFilePath, loaded.content);
-        if (loaded.validation === "valid" && options?.validateWorkspaceDependenciesVersions) {
-          loaded.validateWorkspaceDependenciesVersions();
-        }
+      loaded.workspaces = await _loadWorskpcesAsync(packageJsonFilePath, loaded.content);
+      if (loaded.errors.length === 0 && options?.validateWorkspaceDependenciesVersions) {
+        loaded.validateWorkspaceDependenciesVersions();
       }
       return loaded;
     } catch (readError) {
@@ -345,7 +335,6 @@ export class PackageJsonParsed {
       options = { filePath: options };
     }
 
-    let isValid = true;
     let isReadable = true;
     const result = new PackageJsonParsed(options?.filePath);
     result.strict = options?.strict ?? true;
@@ -398,9 +387,7 @@ export class PackageJsonParsed {
         peerDependencies: {},
       };
     } else {
-      if (!_packageJsonValidateSchema(packageJson, addError)) {
-        isValid = false;
-      }
+      _packageJsonValidateSchema(packageJson, addError);
 
       try {
         content = JSON.parse(JSON.stringify(packageJson));
@@ -447,18 +434,11 @@ export class PackageJsonParsed {
       _validateDependenciesDefinitions(content, addError);
     }
 
-    if (!isValid && result.validation === "valid") {
-      result.validation = "readable";
-    }
-    if (!isReadable && (result.validation === "valid" || result.validation === "readable")) {
-      result.validation = "invalid";
-    }
     result.content = content;
 
     if (isReadable && (options?.loadWorkspaces ?? true) && result.filePath) {
       result.workspaces = _loadWorskpcesSync(result.filePath, content, options);
-      console.log(result.validation);
-      if (result.validation === "valid" && options?.validateWorkspaceDependenciesVersions) {
+      if (result.errors.length === 0 && options?.validateWorkspaceDependenciesVersions) {
         result.validateWorkspaceDependenciesVersions();
       }
     }
@@ -657,18 +637,18 @@ function _parsePackageJson(
 function _packageJsonValidateSchema(
   packageJson: unknown,
   addError: (err: PackageJsonParseMessage | undefined) => void,
-): boolean {
+): void {
   const ajvValidator = _packageJsonAjvValidator || (_packageJsonAjvValidator = _createAjvValidator());
-  let isValid = ajvValidator(packageJson);
+  const isValid = ajvValidator(packageJson);
   const validationErrors = ajvValidator.errors;
   if (validationErrors && validationErrors.length > 0) {
     ajvValidator.errors = null;
-    isValid = false;
     for (let i = 0, len = validationErrors.length; i < len; ++i) {
       addError(_packageJsonValidationErrorFromAjvError(validationErrors[i]!, packageJson));
     }
+  } else if (!isValid) {
+    addError(new PackageJsonParseMessage("error", "Invalid package.json"));
   }
-  return isValid;
 }
 
 function _validateDependenciesDefinitions(
@@ -1016,7 +996,7 @@ function _loadWorskpcesSync(
         } else {
           pkg = PackageJsonParsed.readSync(match, loadChildOptions);
         }
-        pkgsByName.set((pkg.validation === "readable" && pkg.content.name) || match, pkg);
+        pkgsByName.set(pkg.content.name || pkg.filePath || match, pkg);
         loaded.set(match, pkg);
       }
       _workspaceProcessMatch(seen, pkg, pattern);

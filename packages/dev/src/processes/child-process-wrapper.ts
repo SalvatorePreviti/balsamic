@@ -105,24 +105,24 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     timed: true,
   };
 
-  #childProcess: child_process.ChildProcess;
-  #exitCode: number | NodeJS.Signals | null;
-  #error: Error | null;
-  #terminationPromise: ChildProcessPromise<this>;
-  #promise: ChildProcessPromise<this> | null;
-  #timed: DevLogTimed;
-  #killSignal: NodeJS.Signals | number | undefined;
-  #killChildren: boolean;
-  #pendingPromises: Promise<unknown>[] = [];
+  private _childProcess: child_process.ChildProcess;
+  private _exitCode: number | NodeJS.Signals | null;
+  private _error: Error | null;
+  private _terminationPromise: ChildProcessPromise<this>;
+  private _promise: ChildProcessPromise<this> | null;
+  private _timed: DevLogTimed;
+  private _killSignal: NodeJS.Signals | number | undefined;
+  private _killChildren: boolean;
+  private _pendingPromises: Promise<unknown>[] = [];
 
   public constructor(
     input: ChildProcessWrapper.ConstructorInput,
     options?: ChildProcessWrapper.Options | undefined | null,
     abortSignal?: AbortSignal | undefined,
   ) {
-    this.#error = null;
-    this.#exitCode = null;
-    this.#promise = null;
+    this._error = null;
+    this._exitCode = null;
+    this._promise = null;
 
     const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapper.defaultOptions;
     options = { ...defaultOptions, ...options };
@@ -141,16 +141,16 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     }
 
     const { showStack, rejectOnAbort, rejectOnNonZeroStatusCode, killSignal, killChildren } = options;
-    this.#killSignal = killSignal;
-    this.#killChildren = !!killChildren;
+    this._killSignal = killSignal;
+    this._killChildren = !!killChildren;
 
-    this.#timed = new DevLogTimed(`${options.title ?? this.constructor.name}`, options);
+    this._timed = new DevLogTimed(`${options.title ?? this.constructor.name}`, options);
 
-    this.#timed.start();
+    this._timed.start();
 
     const childProcess =
       typeof input !== "object" || input === null || input instanceof Error ? new ErroredChildProcess(input) : input;
-    this.#childProcess = childProcess;
+    this._childProcess = childProcess;
 
     const initialError = new ChildProcessError("Child process error.");
     Error.captureStackTrace(initialError, new.target);
@@ -162,7 +162,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       resolve = _resolve;
     });
     promise.childProcessWrapper = this;
-    this.#terminationPromise = promise;
+    this._terminationPromise = promise;
 
     const updateErrorProperties = (e: Error) => {
       const { exitCode, elapsed, title } = this;
@@ -186,12 +186,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     };
 
     const setError = (e?: Error | undefined) => {
-      if (this.#error) {
+      if (this._error) {
         return;
       }
 
       e = devError(e || initialError);
-      this.#error = e;
+      this._error = e;
 
       if (showStack !== undefined) {
         devError.setShowStack(e, showStack);
@@ -209,9 +209,9 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         return;
       }
 
-      const pendingPromises = this.#pendingPromises;
+      const pendingPromises = this._pendingPromises;
       if (pendingPromises.length > 0) {
-        this.#pendingPromises = [];
+        this._pendingPromises = [];
         Promise.allSettled(pendingPromises).then(onClose);
         return;
       }
@@ -224,25 +224,25 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       } catch {}
 
       const exitCode = this.exitCode;
-      this.#exitCode = exitCode;
+      this._exitCode = exitCode;
 
-      if (exitCode && !this.#error) {
+      if (exitCode && !this._error) {
         setError();
       }
 
-      const error = this.#error;
+      const error = this._error;
       if (error) {
         updateErrorProperties(error);
         if (error === initialError && !rejectOnNonZeroStatusCode && typeof exitCode === "number") {
-          this.#timed.end(`exitCode:${exitCode}`);
+          this._timed.end(`exitCode:${exitCode}`);
         } else if (!rejectOnAbort && AbortError.isAbortError(error)) {
-          this.#timed.fail(error);
-          this.#timed.status = "succeeded";
+          this._timed.fail(error);
+          this._timed.status = "succeeded";
         } else {
-          this.#timed.fail(error);
+          this._timed.fail(error);
         }
       } else {
-        this.#timed.end();
+        this._timed.end();
       }
 
       resolve(this);
@@ -259,7 +259,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
           return;
         }
 
-        if (AbortError.isAbortError(e) && !self.processTerminated && (killChildren || !self.#childProcess.killed)) {
+        if (AbortError.isAbortError(e) && !self.processTerminated && (killChildren || !self._childProcess.killed)) {
           if (killChildren) {
             self.killChildren();
           }
@@ -295,25 +295,25 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   public get title(): string {
-    return this.#timed.title;
+    return this._timed.title;
   }
 
   public set title(value: string) {
-    this.#timed.title = value;
+    this._timed.title = value;
   }
 
   /**
    * A promise that awaits process termination. It does not reject if there is a process error or a non zero exitcode.
    */
   public terminationPromise(): ChildProcessPromise<this> {
-    return this.#terminationPromise;
+    return this._terminationPromise;
   }
 
   /**
    * A promise that awaits process termination, and is rejected in case of errors.
    */
   public promise(): ChildProcessPromise<this> {
-    let promise = this.#promise;
+    let promise = this._promise;
     if (promise === null) {
       promise = new ChildProcessPromise<this>((resolve, reject) => {
         let completed = false;
@@ -339,50 +339,50 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         return this.terminationPromise().then(terminated, terminated);
       });
       promise.childProcessWrapper = this;
-      this.#promise = promise;
+      this._promise = promise;
     }
     return promise;
   }
 
   /** True if the process was terminated. */
   public get processTerminated(): boolean {
-    const process = this.#childProcess;
+    const process = this._childProcess;
     return process.exitCode !== null || process.signalCode !== null || process.pid === undefined;
   }
 
   /** The child process currently running */
   public get childProcess(): child_process.ChildProcess {
-    return this.#childProcess;
+    return this._childProcess;
   }
 
   /** Promise status. "pending" | "succeeded" | "rejected" */
   public get status(): Deferred.Status {
-    return this.#timed.status;
+    return this._timed.status;
   }
 
   /** If there was an error, this property contains it */
   public get error(): Error | null {
-    return this.#error;
+    return this._error;
   }
 
   /** True if running */
   public get isRunning() {
-    return this.#timed.isRunning;
+    return this._timed.isRunning;
   }
 
   /** True if completed, with or without errors */
   public get isSettled() {
-    return this.#timed.isSettled;
+    return this._timed.isSettled;
   }
 
   /** True if completed without errors */
   public get isSucceeded() {
-    return this.#timed.isSucceeded;
+    return this._timed.isSucceeded;
   }
 
   /** True if failed */
   public get isRejected() {
-    return this.#timed.isRejected;
+    return this._timed.isRejected;
   }
 
   /**
@@ -391,7 +391,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * emitted.
    */
   public get pid(): number | undefined {
-    return this.#childProcess.pid;
+    return this._childProcess.pid;
   }
 
   /**
@@ -400,28 +400,28 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * The `killed` property does not indicate that the child process has been terminated.
    */
   public get killed(): boolean {
-    return this.#childProcess.killed;
+    return this._childProcess.killed;
   }
 
   /** Number of milliseconds since the wrapper was created and the process terminated. */
   public get elapsed(): number {
-    return this.#timed.elapsed;
+    return this._timed.elapsed;
   }
 
   public getElapsedTime(): string {
-    return this.#timed.getElapsedTime();
+    return this._timed.getElapsedTime();
   }
 
   public get exitCode(): number | NodeJS.Signals | null {
-    const result = this.#exitCode;
+    const result = this._exitCode;
     if (result !== null) {
       return result;
     }
     if (!this.processTerminated) {
       return null;
     }
-    const process = this.#childProcess;
-    return process.exitCode ?? process.signalCode ?? (this.#error || process.pid === undefined ? -1 : 0);
+    const process = this._childProcess;
+    return process.exitCode ?? process.signalCode ?? (this._error || process.pid === undefined ? -1 : 0);
   }
 
   /**
@@ -432,13 +432,13 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     if (!this.pid) {
       return false;
     }
-    const killChildren = options?.killChildren ?? this.#killChildren;
-    const _signal = signal ?? this.#killSignal;
+    const killChildren = options?.killChildren ?? this._killChildren;
+    const _signal = signal ?? this._killSignal;
     if (killChildren) {
       this.killChildren(_signal);
     }
     try {
-      if (this.#childProcess.kill(_signal)) {
+      if (this._childProcess.kill(_signal)) {
         return true;
       }
     } catch {}
@@ -450,7 +450,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   public killChildrenAsync(signal?: NodeJS.Signals | number | undefined): Promise<boolean> {
-    const promise = killProcessChildren(this, signal ?? this.#killSignal ?? "SIGTERM");
+    const promise = killProcessChildren(this, signal ?? this._killSignal ?? "SIGTERM");
     this.addPendingPromise(promise);
     return promise;
   }
@@ -458,12 +458,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   public addPendingPromise(promise: Promise<unknown>): void {
     if (this.isRunning) {
       promise.finally(() => {
-        const index = this.#pendingPromises.indexOf(promise);
+        const index = this._pendingPromises.indexOf(promise);
         if (index >= 0) {
-          this.#pendingPromises.splice(index, 1);
+          this._pendingPromises.splice(index, 1);
         }
       });
-      this.#pendingPromises.push(promise);
+      this._pendingPromises.push(promise);
     }
   }
 
@@ -485,7 +485,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * ```
    */
   public ref(): void {
-    this.#childProcess.ref();
+    this._childProcess.ref();
   }
 
   /**
@@ -507,7 +507,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
    * ```
    */
   public unref(): void {
-    this.#childProcess.unref();
+    this._childProcess.unref();
   }
 
   public toJSON() {
@@ -519,7 +519,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       error: this.error ? `${this.error}` : null,
       status: this.status,
       processTerminated: this.processTerminated,
-      killed: this.#childProcess.killed,
+      killed: this._childProcess.killed,
     };
   }
 
@@ -644,12 +644,15 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 }
 
+const private_childProcessWrapper = Symbol.for("childProcessWrapper");
+const private_error = Symbol.for("error");
+
 export class ChildProcessPromise<T = ChildProcessWrapper>
   extends Promise<T>
   implements InterfaceFromClass<ChildProcessWrapper>
 {
-  #childProcessWrapper: ChildProcessWrapper | undefined;
-  #error?: Error | undefined;
+  private [private_childProcessWrapper]: ChildProcessWrapper | undefined;
+  private [private_error]?: Error | undefined;
 
   public constructor(
     executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any | undefined) => void) => void,
@@ -674,9 +677,9 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
       );
     });
     if (wrapper !== undefined) {
-      this.#childProcessWrapper = wrapper;
+      this[private_childProcessWrapper] = wrapper;
     } else if (error !== undefined) {
-      this.#error = error;
+      this[private_error] = error;
     }
   }
 
@@ -695,9 +698,9 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public get childProcessWrapper(): ChildProcessWrapper {
-    let result = this.#childProcessWrapper;
+    let result = this[private_childProcessWrapper];
     if (!result) {
-      result = new ChildProcessWrapper(devError(this.#error), {
+      result = new ChildProcessWrapper(devError(this[private_error]), {
         timed: false,
         showStack: false,
         printStarted: false,
@@ -708,7 +711,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public set childProcessWrapper(value: ChildProcessWrapper) {
-    this.#childProcessWrapper = value;
+    this[private_childProcessWrapper] = value;
   }
 
   public get title(): string {

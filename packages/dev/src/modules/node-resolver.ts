@@ -303,7 +303,7 @@ export class NodePackageJson {
   public get validationResult(): PackageJsonParsed {
     let result = this.#validationResult;
     if (!result) {
-      result = PackageJsonParsed.load(this.manifest, {
+      result = PackageJsonParsed.fromContent(this.manifest, {
         filePath: this.file.path,
         parseFromJSON: false,
         strict: true,
@@ -316,7 +316,7 @@ export class NodePackageJson {
             if (v.workspaces.length === 0) {
               return v;
             }
-            return PackageJsonParsed.load(childPkg.manifest, { filePath, strict: true, loadWorkspaces: false });
+            return PackageJsonParsed.fromContent(childPkg.manifest, { filePath, strict: true, loadWorkspaces: false });
           }
           return PackageJsonParsed.readSync(filePath, { strict: true, loadWorkspaces: false });
         },
@@ -326,9 +326,8 @@ export class NodePackageJson {
     return result;
   }
 
-  public get sanitized(): PackageJson.Sanitized | null {
-    const vr = this.validationResult;
-    return vr.validation === "readable" ? vr.content : null;
+  public get sanitized(): PackageJson.Sanitized {
+    return this.validationResult.content;
   }
 
   /** Gets the content of the deserialized JSON file */
