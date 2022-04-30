@@ -1,6 +1,5 @@
 # Dependencies and vendor
 vendor
-typings
 node_modules
 bower_components
 jspm_packages

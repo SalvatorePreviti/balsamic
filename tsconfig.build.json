@@ -1,16 +1,22 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./packages/eslint-config/tsconfig.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "outDir": "dist",
     "noEmit": false,
-    "importsNotUsedAsValues": "remove"
+    "importsNotUsedAsValues": "remove",
+    "module": "CommonJS",
+    "exactOptionalPropertyTypes": true,
+    "lib": ["ESNext"],
+    "target": "es2021",
+    "incremental": false
   },
-  "buildOptions": {
-    "incremental": true
-  },
+  "buildOptions": {},
   "references": [
-    { "@balsamic/dev": "./packages/dev/tsconfig.build.json" },
-    { "@balsamic/workspace": "./packages/workspace/tsconfig.build.json" }
+    {
+      "path": "packages/dev/tsconfig.build.json"
+    }
   ],
-  "exclude": ["**/node_modules", "**/dist", "**/test", "**/*.spec.ts", "**/*.test.ts"]
+  "files": [],
+  "exclude": ["**/node_modules", "**/dist", "**/dist/**/*", "**/test/**/*", "**/*.test.*", "**/*.spec.*"]
 }

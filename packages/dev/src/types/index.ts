@@ -4,8 +4,6 @@ export type URLLikeObject = { readonly href: string };
 
 export type URLLike = string | Readonly<URL> | URLLikeObject;
 
-export * from "./package-json";
-
 export * from "./tsconfig-json";
 
 declare global {

@@ -8,15 +8,12 @@
     "importsNotUsedAsValues": "error",
     "exactOptionalPropertyTypes": true,
     "lib": ["ESNext"],
-    "target": "es2021",
-    "paths": {
-      "@balsamic/*": ["./packages/*/src", "./packages/*"]
-    }
+    "target": "es2021"
   },
   "ts-node": {
     "transpileOnly": true,
     "swc": true,
     "require": ["tsconfig-paths/register"]
   },
-  "exclude": ["**/node_modules", "**/dist"]
+  "exclude": ["**/node_modules", "**/dist", "**/dist/**/*"]
 }

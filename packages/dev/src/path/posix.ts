@@ -5,13 +5,12 @@ import {
   isUNCPath,
   isGlob,
   looksLikeFileURL,
-  parseNodePackageName,
   NULL_CHAR_REGEX,
   _simpleJoin,
   _encodeWhitespace,
 } from "./lib/common";
 
-export { isUNCPath, isGlob, looksLikeFileURL, parseNodePackageName };
+export { isUNCPath, isGlob, looksLikeFileURL };
 
 export type ParsedPath = _nodePath.ParsedPath;
 

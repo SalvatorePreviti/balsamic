@@ -2,8 +2,9 @@ import Module from "module";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import type { PackageJson } from "../types";
+import type { PackageJson } from "../package-json/package-json-type";
 import { toUTF8 } from "../utils";
+import { PackageJsonParsed } from "../package-json/package-json-parsed";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;
@@ -254,15 +255,30 @@ export class NodeDirectory extends NodeFsEntry {
   }
 }
 
+export class NodePackageJsonWorkspace {
+  public readonly root: NodePackageJson;
+  public children: NodePackageJson[];
+
+  public constructor(root: NodePackageJson) {
+    this.root = root;
+  }
+}
+
 export class NodePackageJson {
   #manifest: PackageJson | undefined = undefined;
   #packageName: string | undefined = undefined;
+  #validationResult: PackageJsonParsed | undefined = undefined;
+  #workspaceChildren: NodePackageJsonWorkspace | undefined = undefined;
 
   /** The NodeFile instance of this package.json file */
   public readonly file: NodeFile;
 
   public constructor(file: NodeFile) {
     this.file = file;
+  }
+
+  public get workspaceChildren(): NodePackageJsonWorkspace {
+    return this.#workspaceChildren || (this.#workspaceChildren = new NodePackageJsonWorkspace(this));
   }
 
   /** Gets the name of this package */
@@ -282,6 +298,37 @@ export class NodePackageJson {
 
   public set packageName(value: string | undefined) {
     this.#packageName = value;
+  }
+
+  public get validationResult(): PackageJsonParsed {
+    let result = this.#validationResult;
+    if (!result) {
+      result = PackageJsonParsed.load(this.manifest, {
+        filePath: this.file.path,
+        parseFromJSON: false,
+        strict: true,
+        loadWorkspaces: false,
+        onLoadWorkspaceChildProjectSync: (filePath: string) => {
+          const file = filePath.endsWith("package.json") && this.file.resolver.getFile(filePath);
+          const childPkg = file && file.packageJson;
+          if (childPkg && childPkg !== this) {
+            const v = childPkg.validationResult;
+            if (v.workspaces.length === 0) {
+              return v;
+            }
+            return PackageJsonParsed.load(childPkg.manifest, { filePath, strict: true, loadWorkspaces: false });
+          }
+          return PackageJsonParsed.readSync(filePath, { strict: true, loadWorkspaces: false });
+        },
+      });
+      this.#validationResult = result;
+    }
+    return result;
+  }
+
+  public get sanitized(): PackageJson.Sanitized | null {
+    const vr = this.validationResult;
+    return vr.validation === "readable" ? vr.content : null;
   }
 
   /** Gets the content of the deserialized JSON file */

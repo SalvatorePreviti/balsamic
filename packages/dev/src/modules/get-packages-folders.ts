@@ -1,5 +1,5 @@
 import path from "path";
-import type { PackageJson } from "../types";
+import type { PackageJson } from "../package-json/package-json-type";
 import { type NodePackageJson, NodeResolver } from "./node-resolver";
 
 export interface GetPackagesFoldersOptions {

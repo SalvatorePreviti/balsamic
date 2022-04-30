@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import * as pathStar from "../../../packages/dev/src/path";
-import { isGlob, looksLikeFileURL, parseNodePackageName } from "../../../packages/dev/src/path";
+import { isGlob, looksLikeFileURL } from "../../../packages/dev/src/path";
 
 describe("test/dev/path", () => {
   describe("exports", () => {
@@ -25,36 +25,6 @@ describe("test/dev/path", () => {
     it("is true for file:///xxx/yyy", () => expect(looksLikeFileURL("file:///xxx/yyy")).to.equal(true));
     it("is true for file:///xxx/yyy case insensitive", () =>
       expect(looksLikeFileURL("fILe:///xxx/yyy")).to.equal(true));
-  });
-
-  describe("parseNodePackageName", () => {
-    it("parses a simple package name", () => {
-      expect(parseNodePackageName("hello")).to.eql({ packageScope: "", packageName: "hello", subpath: "." });
-    });
-
-    it("parses a simple package name with a subpath", () => {
-      expect(parseNodePackageName("hello/xxx/yyy/\\zzz/.././www/./")).to.eql({
-        packageScope: "",
-        packageName: "hello",
-        subpath: "xxx/yyy/www/",
-      });
-    });
-
-    it("parses a scoped package name", () => {
-      expect(parseNodePackageName("@hello/mmm")).to.eql({
-        packageScope: "@hello",
-        packageName: "@hello/mmm",
-        subpath: ".",
-      });
-    });
-
-    it("parses a scoped package name with a subpath", () => {
-      expect(parseNodePackageName("@hello/mmm/xxx/yyy/\\zzz/.././www/./")).to.eql({
-        packageScope: "@hello",
-        packageName: "@hello/mmm",
-        subpath: "xxx/yyy/www/",
-      });
-    });
   });
 
   describe("isGlob", () => {

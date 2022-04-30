@@ -145,8 +145,6 @@ export const {
   absolutePathToFileURL,
   /** Returns true if the given path starts with ./, ../ or / */
   looksLikeAbsoluteOrRelativePath,
-  /** Parses a node package path. Example hello/subpath */
-  parseNodePackageName,
   /** Resolves a file or a directory maintaining the ending slash if present */
   resolveFileOrDirectory,
   /** Gets the root path of a full path. Since this is posix, root is always "/" */
