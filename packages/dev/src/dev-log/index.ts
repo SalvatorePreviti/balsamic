@@ -1,7 +1,7 @@
 import util from "util";
 import readline from "readline";
 import { colors as _colors } from "../colors";
-import { millisecondsToString } from "../utils";
+import { millisecondsToString } from "../utils/utils";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";

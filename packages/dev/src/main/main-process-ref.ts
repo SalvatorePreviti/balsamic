@@ -1,4 +1,4 @@
-import { noop } from "../utils";
+import { noop } from "../utils/utils";
 
 let _mainProcessRefCounter = 0;
 let _mainProcessRefInterval: ReturnType<typeof setInterval> | undefined;

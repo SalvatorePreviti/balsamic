@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
-import { millisecondsToString } from "../utils";
+import { millisecondsToString } from "../utils/utils";
 import { mainProcessRef } from "./main-process-ref";
 
 /** Returns true if the given module (filename, module object, import.meta) is the main module running in NodeJS */

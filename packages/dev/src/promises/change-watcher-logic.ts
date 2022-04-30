@@ -1,7 +1,7 @@
 import { devError } from "../dev-error";
 import { devLog, DevLogTimeOptions } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
-import { noop } from "../utils";
+import { noop } from "../utils/utils";
 import { AbortError } from "./abort-error";
 import { abortSignals } from "./abort-signals";
 import { Deferred } from "./deferred";

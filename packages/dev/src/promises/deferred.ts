@@ -1,5 +1,5 @@
 import { devError } from "../dev-error";
-import { noop } from "../utils";
+import { noop } from "../utils/utils";
 import { abortSignals, MaybeSignal } from "./abort-signals";
 
 export namespace Deferred {

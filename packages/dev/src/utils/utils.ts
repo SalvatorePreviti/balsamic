@@ -1,8 +1,8 @@
 import { performance } from "node:perf_hooks";
 
 const { round, floor, ceil, min, log, abs } = Math;
-
-export const initialCwd = process.cwd();
+const { isArray } = Array;
+const { isFinite } = Number;
 
 const _timeUnits = [
   { unit: "y", amount: 60 * 60 * 24 * 365.25 },
@@ -14,11 +14,11 @@ const _timeUnits = [
 ];
 
 export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
-  if (Array.isArray(milliseconds)) {
+  if (isArray(milliseconds)) {
     milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6;
   }
   milliseconds = +milliseconds;
-  if (!Number.isFinite(milliseconds)) {
+  if (!isFinite(milliseconds)) {
     return `${milliseconds}`;
   }
   let str = "";

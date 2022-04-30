@@ -12,7 +12,9 @@ export * from "./dev-env";
 
 export * from "./colors";
 
-export * from "./utils";
+export * from "./utils/utils";
+
+export * from "./utils/plain-objects";
 
 export * from "./promises/promises";
 

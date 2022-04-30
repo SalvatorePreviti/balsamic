@@ -7,4 +7,7 @@ if (n > colors.level) {
   colors.level = n;
 }
 
-export { colors };
+/** An instance of colors that is always disabled. */
+const colors_disabled = new colors.Instance({ level: 0 });
+
+export { colors, colors_disabled };

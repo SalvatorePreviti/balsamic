@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import type { PackageJson } from "../package-json/package-json-type";
-import { toUTF8 } from "../utils";
+import { toUTF8 } from "../utils/utils";
 import { PackageJsonParsed } from "../package-json/package-json-parsed";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;

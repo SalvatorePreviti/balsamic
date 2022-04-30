@@ -1,7 +1,7 @@
 import util from "util";
 import child_process from "child_process";
 import { devError } from "../dev-error";
-import { millisecondsToString, noop } from "../utils";
+import { millisecondsToString, noop } from "../utils/utils";
 import type { InterfaceFromClass } from "../types";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
@@ -17,6 +17,8 @@ const { defineProperty } = Reflect;
 class ChildProcessError extends Error {}
 
 const { isArray } = Array;
+
+const util_inspect_custom = util.inspect.custom;
 
 export interface SpawnOptions
   extends DevLogTimeOptions,
@@ -523,7 +525,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     };
   }
 
-  public [util.inspect.custom](): unknown {
+  public [util_inspect_custom](): unknown {
     return this.toJSON();
   }
 
@@ -683,7 +685,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     }
   }
 
-  public [util.inspect.custom](): unknown {
+  public [util_inspect_custom](): unknown {
     return this.toJSON();
   }
 

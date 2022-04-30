@@ -4,10 +4,16 @@ import { builtinModules } from "node:module";
 import glob from "fast-glob";
 import Ajv, { ValidateFunction, ErrorObject } from "ajv";
 import normalizePackageData from "normalize-package-data";
-import { toUTF8 } from "../utils";
+import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
-import type { PackageJson } from "./package-json-type";
+import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
+import { plainObjects } from "../utils/plain-objects";
+
+const { isArray } = Array;
+const { keys: objectKeys, entries: objectEntries } = Object;
+
+const INSIDE_NODE_MODULES_REGEX = /[\\/]node_modules([\\/]|$)/i;
 
 export namespace PackageJsonParseMessage {
   export type Severity = "warning" | "error" | "info";
@@ -94,7 +100,14 @@ export class PackageJsonParsed {
   public informations: PackageJsonParseMessage[] = [];
   public fieldsWithErrors = new Set<string>();
   public packageNameAndVersion: string = "";
+
+  /** README content. Empty if not present or not loaded. */
+  public readme: string = "";
+
+  /** True if parsed with strict rules */
   public strict: boolean = true;
+
+  private [private_WorkspacesSymbol]?: PackageJsonParsed[] | undefined = undefined;
 
   public content: PackageJson.Sanitized = {
     name: "",
@@ -106,8 +119,6 @@ export class PackageJsonParsed {
     peerDependencies: {},
   };
 
-  private [private_WorkspacesSymbol]?: PackageJsonParsed[] | undefined;
-
   protected constructor(filePath: string | undefined | null) {
     if (filePath !== undefined && filePath !== null) {
       try {
@@ -115,6 +126,33 @@ export class PackageJsonParsed {
         this.packageDirectoryPath = path.dirname(this.filePath);
       } catch {}
     }
+  }
+
+  /** Returns a normalized, formatted, sorted, cleaned up package.json content, good to be written on disk. */
+  public toJSON(): PackageJson {
+    const result = PackageJsonParsed.sortPackageJsonFields(_sanitize(this.content) as PackageJson);
+    for (const dep of PackageJson.dependencyFields) {
+      const item = result[dep];
+      if (item !== undefined && objectKeys(item).length === 0) {
+        delete result[dep];
+      }
+    }
+    if (isArray(result.optionalDependencies) && result.optionalDependencies.length === 0) {
+      delete result.optionalDependencies;
+    }
+    return result;
+  }
+
+  public get hasErrors(): boolean {
+    return this.errors.length > 0;
+  }
+
+  public get hasWarnings(): boolean {
+    return this.warnings.length > 0;
+  }
+
+  public get hasWarningsOrErrors(): boolean {
+    return this.hasErrors || this.hasWarnings;
   }
 
   public get workspaces(): PackageJsonParsed[] {
@@ -231,7 +269,7 @@ export class PackageJsonParsed {
     };
 
     for (const field of ["dependencies", "devDependencies", "optionalDependencies"] as const) {
-      for (const [name, version] of Object.entries(this.content[field])) {
+      for (const [name, version] of objectEntries(this.content[field])) {
         if (name && typeof name === "string" && version && typeof version === "string") {
           addDependency(this, field, name, version);
         }
@@ -240,7 +278,7 @@ export class PackageJsonParsed {
 
     for (const field of ["dependencies", "devDependencies", "optionalDependencies"] as const) {
       for (const workspace of this.workspaces) {
-        for (const [name, version] of Object.entries(workspace.content[field])) {
+        for (const [name, version] of objectEntries(workspace.content[field])) {
           if (name && typeof name === "string" && version && typeof version === "string") {
             addDependency(workspace, field, name, version);
           }
@@ -251,7 +289,7 @@ export class PackageJsonParsed {
     deps.clear();
 
     for (const workspace of this.workspaces) {
-      for (const [name, version] of Object.entries(workspace.content.peerDependencies)) {
+      for (const [name, version] of objectEntries(workspace.content.peerDependencies)) {
         if (name && typeof name === "string" && version && typeof version === "string") {
           addDependency(workspace, "peerDependencies", name, version);
         }
@@ -337,7 +375,8 @@ export class PackageJsonParsed {
 
     let isReadable = true;
     const result = new PackageJsonParsed(options?.filePath);
-    result.strict = options?.strict ?? true;
+    result.strict =
+      !options || options.strict || !options?.filePath || !INSIDE_NODE_MODULES_REGEX.test(options?.filePath);
 
     const addError = result.addValidationMessage.bind(result);
 
@@ -362,7 +401,7 @@ export class PackageJsonParsed {
     if (
       typeof packageJson !== "object" ||
       packageJson === null ||
-      Array.isArray(packageJson) ||
+      isArray(packageJson) ||
       Buffer.isBuffer(packageJson)
     ) {
       isReadable = false;
@@ -370,7 +409,7 @@ export class PackageJsonParsed {
         new PackageJsonParseMessage(
           "error",
           `package.json must be an object but is ${
-            packageJson === null ? "null" : Array.isArray(packageJson) ? "an Array" : `a ${typeof packageJson}`
+            packageJson === null ? "null" : isArray(packageJson) ? "an Array" : `a ${typeof packageJson}`
           }`,
         ),
       );
@@ -413,11 +452,14 @@ export class PackageJsonParsed {
       }
     }
 
-    ({ content, packageNameAndVersion } = _npmNormalizePackageJson(
+    let readme: string;
+    ({ content, packageNameAndVersion, readme } = _npmNormalizePackageJson(
       _sanitize(content),
       isReadable && result.strict,
       addError,
     ));
+
+    result.readme = readme;
 
     if (!content.name && result.filePath) {
       const parent = path.basename(path.dirname(result.filePath));
@@ -453,7 +495,7 @@ export class PackageJsonParsed {
       return {
         status: "invalid",
         message: `package name cannot be ${
-          !packageName ? `${packageName}` : Array.isArray(packageName) ? "an array" : `a ${typeof packageName}`
+          !packageName ? `${packageName}` : isArray(packageName) ? "an array" : `a ${typeof packageName}`
         }`,
         scope,
         name,
@@ -568,9 +610,49 @@ export class PackageJsonParsed {
       subPath: slashIndex < 0 ? "." : path.posix.normalize(`.${specifier.slice(slashIndex)}`),
     };
   };
-}
 
-const _dependencyKeys = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
+  public static sortPackageJsonFields<T extends PackageJson>(packageJson: T): T {
+    if (typeof packageJson !== "object" || packageJson === null || isArray(packageJson)) {
+      return packageJson;
+    }
+    const map = new Map();
+    for (const key of PackageJson.fieldsSortOrder) {
+      if (packageJson[key] !== undefined) {
+        map.set(key, packageJson[key]);
+      }
+    }
+    for (const key of objectKeys(packageJson)) {
+      if (packageJson[key] !== undefined) {
+        map.set(key, packageJson[key]);
+      }
+    }
+
+    const result: PackageJson = {};
+    for (const [key, value] of map) {
+      result[key] = value;
+    }
+    for (const key of PackageJson.sortableFields) {
+      if (typeof result[key] === "object" && result[key] !== null) {
+        const v = result[key];
+        if (isArray(v)) {
+          if (v.length === 0) {
+            delete result[key];
+          } else {
+            v.sort();
+          }
+        } else {
+          const sorted = plainObjects.sortObjectKeys(v as Record<string, unknown>);
+          if (objectKeys(sorted).length === 0) {
+            delete result[key];
+          } else {
+            result[key] = sorted;
+          }
+        }
+      }
+    }
+    return result as T;
+  }
+}
 
 let _packageJsonAjvValidator: ValidateFunction<PackageJson.Sanitized> | null = null;
 
@@ -656,12 +738,13 @@ function _validateDependenciesDefinitions(
   addError: (err: PackageJsonParseMessage | undefined) => void,
 ): void {
   const erroredDependencies = new Set<string>();
-  for (let i = 0; i < _dependencyKeys.length; ++i) {
-    const ka = _dependencyKeys[i]!;
+  const dfields = PackageJson.dependencyFields;
+  for (let i = 0; i < dfields.length; ++i) {
+    const ka = dfields[i]!;
     const da = content[ka] || {};
 
     // Validate dependency name
-    for (const name of Object.keys(da)) {
+    for (const name of objectKeys(da)) {
       if (!erroredDependencies.has(name)) {
         const depNameValidationResult = PackageJsonParsed.validatePackageName(name);
         if (depNameValidationResult.status === "invalid") {
@@ -673,8 +756,8 @@ function _validateDependenciesDefinitions(
     }
 
     // Validates that the same dependency is not repeated in more than one group of dependencies
-    for (let j = i + 1; j < _dependencyKeys.length; ++j) {
-      const kb = _dependencyKeys[j]!;
+    for (let j = i + 1; j < dfields.length; ++j) {
+      const kb = dfields[j]!;
       if (ka === "devDependencies" || kb === "devDependencies") {
         const other = ka === "devDependencies" ? kb : ka;
         if (other === "peerDependencies" || other === "optionalDependencies") {
@@ -682,7 +765,7 @@ function _validateDependenciesDefinitions(
         }
       }
       const db = content[kb] || {};
-      for (const name of Object.keys(da)) {
+      for (const name of objectKeys(da)) {
         if (!erroredDependencies.has(name) && name in db) {
           erroredDependencies.add(name);
           const stringName = JSON.stringify(name);
@@ -703,13 +786,26 @@ function _npmNormalizePackageJson(
   content: PackageJson,
   strict: boolean,
   addError: (err: PackageJsonParseMessage | undefined) => void,
-): { content: PackageJson.Sanitized; packageNameAndVersion: string | undefined } {
+): { content: PackageJson.Sanitized; packageNameAndVersion: string | undefined; readme: string } {
   let packageNameAndVersion: string | undefined;
+  let readme = "";
   try {
     const isPrivate = !!content.private;
     const normalizedContent = JSON.parse(JSON.stringify(content)) as PackageJson.Sanitized;
     normalizedContent.private = false;
+    const oldReadme = normalizedContent.readme;
     normalizePackageData(normalizedContent, (m) => addError(_packageJsonValidatorErrorFromNormalizer(m)), strict);
+    if (typeof normalizedContent.readme === "string") {
+      readme = normalizedContent.readme;
+      if (readme === "ERROR: No README data found!") {
+        readme = "";
+      }
+    }
+    if (oldReadme !== undefined) {
+      normalizedContent.readme = oldReadme;
+    } else {
+      delete normalizedContent.readme;
+    }
 
     if (normalizedContent.dependencies === undefined) {
       normalizedContent.dependencies = {};
@@ -735,7 +831,7 @@ function _npmNormalizePackageJson(
 
     const dependencies: Record<string, string> = {};
     if (content.dependencies && normalizedContent.dependencies) {
-      for (const [name, version] of Object.entries(normalizedContent.dependencies)) {
+      for (const [name, version] of objectEntries(normalizedContent.dependencies)) {
         if (name in content.dependencies) {
           dependencies[name] = version;
         }
@@ -756,7 +852,7 @@ function _npmNormalizePackageJson(
     }
     addError(new PackageJsonParseMessage("error", errorMessage, field));
   }
-  return { content: content as PackageJson.Sanitized, packageNameAndVersion };
+  return { content: content as PackageJson.Sanitized, packageNameAndVersion, readme };
 }
 
 function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined) {
@@ -813,7 +909,7 @@ function _packageJsonValidationErrorFromAjvError(
   }
   if (!prop && message === "must be object") {
     message = `package.json must be an object but is ${
-      content === null ? "null" : Array.isArray(content) ? "an Array" : `a ${typeof content}`
+      content === null ? "null" : isArray(content) ? "an Array" : `a ${typeof content}`
     }`;
   }
   return new PackageJsonParseMessage("error", message, prop);
@@ -890,14 +986,14 @@ async function _loadWorskpcesAsync(
   }
 
   packageJsonPath = path.resolve(packageJsonPath);
-  const cwd = path.dirname(packageJsonPath);
-  if (cwd.includes(`${path.sep}node_modules${path.sep}`)) {
+  const directory = path.dirname(packageJsonPath);
+  if (INSIDE_NODE_MODULES_REGEX.test(directory)) {
     return [];
   }
 
   const seen = new Map<string, Set<string>>();
 
-  const globOptions: glob.Options = { cwd, absolute: true, ignore: ["**/node_modules/**", "**/.git/**"] };
+  const globOptions: glob.Options = { cwd: directory, absolute: true, ignore: ["**/node_modules/**", "**/.git/**"] };
   const globsResult = (
     await Promise.all(
       _workspaceGetPatterns(packageJson.workspaces).map(async (pattern) => ({
@@ -1071,9 +1167,9 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
 
   const results = [];
   const patterns = workspaces
-    ? Array.isArray(workspaces)
+    ? isArray(workspaces)
       ? workspaces
-      : Array.isArray(workspaces.packages)
+      : isArray(workspaces.packages)
       ? workspaces.packages
       : []
     : [];
@@ -1099,3 +1195,5 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
 
   return results;
 }
+
+console.log(PackageJsonParsed.readSync("package.json").toJSON());
