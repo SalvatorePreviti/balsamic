@@ -60,8 +60,8 @@ interface ServiceRunnerPendingEntry {
 export class ServicesRunner implements AbortController {
   public abortController: AbortController;
 
-  #pending: ServiceRunnerPendingEntry[] = [];
-  #activeRunPromises: Promise<unknown>[] = [];
+  private _pending: ServiceRunnerPendingEntry[] = [];
+  private _activeRunPromises: Promise<unknown>[] = [];
 
   public static readonly serviceRunnerServiceSymbol: unique symbol = Symbol.for(ServicesRunner.name);
 
@@ -133,7 +133,7 @@ export class ServicesRunner implements AbortController {
   }
 
   public get runningServices(): number {
-    return this.#pending.length;
+    return this._pending.length;
   }
 
   public runSequential(...functionsOrPromises: unknown[]): Promise<void> {
@@ -270,7 +270,7 @@ export class ServicesRunner implements AbortController {
     defineProperty(runService, "name", { value: title, configurable: true, enumerable: false });
 
     const promise = runService();
-    this.#pending.push({ promise, title });
+    this._pending.push({ promise, title });
     return true;
   }
 
@@ -283,7 +283,7 @@ export class ServicesRunner implements AbortController {
     let errorToThrow: Error | null = abortReason instanceof Error ? abortReason : null;
     const abortOnError = options?.abortOnError ?? true;
     for (;;) {
-      const entry = await _pendingPop(this.#pending);
+      const entry = await _pendingPop(this._pending);
       if (entry === undefined) {
         break;
       }
@@ -314,7 +314,7 @@ export class ServicesRunner implements AbortController {
 
     if (options?.awaitRun) {
       for (;;) {
-        const promise = await _pendingPop(this.#activeRunPromises);
+        const promise = await _pendingPop(this._activeRunPromises);
         if (!promise) {
           break;
         }
@@ -432,9 +432,9 @@ export class ServicesRunner implements AbortController {
         }
         terminationRegistered?.unregister();
         if (promise) {
-          const indexOfPromise = this.#activeRunPromises.indexOf(promise);
+          const indexOfPromise = this._activeRunPromises.indexOf(promise);
           if (indexOfPromise >= 0) {
-            this.#activeRunPromises.splice(indexOfPromise, 1);
+            this._activeRunPromises.splice(indexOfPromise, 1);
           }
           promise = undefined;
         }
@@ -442,7 +442,7 @@ export class ServicesRunner implements AbortController {
     };
 
     promise = abortSignals.withAbortSignal(this.signal, run);
-    this.#activeRunPromises.push(promise);
+    this._activeRunPromises.push(promise);
     return promise;
   }
 }

@@ -12,7 +12,7 @@ const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;
 export type NodeFileOrDirectory = NodeFile | NodeDirectory;
 
 export abstract class NodeFsEntry {
-  #stats: fs.Stats | undefined | null;
+  private _stats: fs.Stats | undefined | null;
 
   /** The full absolute path */
   public readonly path: string;
@@ -45,14 +45,14 @@ export abstract class NodeFsEntry {
   public abstract get packageJson(): NodePackageJson | null;
 
   public get stats(): fs.Stats | null {
-    const stats = this.#stats;
-    return stats === undefined ? (this.#stats = fs_tryStatSync(this.path)) : stats;
+    const stats = this._stats;
+    return stats === undefined ? (this._stats = fs_tryStatSync(this.path)) : stats;
   }
 
   protected constructor(fileOrDirectoryPath: string, basename: string, stats: fs.Stats | null | undefined) {
     this.path = fileOrDirectoryPath;
     this.basename = basename;
-    this.#stats = stats;
+    this._stats = stats;
   }
 
   /** Finds a directory given a relative path */
@@ -166,8 +166,8 @@ export class NodeDirectory extends NodeFsEntry {
   /** The parent directory. Is itself for a root. */
   public readonly parentDirectory: NodeDirectory;
 
-  #require: NodeRequire | null = null;
-  #packageJson: NodePackageJson | null | undefined = undefined;
+  private _require: NodeRequire | null = null;
+  private _packageJson: NodePackageJson | null | undefined = undefined;
 
   /** Always false, this is a directory, not a file. */
   public get isFile(): false {
@@ -203,21 +203,21 @@ export class NodeDirectory extends NodeFsEntry {
 
   /** Gets the package.json for this or a parent folder of this folder. */
   public get packageJson(): NodePackageJson | null {
-    let result = this.#packageJson;
+    let result = this._packageJson;
     if (result === undefined) {
       const file = this.getFile("package.json");
       result =
         (file && new NodePackageJson(file)) ||
         (this.parentDirectory !== this && this.parentDirectory.packageJson) ||
         null;
-      this.#packageJson = result;
+      this._packageJson = result;
     }
     return result;
   }
 
   /** The node require function for this directory. */
   public get nodeRequire(): NodeRequire {
-    return this.#require || (this.#require = Module.createRequire(path.join(this.path, "_")));
+    return this._require || (this._require = Module.createRequire(path.join(this.path, "_")));
   }
 
   /** Resolves a module package.json from this directory. Returns null if a package is not found. */
@@ -265,10 +265,10 @@ export class NodePackageJsonWorkspace {
 }
 
 export class NodePackageJson {
-  #manifest: PackageJson | undefined = undefined;
-  #packageName: string | undefined = undefined;
-  #validationResult: PackageJsonParsed | undefined = undefined;
-  #workspaceChildren: NodePackageJsonWorkspace | undefined = undefined;
+  private _manifest: PackageJson | undefined = undefined;
+  private _packageName: string | undefined = undefined;
+  private _validationResult: PackageJsonParsed | undefined = undefined;
+  private _workspaceChildren: NodePackageJsonWorkspace | undefined = undefined;
 
   /** The NodeFile instance of this package.json file */
   public readonly file: NodeFile;
@@ -278,12 +278,12 @@ export class NodePackageJson {
   }
 
   public get workspaceChildren(): NodePackageJsonWorkspace {
-    return this.#workspaceChildren || (this.#workspaceChildren = new NodePackageJsonWorkspace(this));
+    return this._workspaceChildren || (this._workspaceChildren = new NodePackageJsonWorkspace(this));
   }
 
   /** Gets the name of this package */
   public get packageName(): string {
-    let result = this.#packageName;
+    let result = this._packageName;
     if (result === undefined) {
       result = this.manifest.name;
       if (typeof result !== "string" || result.length === 0) {
@@ -291,17 +291,17 @@ export class NodePackageJson {
         const pp = p.parentDirectory;
         result = p !== pp && pp.basename.startsWith("@") ? `${pp.basename}/${p.basename}` : p.basename;
       }
-      this.#packageName = result;
+      this._packageName = result;
     }
     return result;
   }
 
   public set packageName(value: string | undefined) {
-    this.#packageName = value;
+    this._packageName = value;
   }
 
   public get validationResult(): PackageJsonParsed {
-    let result = this.#validationResult;
+    let result = this._validationResult;
     if (!result) {
       result = PackageJsonParsed.fromContent(this.manifest, {
         filePath: this.file.path,
@@ -321,7 +321,7 @@ export class NodePackageJson {
           return PackageJsonParsed.readSync(filePath, { strict: true, loadWorkspaces: false });
         },
       });
-      this.#validationResult = result;
+      this._validationResult = result;
     }
     return result;
   }
@@ -332,16 +332,16 @@ export class NodePackageJson {
 
   /** Gets the content of the deserialized JSON file */
   public get manifest(): PackageJson {
-    let manifest = this.#manifest as any;
+    let manifest = this._manifest as any;
     if (manifest === undefined) {
       manifest = this.loadManifest() as any;
-      this.#manifest = manifest;
+      this._manifest = manifest;
     }
     return manifest === this ? undefined : manifest;
   }
 
   public set manifest(value: PackageJson) {
-    this.#manifest = value;
+    this._manifest = value;
   }
 
   protected loadManifest(): PackageJson {
@@ -370,33 +370,33 @@ export class NodePackageJson {
 export class NodeResolver {
   public static default: NodeResolver = new NodeResolver();
 
-  #entries = new Map<string, NodeDirectory | NodeFile | null>();
-  #projectPath: string;
-  #requireCache: Record<string, NodeModule> | null = (Module as any)._cache || null;
-  #projectDirectory: NodeDirectory | null | undefined = undefined;
+  private _entries = new Map<string, NodeDirectory | NodeFile | null>();
+  private _projectPath: string;
+  private _requireCache: Record<string, NodeModule> | null = (Module as any)._cache || null;
+  private _projectDirectory: NodeDirectory | null | undefined = undefined;
 
   public constructor(cwd: string = process.cwd()) {
-    this.#projectPath = path.resolve(cwd);
+    this._projectPath = path.resolve(cwd);
   }
 
   public get requireCache(): Record<string, NodeModule> | null {
-    const result = this.#requireCache;
-    return result !== undefined ? result : (this.#requireCache = (module as any)._cache || null);
+    const result = this._requireCache;
+    return result !== undefined ? result : (this._requireCache = (module as any)._cache || null);
   }
 
   public set requireCache(value: Record<string, NodeModule> | null) {
-    this.#requireCache = value;
+    this._requireCache = value;
   }
 
   public get projectPath(): string {
-    return this.#projectPath;
+    return this._projectPath;
   }
 
   public set projectPath(value: string) {
     value = path.resolve(value);
     const directory = this.getDirectory(value);
-    this.#projectDirectory = directory;
-    this.#projectPath = directory ? directory.path : value;
+    this._projectDirectory = directory;
+    this._projectPath = directory ? directory.path : value;
   }
 
   public get projectPackageJson(): NodePackageJson | null {
@@ -405,12 +405,12 @@ export class NodeResolver {
   }
 
   public get projectDirectory(): NodeDirectory | null {
-    return this.#projectDirectory || (this.#projectDirectory = this.getDirectory(this.projectPath));
+    return this._projectDirectory || (this._projectDirectory = this.getDirectory(this.projectPath));
   }
 
   public clear() {
-    this.#projectDirectory = undefined;
-    this.#entries.clear();
+    this._projectDirectory = undefined;
+    this._entries.clear();
   }
 
   public resolvePath(p: string | URL): string {
@@ -419,8 +419,8 @@ export class NodeResolver {
 
   public getFileOrDirectory(fileOrDirectoryPath: string | URL): NodeDirectory | NodeFile | null {
     const resolvedPath = this.resolvePath(fileOrDirectoryPath);
-    const result = this.#entries.get(resolvedPath);
-    return result !== undefined ? result : this.#loadFileOrDirectory(resolvedPath);
+    const result = this._entries.get(resolvedPath);
+    return result !== undefined ? result : this._loadFileOrDirectory(resolvedPath);
   }
 
   public getPackageJson(fileOrDirectoryPath: string | URL): NodePackageJson | null {
@@ -470,14 +470,14 @@ export class NodeResolver {
     return directory ? directory.resolvePackageBin(moduleId, executableId) : null;
   }
 
-  #loadFileOrDirectory(input: string): NodeDirectory | NodeFile | null {
+  private _loadFileOrDirectory(input: string): NodeDirectory | NodeFile | null {
     const parentPath = path.dirname(input);
 
     let parent: NodeDirectory | null = null;
     if (parentPath !== input) {
       parent = this.getDirectory(parentPath);
       if (!parent) {
-        this.#entries.set(input, null);
+        this._entries.set(input, null);
         return null;
       }
     }
@@ -487,13 +487,13 @@ export class NodeResolver {
 
     const stats = fs_tryStatSync(inputPath);
     if (!stats) {
-      this.#entries.set(inputPath, null);
+      this._entries.set(inputPath, null);
       return null;
     }
 
     const realPath = fs_tryRealpathSync(inputPath) || inputPath;
     if (!realPath) {
-      this.#entries.set(inputPath, null);
+      this._entries.set(inputPath, null);
       return null;
     }
 
@@ -505,8 +505,8 @@ export class NodeResolver {
         result = new NodeFile(parent, realPath, basename, stats);
       }
     }
-    this.#entries.set(realPath, result);
-    this.#entries.set(inputPath, result);
+    this._entries.set(realPath, result);
+    this._entries.set(inputPath, result);
     return result;
   }
 }
