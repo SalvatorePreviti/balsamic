@@ -21,13 +21,19 @@ export function mainProcessRef() {
 mainProcessRef.count = () => _mainProcessRefCounter;
 
 /** Prevent node to exit while a promise is running */
-mainProcessRef.wrapPromise = async <T>(promise: Promise<T>): Promise<T> => {
+mainProcessRef.wrapPromise = <T>(promise: Promise<T>): Promise<T> => {
   const unref = mainProcessRef();
-  try {
-    return await promise;
-  } finally {
-    unref();
-  }
+  return Promise.resolve(promise).finally(() => unref());
+};
+
+mainProcessRef.wrapAsyncFunction = <T>(fn: () => Promise<T>): (() => Promise<T>) => {
+  return () => {
+    try {
+      return mainProcessRef.wrapPromise(fn());
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
 };
 
 /** Opposite of mainProcessRef */

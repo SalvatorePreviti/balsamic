@@ -39,6 +39,8 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   /** A number that gets incremented each time a new build starts */
   public buildCount: number = 0;
 
+  private _fileChangedVersion: number = 0;
+  private _lastBuildVersion: number = -1;
   private _initialDebounceTimer: number;
   private _building: boolean = false;
   private _fileChanged: boolean | null = null;
@@ -94,12 +96,33 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
         : new ServicesRunner();
 
     this._runBuild = async () => {
-      try {
-        this.buildRunner.abort();
+      if (this._fileChangeDebounceTimer) {
+        clearTimeout(this._fileChangeDebounceTimer);
+        this._fileChangeDebounceTimer = null;
+      }
 
+      if (this._closePromise) {
+        return;
+      }
+
+      if (this._building) {
+        const debouncedBuild = () => {
+          this._buildingPromise = this._buildingPromise?.finally(this._runBuild) ?? this._runBuild();
+        };
+
+        this._fileChangeDebounceTimer = setTimeout(debouncedBuild, this.filesChangedDuringBuildDebounceTimer);
+        return;
+      }
+
+      if (this._lastBuildVersion === this._fileChangedVersion) {
+        return;
+      }
+
+      try {
+        this.buildRunner.abort("rebuilding");
         await this.buildRunner.awaitAll({ awaitRun: true, rejectOnError: false }).catch(noop);
 
-        if (this._building || this._closePromise) {
+        if (this._closePromise) {
           return;
         }
 
@@ -109,6 +132,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
         this._building = true;
         this._fileChanged = false;
         try {
+          this.buildRunner.abort();
           this.buildRunner.abortController = new AbortController();
           await this.buildRunner.run(
             devLog.timed(
@@ -126,6 +150,9 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
             devLog.logException(this.title, error);
           }
         } finally {
+          if (!this.fileChanged) {
+            this._lastBuildVersion = this._fileChangedVersion;
+          }
           this._building = false;
         }
 
@@ -145,7 +172,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
 
   /** True if a file changed and we are awaiting for rebuild. */
   public get fileChanged(): boolean {
-    return !!this._fileChanged;
+    return !!this._fileChanged || this._lastBuildVersion !== this._fileChangedVersion;
   }
 
   /** True if the service is stopped and no longer accepting notifications. */
@@ -207,36 +234,40 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
 
   /** Notifies something changed and buildFunction need to execute again. */
   public notify(options?: { debounceTimer?: number | undefined } | undefined) {
-    if (!this._closePromise) {
-      if (!this._fileChanged && this._fileChanged !== null) {
-        devLog.info();
-        devLog.info(`${this.title}, file changed...`);
-        devLog.info();
-        this._fileChanged = true;
-      }
-
-      if (this._building) {
-        this.buildRunner.abort(new AbortError.AbortOk(`${this.title}: file changed`));
-      }
-
-      let debounceTimer = options?.debounceTimer;
-      if (typeof debounceTimer !== "number") {
-        debounceTimer = this.defaultDebounceTimer;
-        if (this._building && this.filesChangedDuringBuildDebounceTimer) {
-          debounceTimer = this.filesChangedDuringBuildDebounceTimer;
-        }
-      }
-
-      if (this._fileChangeDebounceTimer) {
-        clearTimeout(this._fileChangeDebounceTimer);
-      }
-
-      const debouncedBuild = () => {
-        this._buildingPromise = this._buildingPromise?.finally(this._runBuild) ?? this._runBuild();
-      };
-
-      this._fileChangeDebounceTimer = global.setTimeout(debouncedBuild, debounceTimer);
+    if (this._closePromise) {
+      return;
     }
+
+    ++this._fileChangedVersion;
+
+    if (!this._fileChanged && this._fileChanged !== null) {
+      devLog.info();
+      devLog.info(`${this.title}, file changed...`);
+      devLog.info();
+      this._fileChanged = true;
+    }
+
+    if (this._building) {
+      this.buildRunner.abort(new AbortError.AbortOk(`${this.title}: file changed`));
+    }
+
+    let debounceTimer = options?.debounceTimer;
+    if (typeof debounceTimer !== "number") {
+      debounceTimer = this.defaultDebounceTimer;
+      if (this._building && this.filesChangedDuringBuildDebounceTimer) {
+        debounceTimer = this.filesChangedDuringBuildDebounceTimer;
+      }
+    }
+
+    if (this._fileChangeDebounceTimer) {
+      clearTimeout(this._fileChangeDebounceTimer);
+    }
+
+    const debouncedBuild = () => {
+      this._buildingPromise = this._buildingPromise?.finally(this._runBuild) ?? this._runBuild();
+    };
+
+    this._fileChangeDebounceTimer = global.setTimeout(debouncedBuild, debounceTimer);
   }
 
   public close(): Promise<void> {
@@ -250,13 +281,12 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
         }
         devLog.logBlackBright(`* ${this.title} watcher stop.`);
         this.buildRunner.abort("Stop");
-        this._fileChanged = null;
+        this._fileChanged = false;
         const [onCloseResult] = await Promise.allSettled([
           this._onClose?.(),
           this.buildRunner.awaitAll({ awaitRun: true, rejectOnError: false }),
           this._buildingPromise?.catch(noop),
         ]);
-        this._fileChanged = null;
         this._firstBuildDeferred.reject(new AbortError(`${this.title}: stopped`));
         this._closedDeferred?.resolve();
         if (onCloseResult.status === "rejected" && onCloseResult.reason instanceof Error) {

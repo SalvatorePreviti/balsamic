@@ -4,6 +4,7 @@ import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
+import { mainProcessRef } from "../main/main-process-ref";
 
 const { defineProperty } = Reflect;
 
@@ -441,7 +442,7 @@ export class ServicesRunner implements AbortController {
       }
     };
 
-    promise = abortSignals.withAbortSignal(this.signal, run);
+    promise = abortSignals.withAbortSignal(this.signal, mainProcessRef.wrapAsyncFunction(run));
     this._activeRunPromises.push(promise);
     return promise;
   }
