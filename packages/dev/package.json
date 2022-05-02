@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.1.84",
+  "version": "0.2.0",
   "description": "dev and scripting utilities for NodeJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,7 +35,7 @@
     "tree-kill": "^1.2.2"
   },
   "devDependencies": {
-    "@types/node": "^17.0.30",
+    "@types/node": "^17.0.31",
     "@types/normalize-package-data": "^2.4.1"
   }
 }

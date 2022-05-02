@@ -8,81 +8,21 @@ import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
 import { plainObjects } from "../utils/plain-objects";
+import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
+import { devLog } from "../dev-log";
 
 const { isArray } = Array;
 const { keys: objectKeys, entries: objectEntries } = Object;
 
 const INSIDE_NODE_MODULES_REGEX = /[\\/]node_modules([\\/]|$)/i;
 
-export namespace PackageJsonParseMessage {
-  export type Severity = "warning" | "error" | "info";
-}
-
-export class PackageJsonParseMessage {
-  public constructor(
-    public severity: PackageJsonParseMessage.Severity,
-    public message: string,
-    public field?: string | undefined,
-  ) {}
-
-  public toString(): string {
-    const { severity, message, field } = this;
-    return `${severity.toUpperCase()}: ${field ? `[${field}] ${message}` : message}`;
-  }
-}
-
-export namespace PackageJsonParsed {
-  export interface ReadOptions {
-    strict?: boolean | undefined;
-
-    loadWorkspaces?: boolean;
-
-    validateWorkspaceDependenciesVersions?: boolean;
-
-    onLoadWorkspaceChildProjectSync?:
-      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed | undefined)
-      | undefined;
-
-    onLoadWorkspaceChildProjectAsync?:
-      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed)
-      | undefined;
-  }
-
-  export interface LoadOptions {
-    filePath?: string | undefined;
-
-    /**
-     * If true or "parse", the input is considered as a JSON string (or Buffer).
-     * If "readFile", the file will be loaded synchronously with fs.readFile. And if is a directory, package.json will be read from the directory.
-     * Else, we assume the input is the parsed package.json content.
-     */
-    parseFromJSON?: boolean | "readFile" | "parse" | undefined;
-
-    strict?: boolean | undefined;
-
-    loadWorkspaces?: boolean;
-
-    validateWorkspaceDependenciesVersions?: boolean;
-
-    onLoadWorkspaceChildProjectSync?:
-      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed | undefined)
-      | undefined;
-  }
-}
-
 const private_WorkspacesSymbol = Symbol.for("workspaces");
 
 export class PackageJsonParsed {
   public filePath: string | undefined = undefined;
   public packageDirectoryPath: string | undefined = undefined;
-  public errors: PackageJsonParseMessage[] = [];
-  public warnings: PackageJsonParseMessage[] = [];
-  public informations: PackageJsonParseMessage[] = [];
-  public fieldsWithErrors = new Set<string>();
   public packageNameAndVersion: string = "";
-
-  /** README content. Empty if not present or not loaded. */
-  public readme: string = "";
+  public validation = new PackageJsonParseMessages();
 
   /** True if parsed with strict rules */
   public strict: boolean = true;
@@ -100,31 +40,16 @@ export class PackageJsonParsed {
     }
   }
 
-  /** Returns a normalized, formatted, sorted, cleaned up package.json content, good to be written on disk. */
-  public toJSON(): PackageJson {
-    const result = PackageJson.sortPackageJsonFields(PackageJson.sanitize(this.content) as PackageJson);
-    for (const dep of PackageJson.dependencyFields) {
-      const item = result[dep];
-      if (item !== undefined && objectKeys(item).length === 0) {
-        delete result[dep];
-      }
-    }
-    if (isArray(result.optionalDependencies) && result.optionalDependencies.length === 0) {
-      delete result.optionalDependencies;
-    }
-    return result;
-  }
-
   public get hasErrors(): boolean {
-    return this.errors.length > 0;
+    return this.validation.hasErrors;
   }
 
   public get hasWarnings(): boolean {
-    return this.warnings.length > 0;
+    return this.validation.hasWarnings;
   }
 
   public get hasWarningsOrErrors(): boolean {
-    return this.hasErrors || this.hasWarnings;
+    return this.validation.hasWarningsOrErrors;
   }
 
   public get workspaces(): PackageJsonParsed[] {
@@ -140,77 +65,37 @@ export class PackageJsonParsed {
     this[private_WorkspacesSymbol] = value;
   }
 
-  public addValidationMessage(err: undefined | null): void;
-
-  public addValidationMessage(err: PackageJsonParseMessage | Error | undefined): void;
-
-  public addValidationMessage(
-    severity: PackageJsonParseMessage.Severity,
-    message: string,
-    field?: string | undefined,
-  ): void;
-
-  public addValidationMessage(
-    err: PackageJsonParseMessage.Severity | PackageJsonParseMessage | Error | undefined | null,
-    message?: string,
-    field?: string | undefined | null,
-  ): void {
-    if (err instanceof Error) {
-      message = err.message || "Invalid package.json";
-      err = "error";
-    }
-    if (typeof err === "string") {
-      err = new PackageJsonParseMessage(err, message || "Invalid package.json", field || undefined);
-    }
-    if (err === undefined || err === null) {
-      return;
-    }
-    if (err.field) {
-      if (this.fieldsWithErrors.has(err.field)) {
-        return;
-      }
-      if (err.severity === "error" && !err.field.endsWith("ependencies") && err.field !== "workspaces") {
-        this.fieldsWithErrors.add(err.field);
-      }
-    } else if (err.message === "Invalid package.json" && this.errors.length !== 0) {
-      return;
-    }
-    if (err.field || err.message) {
-      const errField = err.field;
-      const errMsg = err.message;
-      const hasErr = (e: PackageJsonParseMessage) => e.field === errField && e.message === errMsg;
-      const found = this.errors.find(hasErr) || this.warnings.find(hasErr) || this.informations.find(hasErr);
-      if (found) {
-        if (found.severity === err.severity) {
-          return;
+  public validationMessagesToString(
+    options: {
+      colors?: boolean | undefined;
+      workspaces?: boolean | undefined;
+      severity?: PackageJsonParseMessage.Severity;
+    } = {},
+  ): string {
+    const { colors = false, workspaces = true } = options;
+    let result = "";
+    const append = (self: PackageJsonParsed) => {
+      let msgs = self.validation.toFormattedString({ ...options, workspaces: false, indent: "  " });
+      if (msgs.length > 0) {
+        const name = (self.filePath && makePathRelative(self.filePath)) || this.content.name;
+        if (name) {
+          if (colors) {
+            msgs = `${devLog.getColor(self.validation.maxSeverity)(name)}:\n${msgs}`;
+          } else {
+            msgs = `${name}:\n${msgs}`;
+          }
         }
-        switch (found.severity) {
-          case "info":
-            this.informations.splice(this.informations.indexOf(found), 1);
-            break;
-          case "warning":
-            if (err.severity === "info") {
-              return;
-            }
-            this.warnings.splice(this.informations.indexOf(found), 1);
-            break;
-          case "error":
-            return;
+        if (result.length > 0) {
+          result += "\n";
         }
-        found.severity = err.severity;
+        result += msgs;
       }
-      switch (err.severity) {
-        case "info":
-          this.informations.push(err);
-          break;
-        case "warning":
-          this.warnings.push(err);
-          break;
-        default:
-          this.errors.push(err);
-          break;
-      }
+    };
+    append(this);
+    if (workspaces) {
+      this.workspaces.forEach(append);
     }
+    return result;
   }
 
   public validateWorkspaceDependenciesVersions(): void {
@@ -224,7 +109,6 @@ export class PackageJsonParsed {
     for (const workspace of workspaces) {
       workspaceNames.add(workspace.content.name);
     }
-
     const addDependency = (pkg: PackageJsonParsed, field: string, name: string, version: string) => {
       const found = deps.get(name);
       if (found === undefined) {
@@ -233,11 +117,11 @@ export class PackageJsonParsed {
       }
 
       if (pkg !== this && found.pkg !== pkg && found.version !== version && !workspaceNames.has(name)) {
-        pkg.addValidationMessage(
+        pkg.validation.add(
           "warning",
-          `Version mismatch. "${name}"="${version}" in ${makePathRelative(found.pkg.filePath)} with version "${
-            found.version
-          }".`,
+          `Version mismatch. "${name}": "${version}" in ${makePathRelative(found.pkg.filePath, {
+            startDot: true,
+          })} with version "${found.version}".`,
           field,
         );
       }
@@ -272,13 +156,12 @@ export class PackageJsonParsed {
     }
   }
 
-  public static error(error: unknown, filePath?: string | undefined | null): PackageJsonParsed {
+  public static error(
+    error: Error | string | PackageJsonParseMessage,
+    filePath?: string | undefined | null,
+  ): PackageJsonParsed {
     const result = new PackageJsonParsed(filePath);
-    if (error instanceof Error || error instanceof PackageJsonParseMessage) {
-      result.addValidationMessage(error);
-    } else if (error) {
-      result.addValidationMessage("error", `${error}`);
-    }
+    result.validation.add(error);
     return result;
   }
 
@@ -291,7 +174,7 @@ export class PackageJsonParsed {
         parseFromJSON: "parse",
       });
     } catch (readError) {
-      const pkg = PackageJsonParsed.error(readError, packageJsonFilePath);
+      const pkg = PackageJsonParsed.error(devError(readError), packageJsonFilePath);
       pkg.strict = options?.strict ?? true;
       return pkg;
     }
@@ -310,12 +193,12 @@ export class PackageJsonParsed {
         loadWorkspaces: false,
       });
       loaded.workspaces = await _loadWorskpcesAsync(packageJsonFilePath, loaded.content);
-      if (loaded.errors.length === 0 && options?.validateWorkspaceDependenciesVersions) {
+      if (!loaded.hasErrors && (options?.validateWorkspaceDependenciesVersions ?? true)) {
         loaded.validateWorkspaceDependenciesVersions();
       }
       return loaded;
     } catch (readError) {
-      const pkg = PackageJsonParsed.error(readError, packageJsonFilePath);
+      const pkg = PackageJsonParsed.error(devError(readError), packageJsonFilePath);
       pkg.strict = options?.strict ?? true;
       return pkg;
     }
@@ -334,7 +217,7 @@ export class PackageJsonParsed {
     result.strict =
       !options || options.strict || !options?.filePath || !INSIDE_NODE_MODULES_REGEX.test(options?.filePath);
 
-    const addError = result.addValidationMessage.bind(result);
+    const addError = result.validation.add.bind(result.validation);
 
     if (options?.parseFromJSON) {
       if (options.parseFromJSON === "readFile") {
@@ -396,14 +279,11 @@ export class PackageJsonParsed {
       }
     }
 
-    let readme: string;
-    ({ content, packageNameAndVersion, readme } = _npmNormalizePackageJson(
+    ({ content, packageNameAndVersion } = _npmNormalizePackageJson(
       PackageJson.sanitize(content),
       isReadable && result.strict,
       addError,
     ));
-
-    result.readme = readme;
 
     if (!content.name && result.filePath) {
       const parent = path.basename(path.dirname(result.filePath));
@@ -423,30 +303,65 @@ export class PackageJsonParsed {
     result.content = content;
     if (isReadable && (options?.loadWorkspaces ?? true) && result.filePath) {
       result.workspaces = _loadWorskpcesSync(result.filePath, content, options);
-      if (result.errors.length === 0 && options?.validateWorkspaceDependenciesVersions) {
+      if (!result.hasErrors && (options?.validateWorkspaceDependenciesVersions ?? true)) {
         result.validateWorkspaceDependenciesVersions();
       }
     }
     return result;
   }
 
-  public validationToString(): string {
-    let message = "";
-    const processFile = (item: PackageJsonParsed) => {
-      if (this.errors.length > 0 || item.warnings.length > 0) {
-        message += `${makePathRelative(item.filePath)} has ${item.errors.length > 0 ? "errors" : "warnings"}:\n`;
-        for (const error of item.errors) {
-          message += `    - ${error}\n`;
-        }
-        for (const warning of item.warnings) {
-          message += `    - ${warning}\n`;
-        }
-        message += "\n";
+  /** Returns a normalized, formatted, sorted, cleaned up package.json content, good to be written on disk. */
+  public toJSON(): PackageJson {
+    const result = PackageJson.sortPackageJsonFields(PackageJson.sanitize(this.content) as PackageJson);
+    for (const dep of PackageJson.dependencyFields) {
+      const item = result[dep];
+      if (item !== undefined && objectKeys(item).length === 0) {
+        delete result[dep];
       }
-    };
-    processFile(this);
-    this.workspaces.forEach(processFile);
-    return message;
+    }
+    if (isArray(result.optionalDependencies) && result.optionalDependencies.length === 0) {
+      delete result.optionalDependencies;
+    }
+    return result;
+  }
+}
+
+export namespace PackageJsonParsed {
+  export interface ReadOptions {
+    strict?: boolean | undefined;
+
+    loadWorkspaces?: boolean;
+
+    validateWorkspaceDependenciesVersions?: boolean;
+
+    onLoadWorkspaceChildProjectSync?:
+      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed | undefined)
+      | undefined;
+
+    onLoadWorkspaceChildProjectAsync?:
+      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed)
+      | undefined;
+  }
+
+  export interface LoadOptions {
+    filePath?: string | undefined;
+
+    /**
+     * If true or "parse", the input is considered as a JSON string (or Buffer).
+     * If "readFile", the file will be loaded synchronously with fs.readFile. And if is a directory, package.json will be read from the directory.
+     * Else, we assume the input is the parsed package.json content.
+     */
+    parseFromJSON?: boolean | "readFile" | "parse" | undefined;
+
+    strict?: boolean | undefined;
+
+    loadWorkspaces?: boolean;
+
+    validateWorkspaceDependenciesVersions?: boolean;
+
+    onLoadWorkspaceChildProjectSync?:
+      | ((packageJsonFilePath: string, options: LoadOptions) => PackageJsonParsed | undefined)
+      | undefined;
   }
 }
 
@@ -455,8 +370,7 @@ let _packageJsonAjvValidator: ValidateFunction<PackageJson.Sanitized> | null = n
 function _readPackageJsonFromFile(
   filePath: string,
   addError: {
-    (err: undefined | null): void;
-    (err: PackageJsonParseMessage | Error | undefined): void;
+    (err: Error | PackageJsonParseMessage): void;
     (severity: PackageJsonParseMessage.Severity, message: string, field?: string | undefined): void;
   },
   packageJson: unknown,
@@ -480,7 +394,7 @@ function _readPackageJsonFromFile(
   }
   if (fileContent !== undefined) {
     packageJson = _parsePackageJson(fileContent, addError);
-  } else if (result.errors.length <= 0) {
+  } else if (!result.hasErrors) {
     addError("error", "Could not read package.json");
   }
   try {
@@ -491,10 +405,7 @@ function _readPackageJsonFromFile(
   return packageJson;
 }
 
-function _parsePackageJson(
-  packageJson: unknown,
-  addError: (err: PackageJsonParseMessage | undefined) => void,
-): unknown {
+function _parsePackageJson(packageJson: unknown, addError: (err: PackageJsonParseMessage) => void): unknown {
   if (packageJson !== undefined && packageJson !== null) {
     if (Buffer.isBuffer(packageJson)) {
       packageJson = packageJson.toString();
@@ -584,19 +495,13 @@ function _npmNormalizePackageJson(
   addError: (err: PackageJsonParseMessage | undefined) => void,
 ): { content: PackageJson.Sanitized; packageNameAndVersion: string | undefined; readme: string } {
   let packageNameAndVersion: string | undefined;
-  let readme = "";
+  const readme = "";
   try {
     const isPrivate = !!content.private;
     const normalizedContent = JSON.parse(JSON.stringify(content)) as PackageJson.Sanitized;
     normalizedContent.private = false;
     const oldReadme = normalizedContent.readme;
     normalizePackageData(normalizedContent, (m) => addError(_packageJsonValidatorErrorFromNormalizer(m)), strict);
-    if (typeof normalizedContent.readme === "string") {
-      readme = normalizedContent.readme;
-      if (readme === "ERROR: No README data found!") {
-        readme = "";
-      }
-    }
     if (oldReadme !== undefined) {
       normalizedContent.readme = oldReadme;
     } else {
@@ -654,8 +559,7 @@ function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined) {
       severity = "info";
       break;
     case "No README data":
-      severity = "info";
-      break;
+      return undefined;
   }
 
   if (!field) {
@@ -866,7 +770,7 @@ function _workspaceFinalize(
       if (seenPackagePathnames.size > 1) {
         const found = loadedByName.get(packageName);
         if (found) {
-          found.addValidationMessage(
+          found.validation.add(
             "error",
             `wokspace conflicts in ${Array.from(seenPackagePathnames).sort().join(", ")}`,
             "workspaces",

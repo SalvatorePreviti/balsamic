@@ -38,6 +38,8 @@ export * from "./processes/dev-child-task";
 
 export * from "./package-json/package-json-type";
 
+export * from "./package-json/package-json-parsed-msgs";
+
 export * from "./package-json/package-json-parsed";
 
 export * from "./modules";
