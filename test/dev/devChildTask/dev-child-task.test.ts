@@ -135,6 +135,41 @@ describe("devChildTask", () => {
     });
   });
 
+  it("can capture stdout text", async () => {
+    const promise = devChildTask.spawn("node", ["-e", "console.log(1234)"], {
+      title: "hey",
+      printStarted: false,
+      captureOutputText: true,
+    });
+
+    expect(promise.status).to.equal("pending");
+    expect(promise.isRunning).to.equal(true);
+    expect(promise.isRejected).to.equal(false);
+    expect(promise.isSettled).to.equal(false);
+    expect(promise.isSucceeded).to.equal(false);
+
+    expect(promise.error).to.equal(null);
+    expect(promise.exitCode).to.equal(null);
+
+    expect(promise.title).to.equal("hey");
+
+    const result = await promise;
+
+    expect(promise.status).to.equal("succeeded");
+    expect(promise.isRunning).to.equal(false);
+    expect(promise.isRejected).to.equal(false);
+    expect(promise.isSettled).to.equal(true);
+    expect(promise.isSucceeded).to.equal(true);
+
+    expect(promise.error).to.equal(null);
+    expect(promise.exitCode).to.equal(0);
+
+    expect(result).to.deep.include({ exitCode: 0 });
+
+    expect(result.stderrText).to.equal("");
+    expect(result.stdoutText).to.equal("1234\n");
+  });
+
   describe("npmRun", () => {
     it("executes an ok script", async () => {
       const promise = devChildTask.npmRun("ok", [], { printStarted: false });

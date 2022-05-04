@@ -24,13 +24,19 @@ export interface SpawnOptions
   extends DevLogTimeOptions,
     ChildProcessWrapper.Options,
     Abortable,
-    child_process.SpawnOptions {}
+    child_process.SpawnOptions {
+  /** The value which will be passed as stdin to the spawned process. Supplying this value will override stdin, stdio[0] */
+  input?: string | Buffer | Uint8Array | DataView | undefined;
+}
 
 export interface ForkOptions
   extends DevLogTimeOptions,
     ChildProcessWrapper.Options,
     Abortable,
-    child_process.ForkOptions {}
+    child_process.ForkOptions {
+  /** The value which will be passed as stdin to the spawned process. Supplying this value will override stdin, stdio[0] */
+  input?: string | Buffer | Uint8Array | DataView | undefined;
+}
 
 export interface SpawnOrForkOptions extends SpawnOptions, ForkOptions {}
 
@@ -72,6 +78,9 @@ export namespace ChildProcessWrapper {
     killChildren?: boolean | undefined;
 
     title?: string | undefined;
+
+    /** If true, stdout and stderr are captured as string */
+    captureOutputText?: boolean | "combined" | undefined;
   }
 
   export type ConstructorInput =
@@ -101,8 +110,6 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   };
 
   public static defaultSpawnOptions: Omit<SpawnOrForkOptions, "title"> = {
-    stdio: "inherit",
-    env: process.env,
     throwOnExitCode: true,
     timed: true,
   };
@@ -117,6 +124,18 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   private _killChildren: boolean;
   private _pendingPromises: Promise<unknown>[] = [];
 
+  /**
+   * If in the option captureOutputText was truthy, and the process has a piped output,
+   * this field will contain the process output.
+   */
+  public stdoutText: string = "";
+
+  /**
+   * If in the option captureOutputText was true, and the process has a piped output,
+   * this field will contain the process stderr output.
+   */
+  public stderrText: string = "";
+
   public constructor(
     input: ChildProcessWrapper.ConstructorInput,
     options?: ChildProcessWrapper.Options | undefined | null,
@@ -129,6 +148,8 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapper.defaultOptions;
     options = { ...defaultOptions, ...options };
     options = _sanitizeOptions(options, defaultOptions);
+
+    const captureOutputText = options.captureOutputText || false;
 
     if (typeof input === "function") {
       try {
@@ -204,6 +225,25 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
     let removeAbortRegistration = noop;
 
+    const stdout = childProcess.stdout;
+    const stderr = childProcess.stderr;
+
+    const _captureStdout =
+      captureOutputText && stdout
+        ? (data: string) => {
+            this.stdoutText += data;
+          }
+        : null;
+
+    const _captureStderr =
+      captureOutputText === "combined"
+        ? _captureStdout
+        : captureOutputText && stderr
+        ? (data: string) => {
+            this.stderrText += data;
+          }
+        : null;
+
     const onClose = () => {
       removeAbortRegistration();
 
@@ -247,7 +287,21 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         this._timed.end();
       }
 
-      resolve(this);
+      if (_captureStdout || _captureStderr) {
+        setImmediate(() => {
+          try {
+            if (_captureStdout) {
+              stdout!.off("data", _captureStdout);
+            }
+            if (_captureStderr) {
+              stderr!.off("data", _captureStderr);
+            }
+          } catch {}
+          resolve(this);
+        });
+      } else {
+        resolve(this);
+      }
     };
 
     const self = this;
@@ -273,6 +327,15 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     childProcess.once("error", onError);
     childProcess.once("close", onClose);
 
+    if (captureOutputText) {
+      if (_captureStdout) {
+        stdout!.on("data", _captureStdout);
+      }
+      if (_captureStderr) {
+        stderr!.on("data", _captureStderr);
+      }
+    }
+
     if (!exited) {
       if (abortSignal !== undefined) {
         if (abortSignals.isAborted(abortSignal)) {
@@ -294,6 +357,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         }
       }
     }
+  }
+
+  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
+    await this.promise();
   }
 
   public get title(): string {
@@ -560,6 +627,35 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     const args = ChildProcessWrapper.normalizeArgs(inputArgs);
     const cmd = [command, ...args].join(" ");
     const opts = { ...ChildProcessWrapper.defaultSpawnOptions, ...options };
+
+    if (opts.stdio === undefined) {
+      if (opts.captureOutputText) {
+        opts.stdio = ["inherit", "pipe", "pipe"];
+      } else {
+        opts.stdio = "inherit";
+      }
+    }
+
+    if (opts.input === null) {
+      opts.input = undefined;
+    }
+
+    if (opts.input !== undefined) {
+      if (
+        typeof opts.stdio === "string" ||
+        typeof opts.stdio === "number" ||
+        (typeof opts.stdio === "object" && !Array.isArray(opts.stdio))
+      ) {
+        opts.stdio = [opts.stdio, opts.stdio, opts.stdio];
+      }
+
+      if (Array.isArray(opts.stdio)) {
+        opts.stdio = [...opts.stdio];
+      }
+
+      opts.stdio[0] = "pipe";
+    }
+
     if (typeof opts.title !== "string") {
       opts.title = cmd.length < 40 ? cmd : command;
     }
@@ -580,7 +676,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     const { args, opts, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, command, options);
     return new ChildProcessWrapper(
       () => {
-        return { childProcess: child_process.spawn(command, args, opts) };
+        const childProcess = child_process.spawn(command, args, opts);
+        if (opts.input !== undefined) {
+          childProcess.stdin?.write(opts.input);
+          opts.input = undefined;
+        }
+        return { childProcess };
       },
       opts,
       signal,
@@ -592,7 +693,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
     return new ChildProcessWrapper(
       () => {
-        return { childProcess: child_process.fork(moduleId, args, opts) };
+        const childProcess = child_process.fork(moduleId, args, opts);
+        if (opts.input !== undefined) {
+          childProcess.stdin?.write(opts.input, noop);
+          opts.input = undefined;
+        }
+        return { childProcess };
       },
       opts,
       signal,
@@ -618,7 +724,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         if (!resolved) {
           throw new Error(`runModuleBin: Could not find ${moduleId}:${executableId}`);
         }
-        return { childProcess: child_process.fork(resolved, args, opts) };
+        const childProcess = child_process.fork(resolved, args, opts);
+        if (opts.input !== undefined) {
+          childProcess.stdin?.write(opts.input, noop);
+          opts.input = undefined;
+        }
+        return { childProcess };
       },
       opts,
       signal,
@@ -639,10 +750,6 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
     options = { title: `npm ${command}`, ...options };
     return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
-  }
-
-  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
-    await this.promise();
   }
 }
 
@@ -683,6 +790,30 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     } else if (error !== undefined) {
       this[private_error] = error;
     }
+  }
+
+  /**
+   * If in the option captureOutputText was truthy, and the process has a piped output,
+   * this field will contain the process output.
+   */
+  public get stdoutText(): string {
+    return this.childProcessWrapper.stdoutText;
+  }
+
+  public set stdoutText(value: string) {
+    this.childProcessWrapper.stdoutText = value;
+  }
+
+  /**
+   * If in the option captureOutputText was true, and the process has a piped output,
+   * this field will contain the process stderr output.
+   */
+  public get stderrText(): string {
+    return this.childProcessWrapper.stderrText;
+  }
+
+  public set stderrText(value: string) {
+    this.childProcessWrapper.stderrText = value;
   }
 
   public [util_inspect_custom](): unknown {
