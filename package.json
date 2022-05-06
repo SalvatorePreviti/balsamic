@@ -25,6 +25,7 @@
   ],
   "scripts": {
     "test": "mocha -r ts-node/register --recursive ./test/**/*.test.ts",
+    "lint": "eslint . --fix && prettier --write .",
     "precommit": "lint-staged && pretty-quick --staged",
     "postinstall": "husky install .husky",
     "typecheck": "tsc --noEmit",

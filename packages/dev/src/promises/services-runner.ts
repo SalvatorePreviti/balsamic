@@ -4,20 +4,67 @@ import { abortSignals } from "./abort-signals";
 import { AbortError } from "./abort-error";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
-import { mainProcessRef } from "../main/main-process-ref";
+import { Main } from "../main";
 
-const { defineProperty } = Reflect;
+export namespace ServicesRunner {
+  export interface Options {
+    abortController?: AbortController | undefined;
+    abortOnServiceTermination?: boolean | undefined;
+    abortOnServiceError?: boolean | undefined;
+    runOptions?: ServicesRunner.RunOptions | undefined;
+  }
+
+  export interface ServiceOptions {
+    abortOnServiceError?: boolean | undefined;
+    abortOnServiceTermination?: boolean | undefined;
+    onTerminate?: ((error: Error | null) => void | Promise<void>) | undefined;
+  }
+
+  export interface RunOptions {
+    onServiceError?:
+      | ((error: Error, serviceName: string | undefined) => void | Promise<void>)
+      | null
+      | undefined
+      | false;
+
+    onFinally?: ((error: Error | null) => void | Promise<void>) | undefined;
+
+    /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
+    registerProcessTermination?: boolean | undefined;
+
+    /** Default to true */
+    abortOnError?: boolean | undefined;
+
+    /** Default to true */
+    abortWhenFinished?: boolean | undefined;
+  }
+
+  export interface AwaitAllOptions {
+    onError?: ((error: Error, serviceName?: string | undefined) => void | Promise<void>) | null | undefined;
+    abortOnError?: boolean | undefined;
+    awaitRun?: boolean | undefined;
+    rejectOnError?: boolean | undefined;
+  }
+
+  export interface Service {
+    [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner): void | Promise<void>;
+  }
+}
 
 interface ServiceRunnerPendingEntry {
   title: string;
   promise: Promise<Error | null>;
 }
 
+const { defineProperty } = Reflect;
+
 export class ServicesRunner implements AbortController {
   public abortController: AbortController;
 
   private _pending: ServiceRunnerPendingEntry[] = [];
   private _activeRunPromises: Promise<unknown>[] = [];
+
+  public static readonly serviceRunnerServiceSymbol: unique symbol = Symbol.for("@balsamic/dev/ServicesRunner");
 
   public static isServiceRunnerService(value: unknown): value is ServicesRunner.Service {
     return (
@@ -395,56 +442,9 @@ export class ServicesRunner implements AbortController {
       }
     };
 
-    promise = abortSignals.withAbortSignal(this.signal, mainProcessRef.wrapAsyncFunction(run));
+    promise = abortSignals.withAbortSignal(this.signal, Main.ref.wrapAsyncFunction(run));
     this._activeRunPromises.push(promise);
     return promise;
-  }
-}
-
-export namespace ServicesRunner {
-  export const serviceRunnerServiceSymbol: unique symbol = Symbol.for("@balsamic/dev/ServicesRunner");
-
-  export interface Options {
-    abortController?: AbortController | undefined;
-    abortOnServiceTermination?: boolean | undefined;
-    abortOnServiceError?: boolean | undefined;
-    runOptions?: ServicesRunner.RunOptions | undefined;
-  }
-
-  export interface ServiceOptions {
-    abortOnServiceError?: boolean | undefined;
-    abortOnServiceTermination?: boolean | undefined;
-    onTerminate?: ((error: Error | null) => void | Promise<void>) | undefined;
-  }
-
-  export interface RunOptions {
-    onServiceError?:
-      | ((error: Error, serviceName: string | undefined) => void | Promise<void>)
-      | null
-      | undefined
-      | false;
-
-    onFinally?: ((error: Error | null) => void | Promise<void>) | undefined;
-
-    /** Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort during run */
-    registerProcessTermination?: boolean | undefined;
-
-    /** Default to true */
-    abortOnError?: boolean | undefined;
-
-    /** Default to true */
-    abortWhenFinished?: boolean | undefined;
-  }
-
-  export interface AwaitAllOptions {
-    onError?: ((error: Error, serviceName?: string | undefined) => void | Promise<void>) | null | undefined;
-    abortOnError?: boolean | undefined;
-    awaitRun?: boolean | undefined;
-    rejectOnError?: boolean | undefined;
-  }
-
-  export interface Service {
-    [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner): void | Promise<void>;
   }
 }
 

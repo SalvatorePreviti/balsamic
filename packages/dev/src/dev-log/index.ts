@@ -1,17 +1,12 @@
 import util from "util";
 import readline from "readline";
-import { colors as _colors, colors_disabled } from "../colors";
+import { colors as _colors, getColor, TermColor } from "../colors";
 import { millisecondsToString } from "../utils/utils";
-import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import { performance } from "perf_hooks";
-import type { Chalk, ChalkFunction } from "chalk";
 import type { Deferred } from "../promises/deferred";
 
-export { ChalkFunction };
-
-let _logProcessTimeInitialized = false;
 const _inspectedErrorLoggedSet = new Set<unknown>();
 
 const _inspectedErrorLoggedSet_maxSize = 25;
@@ -37,39 +32,6 @@ export function devLog(...args: unknown[]): void {
 }
 
 export namespace devLog {
-  export type TermBasicColor =
-    | "black"
-    | "red"
-    | "green"
-    | "yellow"
-    | "blue"
-    | "magenta"
-    | "cyan"
-    | "white"
-    | "blackBright"
-    | "redBright"
-    | "greenBright"
-    | "yellowBright"
-    | "blueBright"
-    | "magentaBright"
-    | "cyanBright"
-    | "whiteBright";
-
-  export function getColor(color: Chalk | devLog.TermBasicColor | "error" | "warning" | "info" | null | undefined) {
-    if (typeof color === "string") {
-      switch (color) {
-        case "error":
-          return _colors.redBright;
-        case "warning":
-          return _colors.yellowBright;
-        case "info":
-          return _colors.blueBright;
-      }
-      color = devLog.colors[color];
-    }
-    return typeof color === "function" ? color : colors_disabled;
-  }
-
   export function log(...args: unknown[]): void {
     console.log(_devInspectForLogging(args));
   }
@@ -138,8 +100,8 @@ export namespace devLog {
     devLog.log(devLog.colors.whiteBright(_devInspectForLogging(args)));
   }
 
-  export function logColor(color: devLog.TermBasicColor, ...args: unknown[]) {
-    devLog.log(devLog.colors[color](_devInspectForLogging(args)));
+  export function logColor(color: TermColor, ...args: unknown[]) {
+    devLog.log(getColor(color)(_devInspectForLogging(args)));
   }
 
   export function error(...args: unknown[]): void {
@@ -231,13 +193,6 @@ export namespace devLog {
     }
 
     return showStack;
-  }
-
-  export function printProcessBanner() {
-    const processTitle = devEnv.getProcessTitle();
-    if (processTitle) {
-      devLog.log(`${devLog.colors.blueBright("\n⬢")} ${devLog.colors.rgb(100, 200, 255)(processTitle)}\n`);
-    }
   }
 
   /** Developer debug log. Appends the line where this function was called. */
@@ -335,40 +290,8 @@ export namespace devLog {
     return util.inspect(what, devLog.inspectOptions);
   }
 
-  /** Attach an handler that will log process duration when the process terminates. */
-  export function initProcessTime() {
-    if (_logProcessTimeInitialized) {
-      return false;
-    }
-    _logProcessTimeInitialized = true;
-    const handleExit = () => {
-      const elapsed = millisecondsToString(process.uptime() * 1000);
-      const exitCode = process.exitCode;
-      if (exitCode) {
-        devLog.log(
-          devLog.colors.redBright(
-            `\n😡 ${devEnv.getProcessTitle()} ${devLog.colors.redBright.bold.underline(
-              "FAILED",
-            )} in ${elapsed}. exitCode: ${exitCode}\n`,
-          ),
-        );
-      } else {
-        devLog.log(
-          devLog.colors.greenBright(
-            `\n✅ ${devEnv.getProcessTitle()} ${devLog.colors.bold("OK")} ${devLog.colors.green(`in ${elapsed}`)}\n`,
-          ),
-        );
-      }
-    };
-    process.once("exit", handleExit);
-    return true;
-  }
-
   /** Prints an horizontal line */
-  export function hr(
-    color?: Chalk | devLog.TermBasicColor | "error" | "warning" | "info" | null | undefined,
-    char = "⎯",
-  ) {
+  export function hr(color?: TermColor | null | undefined, char = "⎯") {
     let columns = 10;
 
     if (devLog.colors.level < 1 || !process.stdout.isTTY) {
@@ -383,7 +306,7 @@ export namespace devLog {
       columns = 250;
     }
 
-    devLog.log(devLog.getColor(color)(char.repeat(columns)));
+    devLog.log(getColor(color)(char.repeat(columns)));
   }
 
   /** Prints how much time it takes to run something */

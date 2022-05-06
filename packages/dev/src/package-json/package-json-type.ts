@@ -12,7 +12,7 @@ export interface PackageJson {
   /** The name of the package. */
   name?: string | undefined;
 
-  /** Package version, parseable by [`node-semver`](https://github.com/npm/node-semver). */
+  /** Package version, parsable by [`node-semver`](https://github.com/npm/node-semver). */
   version?: string | undefined;
 
   /** Package description, listed in `npm search`. */
@@ -128,7 +128,7 @@ export interface PackageJson {
   /** An ECMAScript module ID that is the primary entry point to the program. */
   module?: string | undefined;
 
-  /** A module ID with untranspiled code that is the primary entry point to the program. */
+  /** A module ID with non transpiled code that is the primary entry point to the program. */
   esnext?:
     | string
     | { [moduleName: string]: string | undefined; main?: string | undefined; browser?: string | undefined }

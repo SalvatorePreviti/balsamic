@@ -1,11 +1,11 @@
-import { mainProcessRef } from "../main/main-process-ref";
+import net from "node:net";
 import { Deferred } from "../promises/deferred";
-import net from "net";
 import { performance } from "perf_hooks";
+import { Main } from "../main";
 
 /** Returns true if the given network port can be used for listening */
 export function netTcpPortIsAvailable(port: number | string | undefined | null): Promise<boolean> {
-  return mainProcessRef.wrapPromise(
+  return Main.ref.wrapPromise(
     new Deferred<boolean>((resolve) => {
       const server = net
         .createServer()
@@ -20,7 +20,7 @@ export function netTcpPortIsAvailable(port: number | string | undefined | null):
   );
 }
 
-export namespace netTryConnect {
+export namespace netTcpTryConnect {
   export interface Options {
     host?: string | undefined;
     port?: string | number | undefined | null;
@@ -42,9 +42,9 @@ export function netTcpTryConnect({
   host = "localhost",
   port = 80,
   timeout = 5000,
-}: netTryConnect.Options = {}): Promise<netTryConnect.Result> {
+}: netTcpTryConnect.Options = {}): Promise<netTcpTryConnect.Result> {
   const startTime = performance.now();
-  return new Deferred<netTryConnect.Result>((resolve) => {
+  return new Deferred<netTcpTryConnect.Result>((resolve) => {
     const socket = new net.Socket();
     socket
       .connect(+(port || ""), host, () => {

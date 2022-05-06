@@ -149,6 +149,8 @@ export const {
   resolveFileOrDirectory,
   /** Gets the root path of a full path. Since this is posix, root is always "/" */
   getPathRoot,
+  /** Removes the extension from a path */
+  stripExtension,
 } = platform() === "win32" ? _win32 : _posix;
 
 /** Makes a path relative and nicely printable */

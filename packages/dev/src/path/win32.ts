@@ -206,6 +206,12 @@ export const getPathRoot = (fullpath: string): string => {
   return (match && match[0]) || "/";
 };
 
+/** Removes the extension from a path */
+export const stripExtension = (filePath: string): string => {
+  const ext = extname(filePath);
+  return ext ? filePath.slice(0, -ext.length) : filePath;
+};
+
 export * as posix from "./posix";
 
 export * as win32 from "./win32";

@@ -1,6 +1,7 @@
 import { devError } from "../dev-error";
 import { devLog, DevLogTimeOptions } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
+import type { TimeoutType } from "../types";
 import { noop } from "../utils/utils";
 import { AbortError } from "./abort-error";
 import { abortSignals } from "./abort-signals";
@@ -48,7 +49,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   private _buildingPromise: Promise<void> | null;
   private _firstBuildDeferred = new Deferred<void>().ignoreUnhandledRejection();
   private _closedDeferred: Deferred<void> | null = null;
-  private _fileChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _fileChangeDebounceTimer: TimeoutType | null = null;
   private _onBuild: ((error: Error | null) => void | Promise<unknown>) | undefined;
   private _onClose: (() => void | Promise<unknown>) | undefined;
   private _removeInitialSignalHandler = noop;
@@ -190,7 +191,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
     return this._firstBuildDeferred.isRejected;
   }
 
-  /** True if the first build was completed succesfully. */
+  /** True if the first build was completed successfully. */
   public get firstBuildSucceeded(): boolean {
     return this._firstBuildDeferred.isSucceeded;
   }

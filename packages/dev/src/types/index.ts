@@ -6,6 +6,10 @@ export type URLLike = string | Readonly<URL> | URLLikeObject;
 
 export * from "./tsconfig-json";
 
+export type TimeoutType = ReturnType<typeof setTimeout>;
+
+export type IntervalType = ReturnType<typeof setInterval>;
+
 declare global {
   export interface Event {}
 

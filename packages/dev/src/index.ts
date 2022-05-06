@@ -46,6 +46,4 @@ export * from "./modules";
 
 export * from "./net/net";
 
-export * from "./main/main-process-ref";
-
 export * from "./main";

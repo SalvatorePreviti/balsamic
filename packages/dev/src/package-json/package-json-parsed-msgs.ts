@@ -1,15 +1,13 @@
 import util from "node:util";
-import { devLog } from "../dev-log";
+import { getColor } from "../colors";
 
 const util_inspect_custom = util.inspect.custom;
 
-export namespace PackageJsonParseMessage {
-  export type Severity = "error" | "warning" | "info";
-}
+export type PackageJsonParseMessageSeverity = "error" | "warning" | "info";
 
 export class PackageJsonParseMessage {
   public constructor(
-    public severity: PackageJsonParseMessage.Severity,
+    public severity: PackageJsonParseMessageSeverity,
     public message: string,
     public field?: string | undefined,
   ) {}
@@ -22,9 +20,7 @@ export class PackageJsonParseMessage {
   public toFormattedString(colors: boolean = false): string {
     const { severity, message, field } = this;
     if (colors) {
-      return `${devLog.getColor(severity).underline(severity)}: ${
-        field ? devLog.colors.cyan(`[${field}] `) : ""
-      }${message}`;
+      return `${getColor(severity).underline(severity)}: ${field ? getColor("cyan")(`[${field}] `) : ""}${message}`;
     }
     return `${severity}: ${field ? `[${field}] ` : ""}${message}`;
   }
@@ -52,7 +48,7 @@ export class PackageJsonParseMessages {
     return this.hasErrors || this.hasWarnings;
   }
 
-  public get maxSeverity(): PackageJsonParseMessage.Severity | null {
+  public get maxSeverity(): PackageJsonParseMessageSeverity | null {
     return this.hasErrors ? "error" : this.hasWarnings ? "warning" : this.informations.length > 0 ? "info" : null;
   }
 
@@ -60,10 +56,10 @@ export class PackageJsonParseMessages {
 
   public add(err: PackageJsonParseMessage | Error | string | undefined, field?: string): void;
 
-  public add(severity: PackageJsonParseMessage.Severity, message: string, field?: string | undefined): void;
+  public add(severity: PackageJsonParseMessageSeverity, message: string, field?: string | undefined): void;
 
   public add(
-    err: PackageJsonParseMessage.Severity | PackageJsonParseMessage | Error | string | undefined | null,
+    err: PackageJsonParseMessageSeverity | PackageJsonParseMessage | Error | string | undefined | null,
     message?: string,
     field?: string | undefined | null,
   ): void {
@@ -71,7 +67,7 @@ export class PackageJsonParseMessages {
       message = err.message || "Invalid package.json";
       err = "error";
     }
-    let severity: PackageJsonParseMessage.Severity = "error";
+    let severity: PackageJsonParseMessageSeverity = "error";
     if (!(err instanceof PackageJsonParseMessage)) {
       if (err === undefined || err === null) {
         return;
@@ -139,7 +135,7 @@ export class PackageJsonParseMessages {
     this.fieldsWithErrors.clear();
   }
 
-  public getMessages(severity: PackageJsonParseMessage.Severity): PackageJsonParseMessage[] {
+  public getMessages(severity: PackageJsonParseMessageSeverity): PackageJsonParseMessage[] {
     switch (severity) {
       case "error":
         return [...this.errors];
@@ -155,7 +151,7 @@ export class PackageJsonParseMessages {
     indent = "",
   }: {
     colors?: boolean | undefined;
-    severity?: PackageJsonParseMessage.Severity | undefined;
+    severity?: PackageJsonParseMessageSeverity | undefined;
     indent?: string | undefined;
   } = {}): string {
     let result = "";

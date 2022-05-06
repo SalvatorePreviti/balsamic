@@ -6,11 +6,11 @@ import type { InterfaceFromClass } from "../types";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
-import { killProcessChildren } from "./lib/kill-process-children";
 import type { Deferred } from "../promises/deferred";
 import type { Abortable } from "events";
 import { NodeResolver } from "../modules/node-resolver";
 import { ServicesRunner } from "../promises/services-runner";
+import treeKill from "tree-kill";
 
 const { defineProperty } = Reflect;
 
@@ -372,7 +372,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /**
-   * A promise that awaits process termination. It does not reject if there is a process error or a non zero exitcode.
+   * A promise that awaits process termination. It does not reject if there is a process error or a non zero exitCode.
    */
   public terminationPromise(): ChildProcessPromise<this> {
     return this._terminationPromise;
@@ -519,7 +519,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   public killChildrenAsync(signal?: NodeJS.Signals | number | undefined): Promise<boolean> {
-    const promise = killProcessChildren(this, signal ?? this._killSignal ?? "SIGTERM");
+    const promise = ChildProcessWrapper.killProcessChildren(this, signal ?? this._killSignal ?? "SIGTERM");
     this.addPendingPromise(promise);
     return promise;
   }
@@ -750,6 +750,31 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
     options = { title: `npm ${command}`, ...options };
     return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  }
+
+  /** Kills all child processes of the given process id or ChildProcess instance. */
+  public static killProcessChildren(
+    pid: number | child_process.ChildProcess | { pid: number | undefined } | null | undefined,
+    signal?: NodeJS.Signals | number | undefined,
+  ): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+      if (!pid) {
+        return resolve(false);
+      }
+      if (typeof pid === "object" && pid !== null) {
+        pid = pid.pid;
+        if (!pid) {
+          return resolve(false);
+        }
+      }
+      return treeKill(pid, signal, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(true);
+        }
+      });
+    });
   }
 }
 

@@ -65,7 +65,7 @@ export class Deferred<T = void> {
   }
 
   /**
-   * Makes the promise to not cause an UnhandledRejection if not catched.
+   * Makes the promise to not cause an UnhandledRejection if not catch.
    */
   public ignoreUnhandledRejection(): this {
     if (!this._unhandledRejectionIgnored) {

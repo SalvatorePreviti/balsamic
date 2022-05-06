@@ -1,16 +1,45 @@
 import { devError } from "../dev-error";
 
+export interface AbortErrorOptions extends ErrorOptions {
+  cause?: Error;
+  caller?: Function | undefined;
+  serviceTitle?: string | undefined;
+  isOk?: boolean | undefined;
+}
+
 export class AbortError extends Error {
   public static code = "ABORT_ERR";
 
   public serviceTitle?: string | undefined;
   public isOk?: boolean | undefined;
 
+  public static ServiceTerminatedError: typeof ServiceTerminatedError;
+  public static AbortOk: typeof ServiceTerminatedError;
+
+  public constructor();
+
+  public constructor(options: Readonly<AbortErrorOptions & { message?: string | undefined }>);
+
+  public constructor(message: string | Error | undefined, options?: Readonly<AbortErrorOptions> | undefined);
+
   public constructor(
-    message: string = "The operation was aborted",
-    options?: Readonly<AbortError.Options> | undefined,
+    message:
+      | string
+      | Error
+      | Readonly<AbortErrorOptions & { message?: string | undefined }>
+      | undefined = "The operation was aborted",
+    options?: Readonly<AbortErrorOptions> | undefined,
   ) {
-    super(message, options);
+    if (typeof message === "object" && message !== null) {
+      if (message instanceof Error) {
+        options = { ...options, cause: options?.cause || message };
+        message = message.message;
+      } else if (options === undefined) {
+        options = message;
+        message = message.message;
+      }
+    }
+    super(message as string, options as ErrorOptions);
 
     const caller = options?.caller;
     Error.captureStackTrace(this, typeof caller === "function" ? caller : new.target);
@@ -33,44 +62,43 @@ export class AbortError extends Error {
   }
 }
 
-AbortError.prototype.code = "ABORT_ERR";
 AbortError.prototype.name = AbortError.name;
 AbortError.prototype.showStack = "once";
+AbortError.prototype.isOk = false;
+AbortError.prototype.code = "ABORT_ERR";
 
-export namespace AbortError {
-  export interface Options extends ErrorOptions {
-    caller?: Function | undefined;
-    serviceTitle?: string | undefined;
-    isOk?: boolean | undefined;
-  }
-
-  export class ServiceTerminatedError extends AbortError {
-    public constructor(message?: string | undefined, options?: Readonly<AbortError.Options> | undefined) {
-      if (!options || !options.caller) {
-        options = { ...options, caller: new.target };
-      }
-      if (!message) {
-        try {
-          message = options.serviceTitle ? `Service "${options.serviceTitle}" terminated.` : "Service terminated.";
-          if (options.cause instanceof Error) {
-            message += ` ${options.cause}`;
-          }
-        } catch {}
-      }
-      super(message || "Service terminated.", options);
+class ServiceTerminatedError extends AbortError {
+  public constructor(message?: string | undefined, options?: Readonly<AbortErrorOptions> | undefined) {
+    if (!options || !options.caller) {
+      options = { ...options, caller: new.target };
     }
-  }
-
-  export class AbortOk extends AbortError {
-    public constructor(message?: string | undefined, options?: Readonly<AbortError.Options> | undefined) {
-      let isOk = options && options.isOk;
-      if (isOk === undefined) {
-        isOk = true;
-      }
-      super(message || (isOk ? "OK." : undefined), options);
-      this.isOk = isOk;
+    if (!message) {
+      try {
+        message = options.serviceTitle ? `Service "${options.serviceTitle}" terminated.` : "Service terminated.";
+        if (options.cause instanceof Error) {
+          message += ` ${options.cause}`;
+        }
+      } catch {}
     }
+    super(message || "Service terminated.", options);
   }
-
-  AbortOk.prototype.showStack = false;
 }
+
+ServiceTerminatedError.prototype.name = ServiceTerminatedError.name;
+AbortError.ServiceTerminatedError = ServiceTerminatedError;
+
+class AbortOk extends AbortError {
+  public constructor(message?: string | undefined, options?: Readonly<AbortErrorOptions> | undefined) {
+    let isOk = options && options.isOk;
+    if (isOk === undefined) {
+      isOk = true;
+    }
+    super(message || (isOk ? "OK." : undefined), options);
+    this.isOk = isOk;
+  }
+}
+
+AbortOk.prototype.name = AbortOk.name;
+AbortOk.prototype.showStack = false;
+AbortOk.prototype.isOk = true;
+AbortError.AbortOk = AbortOk;

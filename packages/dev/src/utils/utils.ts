@@ -102,16 +102,6 @@ export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | b
     : text.toString();
 }
 
-export const noop = () => {};
-
 export type noop = () => void;
 
-export const returnArg = <T>(arg: T): T => arg;
-
-export const returnArg1 = <T>(_: unknown, arg: T): T => arg;
-
-export const returnArg2 = <T>(_0: unknown, _1: unknown, arg: T): T => arg;
-
-export const returnArg3 = <T>(_0: unknown, _1: unknown, _2: unknown, arg: T): T => arg;
-
-export const returnArg4 = <T>(_0: unknown, _1: unknown, _2: unknown, _3: unknown, arg: T): T => arg;
+export const noop = () => {};

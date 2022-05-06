@@ -8,8 +8,12 @@ import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
 import { plainObjects } from "../utils/plain-objects";
-import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
-import { devLog } from "../dev-log";
+import {
+  PackageJsonParseMessage,
+  PackageJsonParseMessages,
+  PackageJsonParseMessageSeverity,
+} from "./package-json-parsed-msgs";
+import { getColor } from "../colors";
 
 const { isArray } = Array;
 const { keys: objectKeys, entries: objectEntries } = Object;
@@ -69,7 +73,7 @@ export class PackageJsonParsed {
     options: {
       colors?: boolean | undefined;
       workspaces?: boolean | undefined;
-      severity?: PackageJsonParseMessage.Severity;
+      severity?: PackageJsonParseMessageSeverity;
     } = {},
   ): string {
     const { colors = false, workspaces = true } = options;
@@ -80,7 +84,7 @@ export class PackageJsonParsed {
         const name = (self.filePath && makePathRelative(self.filePath)) || this.content.name;
         if (name) {
           if (colors) {
-            msgs = `${devLog.getColor(self.validation.maxSeverity)(name)}:\n${msgs}`;
+            msgs = `${getColor(self.validation.maxSeverity)(name)}:\n${msgs}`;
           } else {
             msgs = `${name}:\n${msgs}`;
           }
@@ -371,7 +375,7 @@ function _readPackageJsonFromFile(
   filePath: string,
   addError: {
     (err: Error | PackageJsonParseMessage): void;
-    (severity: PackageJsonParseMessage.Severity, message: string, field?: string | undefined): void;
+    (severity: PackageJsonParseMessageSeverity, message: string, field?: string | undefined): void;
   },
   packageJson: unknown,
   result: PackageJsonParsed,
@@ -552,7 +556,7 @@ function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined) {
   if (msg.endsWith(".")) {
     msg = msg.slice(0, -1);
   }
-  let severity: PackageJsonParseMessage.Severity = "warning";
+  let severity: PackageJsonParseMessageSeverity = "warning";
   let field: string | undefined;
   switch (msg) {
     case "No repository field":
