@@ -30,7 +30,7 @@
     "postinstall": "husky install .husky",
     "typecheck": "tsc --noEmit",
     "build": "tsc --build ./tsconfig.build.json",
-    "clean": "rm -fr packages/*/dist",
+    "clean": "rm -fr packages/*/dist packages/dev/*.js packages/dev/*.map packages/dev/*.d.ts",
     "rebuild": "npm run clean && npm run build",
     "prepack": "npm run rebuild"
   },

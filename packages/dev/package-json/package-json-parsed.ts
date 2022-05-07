@@ -45,15 +45,11 @@ export class PackageJsonParsed {
   }
 
   public get hasErrors(): boolean {
-    return this.validation.hasErrors;
-  }
-
-  public get hasWarnings(): boolean {
-    return this.validation.hasWarnings;
+    return this.validation.hasErrors || this.workspaces.some((workspace) => workspace.hasErrors);
   }
 
   public get hasWarningsOrErrors(): boolean {
-    return this.validation.hasWarningsOrErrors;
+    return this.validation.hasWarningsOrErrors || this.workspaces.some((workspace) => workspace.hasWarningsOrErrors);
   }
 
   public get workspaces(): PackageJsonParsed[] {
@@ -67,6 +63,22 @@ export class PackageJsonParsed {
 
   public set workspaces(value: PackageJsonParsed[] | undefined) {
     this[private_WorkspacesSymbol] = value;
+  }
+
+  public getWorkspace(packageName: string, throwIfNotFound: true): PackageJsonParsed;
+  public getWorkspace(packageName: string, throwIfNotFound?: false | undefined): PackageJsonParsed | undefined;
+  public getWorkspace(packageName: string, throwIfNotFound?: boolean): PackageJsonParsed | undefined {
+    const workspaces = this.workspaces;
+    for (let i = 0, len = workspaces.length; i < len; ++i) {
+      const workspace = workspaces[i];
+      if (workspace!.content.name === packageName) {
+        return workspace;
+      }
+    }
+    if (throwIfNotFound) {
+      throw devError(`Workspace ${packageName} not found.`, { showStack: false });
+    }
+    return undefined;
   }
 
   public validationMessagesToString(
@@ -608,7 +620,7 @@ function _packageJsonValidationErrorFromAjvError(
 }
 
 function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
-  const packageJsonSchema = require("../../package-json.schema.json");
+  const packageJsonSchema = require("../package-json.schema.json");
   return new Ajv({
     validateSchema: false,
     false: true,

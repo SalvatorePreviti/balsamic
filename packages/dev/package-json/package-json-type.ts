@@ -479,6 +479,7 @@ export namespace PackageJson {
     "resolutions",
     "preferGlobal",
     "publishConfig",
+    "@balsamic",
     "bundleDependencies",
     "bundledDependencies",
     "peerDependencies",

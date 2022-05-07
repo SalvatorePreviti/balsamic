@@ -2,10 +2,9 @@
   "name": "@balsamic/dev",
   "version": "0.2.3",
   "description": "dev and scripting utilities for NodeJS",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "index.d.ts",
   "sideEffects": true,
-  "private": false,
+  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git",

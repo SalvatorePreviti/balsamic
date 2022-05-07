@@ -51,6 +51,8 @@ export function devError(error?: any | undefined, a?: any | undefined, b?: any |
   return error;
 }
 
+defineProperty(devError, "prototype", { value: Error, configurable: true, writable: true });
+
 devError.setProperty = function setProperty<TError = Error>(
   error: TError,
   name: string,
@@ -112,6 +114,10 @@ devError.setShowStack = function setShowStack<TError = Error>(
   value: boolean | "once" | undefined,
 ): TError {
   return devError.setProperty<TError>(error, "showStack", value, false);
+};
+
+devError.hideStack = function hideStack<TError = Error>(error: TError): TError {
+  return devError.setProperty<TError>(error, "showStack", false, false);
 };
 
 devError.setCause = function setCause<TError = Error>(error: TError, cause: Error | undefined | null | false): TError {

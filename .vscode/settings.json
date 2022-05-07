@@ -72,7 +72,5 @@
   "prettier.singleQuote": false,
   "prettier.tabWidth": 2,
   "prettier.trailingComma": "all",
-  "prettier.useTabs": false,
-  "explorer.fileNesting.enabled": true,
-  "explorer.fileNesting.expand": false
+  "prettier.useTabs": false
 }

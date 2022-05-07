@@ -2,10 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
-    "baseUrl": "src",
-    "rootDir": "src",
-    "outDir": "dist",
-    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo",
+    "baseUrl": ".",
+    "rootDir": ".",
+    "outDir": ".",
 
     "module": "CommonJS",
     "sourceMap": true,
@@ -15,6 +14,6 @@
     "types": ["node"],
     "composite": true
   },
-  "include": ["src"],
+  "include": ["."],
   "exclude": ["**/node_modules", "**/dist", "**/test", "**/*.spec.ts", "**/*.test.ts"]
 }

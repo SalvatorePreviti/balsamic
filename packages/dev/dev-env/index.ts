@@ -4,28 +4,15 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { makePathRelative } from "../path";
 
-let _isCI: boolean =
-  (!!process.env.CI && process.env.CI !== "false") || process.env.TF_BUILD === "True" || process.argv.includes("--ci");
-
 /** Returns true if running inside continuous integration pipeline */
 export const isCI = () => {
-  return _isCI;
+  return isCI.value;
 };
 
-/** Changes the value of isCI */
-isCI.set = function isCI_set(value: boolean) {
-  value = !!value;
-  if (_isCI !== value) {
-    _isCI = !!value;
-    if (value) {
-      process.env.CI = "1";
-    } else {
-      delete process.env.CI;
-    }
-  }
-};
+isCI.value =
+  (!!process.env.CI && process.env.CI !== "false") || process.env.TF_BUILD === "True" || process.argv.includes("--ci");
 
-let supportsColorLevel: 0 | 1 | 2 | 3 | undefined;
+let _supportsColorLevel: 0 | 1 | 2 | 3 | undefined;
 let _processTitle: string | undefined;
 let _defaultProcessTitle: string | undefined;
 
@@ -34,12 +21,29 @@ export const devEnv = {
 
   isCI,
 
+  /** Changes the value of isCI */
+  setIsCI(value: boolean) {
+    value = !!value;
+    if (isCI.value !== value) {
+      isCI.value = !!value;
+      if (value) {
+        process.env.CI = "1";
+      } else {
+        delete process.env.CI;
+      }
+    }
+  },
+
   hasColors(): 0 | 1 | 2 | 3 {
-    return supportsColorLevel !== undefined ? supportsColorLevel : (supportsColorLevel = loadHasColors());
+    return _supportsColorLevel !== undefined ? _supportsColorLevel : (_supportsColorLevel = loadHasColors());
   },
 
   setHasColors(value: number | boolean): void {
-    supportsColorLevel = !value ? 0 : value === true ? 1 : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
+    _supportsColorLevel = !value
+      ? 0
+      : value === true
+      ? 1
+      : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
   },
 
   getProcessTitle() {
