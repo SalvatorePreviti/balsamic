@@ -12,6 +12,8 @@ export * from "./dev-env";
 
 export * from "./colors";
 
+export * from "./elapsed-time";
+
 export * from "./utils/utils";
 
 export * from "./utils/plain-objects";

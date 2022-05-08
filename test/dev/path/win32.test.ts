@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import _nodePath from "path";
-import path from "../../../packages/dev/src/path";
-import * as win32 from "../../../packages/dev/src/path/win32";
+import path from "@balsamic/dev/path";
+import * as win32 from "@balsamic/dev/path/win32";
 import {
   absolutePathToFileURL,
   appendTrailingSlash,
@@ -20,7 +20,7 @@ import {
   splitSlashes,
   startsWithRelative,
   startsWithSlash,
-} from "../../../packages/dev/src/path/win32";
+} from "@balsamic/dev/path/win32";
 
 const nodeWin32 = _nodePath.win32;
 

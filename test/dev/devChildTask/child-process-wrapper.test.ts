@@ -1,6 +1,6 @@
+import child_process, { ChildProcess } from "node:child_process";
 import { expect } from "chai";
-import child_process, { ChildProcess } from "child_process";
-import { AbortError, abortSignals, ChildProcessWrapper } from "../../../packages/dev/src";
+import { AbortError, abortSignals, ChildProcessWrapper } from "@balsamic/dev";
 
 const options: ChildProcessWrapper.Options = {
   title: "my title",

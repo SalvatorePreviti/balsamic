@@ -5,8 +5,10 @@ import { devError } from "../dev-error";
 import { devLog } from "../dev-log";
 import { stripExtension } from "../path";
 import { AbortError } from "../promises/abort-error";
-import { noop, millisecondsToString } from "../utils/utils";
+import { noop } from "../utils/utils";
 import type { IntervalType, TimeoutType } from "../types";
+import { millisecondsToString } from "../elapsed-time";
+import { setMaxListeners } from "node:events";
 
 let _logProcessTimeInitialized = 0;
 let _devErrorHandlingInitialized = 0;
@@ -22,13 +24,28 @@ let _exitTimeoutExitCode = 2;
 
 let _ignoredWarnings: Set<string> | null = null;
 let _unhandledErrorsLogged: WeakSet<{}> | null = null;
+let _tsNodeInitialized = false;
 
 export enum Main {}
 
 export namespace Main {
+  export function initTsNode(options: { typecheck?: boolean | "typecheck" | "transpile-only" | undefined }) {
+    if (!_tsNodeInitialized) {
+      _tsNodeInitialized = true;
+      if (options && options.typecheck && options.typecheck !== "transpile-only") {
+        require("ts-node/register");
+      } else {
+        require("ts-node/register/transpile-only");
+      }
+      try {
+        require("tsconfig-paths/register");
+      } catch {}
+    }
+  }
+
   /** Prints process information */
   export function printProcessBanner() {
-    const processTitle = devEnv.getProcessTitle();
+    const processTitle = devEnv.processTitle;
     if (processTitle) {
       devLog.log(`${devLog.colors.blueBright("\n⬢")} ${devLog.colors.rgb(100, 200, 255)(processTitle)}\n`);
     }
@@ -277,8 +294,14 @@ export interface DevRunMainOptions<T = unknown> {
 
   ignoreProcessWarnings?: string[] | undefined | null;
 
+  /** When set, it does require('node:events').setMaxListener(nodeEventsMaxListeners), to avoid "Too many listener" warning */
+  nodeEventsMaxListeners?: number;
+
   /** Function to be executed at the end */
   onTerminated?: ((result: Error | T) => void | Promise<void>) | null | undefined | false;
+
+  /** If not false, setup ts-node and tsconfig-paths */
+  initTsNode?: boolean | "typecheck" | "transpile-only" | undefined;
 }
 
 /** Top level run of functions and promises */
@@ -327,19 +350,27 @@ export function devRunMain<T = unknown>(
       Main.initErrorHandling();
     }
 
+    if (processTitle) {
+      devEnv.processTitle = processTitle;
+    } else if (typeof main === "object" && main !== null && !devEnv.hasProcessTitle) {
+      devEnv.processTitle = main;
+    }
+
     if (options.ignoreProcessWarnings) {
       Main.ignoreProcessWarning(options.ignoreProcessWarnings);
     }
 
-    if (processTitle) {
-      devEnv.setProcessTitle(processTitle);
-    } else if (typeof main === "object" && main !== null && !devEnv.hasProcessTitle()) {
-      devEnv.setProcessTitle(main as any);
+    if (options.nodeEventsMaxListeners) {
+      setMaxListeners(options.nodeEventsMaxListeners);
     }
 
     const printProcessBanner = options.printProcessBanner;
     if (printProcessBanner === undefined || printProcessBanner) {
       Main.printProcessBanner();
+    }
+
+    if (options.initTsNode) {
+      Main.initTsNode({ typecheck: options.initTsNode === "typecheck" });
     }
 
     if (main !== null && typeof main === "object") {
@@ -460,7 +491,7 @@ function _processTimeExit() {
     if (exitCode) {
       devLog.log(
         devLog.colors.redBright(
-          `\n😡 ${devEnv.getProcessTitle()} ${devLog.colors.redBright.bold.underline(
+          `\n😡 ${devEnv.processTitle} ${devLog.colors.redBright.bold.underline(
             "FAILED",
           )} in ${elapsed}. exitCode: ${exitCode}\n`,
         ),
@@ -468,7 +499,7 @@ function _processTimeExit() {
     } else {
       devLog.log(
         devLog.colors.greenBright(
-          `\n✅ ${devEnv.getProcessTitle()} ${devLog.colors.bold("OK")} ${devLog.colors.green(`in ${elapsed}`)}\n`,
+          `\n✅ ${devEnv.processTitle} ${devLog.colors.bold("OK")} ${devLog.colors.green(`in ${elapsed}`)}\n`,
         ),
       );
     }
@@ -527,7 +558,7 @@ function _processExitTimeoutReached() {
 function _processExitTimeOutStarted() {
   _exitTerminatingTimer = null;
   try {
-    const title = devEnv.getProcessTitle();
+    const title = devEnv.processTitle;
     devLog.warn();
     if (title) {
       devLog.warn(title, "terminating...");

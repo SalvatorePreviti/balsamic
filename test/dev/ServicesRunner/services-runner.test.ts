@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { runParallel, runSequential, ServicesRunner } from "../../../packages/dev/src";
+import { runParallel, runSequential, ServicesRunner } from "@balsamic/dev";
 
 describe("ServicesRunner", () => {
   it("allows running services and promises", async () => {

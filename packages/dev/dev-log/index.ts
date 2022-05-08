@@ -1,7 +1,7 @@
-import util from "util";
-import readline from "readline";
+import util from "node:util";
+import readline from "node:readline";
 import { colors as _colors, getColor, TermColor } from "../colors";
-import { millisecondsToString } from "../utils/utils";
+import { ElapsedTime, millisecondsToString } from "../elapsed-time";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import { performance } from "perf_hooks";
@@ -27,303 +27,442 @@ function _inspectedErrorLoggedSet_add(value: unknown): boolean {
   return true;
 }
 
-export function devLog(...args: unknown[]): void {
-  devLog.log(...args);
+function makeDevLogStream(options: { log: (...args: unknown[]) => void }) {
+  const self = {
+    colors: _colors,
+
+    log: options.log,
+
+    logBlack(...args: unknown[]): void {
+      self.log(self.colors.black(_devInspectForLogging(args)));
+    },
+
+    logRed(...args: unknown[]): void {
+      self.log(self.colors.red(_devInspectForLogging(args)));
+    },
+
+    logGreen(...args: unknown[]): void {
+      self.log(self.colors.green(_devInspectForLogging(args)));
+    },
+
+    logYellow(...args: unknown[]): void {
+      self.log(self.colors.yellow(_devInspectForLogging(args)));
+    },
+
+    logBlue(...args: unknown[]): void {
+      self.log(self.colors.blue(_devInspectForLogging(args)));
+    },
+
+    logMagenta(...args: unknown[]): void {
+      self.log(self.colors.magenta(_devInspectForLogging(args)));
+    },
+
+    logCyan(...args: unknown[]): void {
+      self.log(self.colors.cyan(_devInspectForLogging(args)));
+    },
+
+    logWhite(...args: unknown[]): void {
+      self.log(self.colors.white(_devInspectForLogging(args)));
+    },
+
+    logBlackBright(...args: unknown[]): void {
+      self.log(self.colors.blackBright(_devInspectForLogging(args)));
+    },
+
+    logRedBright(...args: unknown[]): void {
+      self.log(self.colors.redBright(_devInspectForLogging(args)));
+    },
+
+    logGreenBright(...args: unknown[]): void {
+      self.log(self.colors.greenBright(_devInspectForLogging(args)));
+    },
+
+    logYellowBright(...args: unknown[]): void {
+      self.log(self.colors.yellowBright(_devInspectForLogging(args)));
+    },
+
+    logBlueBright(...args: unknown[]): void {
+      self.log(self.colors.blueBright(_devInspectForLogging(args)));
+    },
+
+    logMagentaBright(...args: unknown[]): void {
+      self.log(self.colors.magentaBright(_devInspectForLogging(args)));
+    },
+
+    logCyanBright(...args: unknown[]): void {
+      self.log(self.colors.cyanBright(_devInspectForLogging(args)));
+    },
+
+    logWhiteBright(...args: unknown[]): void {
+      self.log(self.colors.whiteBright(_devInspectForLogging(args)));
+    },
+
+    logColor(color: TermColor, ...args: unknown[]): void {
+      if (self.colors.level > 0) {
+        self.log(getColor(color)(_devInspectForLogging(args)));
+      } else {
+        self.log(_devInspectForLogging(args));
+      }
+    },
+
+    /** Prints an horizontal line */
+    hr(color?: TermColor | null | undefined, char = "⎯") {
+      let columns = 10;
+
+      if (self.colors.level < 1 || !process.stdout.isTTY) {
+        self.log("-".repeat(10));
+        return;
+      }
+
+      if (self.colors.level > 1 && process.stdout.isTTY && columns) {
+        columns = process.stdout.columns;
+      }
+      if (columns > 250) {
+        columns = 250;
+      }
+
+      self.log(getColor(color)(char.repeat(columns)));
+    },
+  };
+
+  return self;
 }
 
-export namespace devLog {
-  export function log(...args: unknown[]): void {
-    console.log(_devInspectForLogging(args));
-  }
+function makeDevLog() {
+  const self = {
+    ...makeDevLogStream({
+      log(...args: unknown[]): void {
+        console.log(_devInspectForLogging(args));
+      },
+    }),
 
-  export function logBlack(...args: unknown[]) {
-    devLog.log(devLog.colors.black(_devInspectForLogging(args)));
-  }
+    inspectOptions: {
+      ...util.inspect.defaultOptions,
+      colors: !!_colors.supportsColor && _colors.supportsColor.hasBasic,
+      depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
+    },
 
-  export function logRed(...args: unknown[]) {
-    devLog.log(devLog.colors.red(_devInspectForLogging(args)));
-  }
+    /** Default on wether abort errors are treated as warnings or not */
+    abortErrorIsWarning: true,
 
-  export function logGreen(...args: unknown[]) {
-    devLog.log(devLog.colors.green(_devInspectForLogging(args)));
-  }
+    /** Default option on how stack trace should be shown */
+    defaultShowStack: "once" as boolean | "once",
 
-  export function logYellow(...args: unknown[]) {
-    devLog.log(devLog.colors.yellow(_devInspectForLogging(args)));
-  }
+    stderr: {
+      ...makeDevLogStream({
+        log(...args: unknown[]): void {
+          console.error(_devInspectForLogging(args));
+        },
+      }),
+    },
 
-  export function logBlue(...args: unknown[]) {
-    devLog.log(devLog.colors.blue(_devInspectForLogging(args)));
-  }
-
-  export function logMagenta(...args: unknown[]) {
-    devLog.log(devLog.colors.magenta(_devInspectForLogging(args)));
-  }
-
-  export function logCyan(...args: unknown[]) {
-    devLog.log(devLog.colors.cyan(_devInspectForLogging(args)));
-  }
-
-  export function logWhite(...args: unknown[]) {
-    devLog.log(devLog.colors.white(_devInspectForLogging(args)));
-  }
-
-  export function logBlackBright(...args: unknown[]) {
-    devLog.log(devLog.colors.blackBright(_devInspectForLogging(args)));
-  }
-
-  export function logRedBright(...args: unknown[]) {
-    devLog.log(devLog.colors.redBright(_devInspectForLogging(args)));
-  }
-
-  export function logGreenBright(...args: unknown[]) {
-    devLog.log(devLog.colors.greenBright(_devInspectForLogging(args)));
-  }
-
-  export function logYellowBright(...args: unknown[]) {
-    devLog.log(devLog.colors.yellowBright(_devInspectForLogging(args)));
-  }
-
-  export function logBlueBright(...args: unknown[]) {
-    devLog.log(devLog.colors.blueBright(_devInspectForLogging(args)));
-  }
-
-  export function logMagentaBright(...args: unknown[]) {
-    devLog.log(devLog.colors.magentaBright(_devInspectForLogging(args)));
-  }
-
-  export function logCyanBright(...args: unknown[]) {
-    devLog.log(devLog.colors.cyanBright(_devInspectForLogging(args)));
-  }
-
-  export function logWhiteBright(...args: unknown[]) {
-    devLog.log(devLog.colors.whiteBright(_devInspectForLogging(args)));
-  }
-
-  export function logColor(color: TermColor, ...args: unknown[]) {
-    devLog.log(getColor(color)(_devInspectForLogging(args)));
-  }
-
-  export function error(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.error();
-    } else {
-      console.error(devLog.colors.redBright(`❌ ${devLog.colors.underline("ERROR")}: ${_devInspectForLogging(args)}`));
-    }
-  }
-
-  export function logException(
-    logMessage: string | undefined,
-    exception: unknown,
-    options: LogExceptionOptions = {},
-  ): void {
-    let err;
-    let isAbortError = false;
-    let isOk = false;
-
-    if (exception instanceof Error) {
-      isAbortError = AbortError.isAbortError(exception);
-      isOk = isAbortError && exception.isOk === true;
-
-      err = devLog.inspectException(exception, options);
-      if (err.includes("\n") && !err.endsWith("\n\n")) {
-        err += "\n";
+    error(...args: unknown[]): void {
+      if (args.length === 0) {
+        console.error();
+      } else {
+        console.error(self.colors.redBright(`❌ ${self.colors.underline("ERROR")}: ${_devInspectForLogging(args)}`));
       }
-    } else {
-      err = exception;
-    }
+    },
 
-    if (logMessage) {
-      if (isAbortError) {
-        if (isOk) {
-          devLog.info(logMessage, err);
-        } else if (options.abortErrorIsWarning ?? devLog.abortErrorIsWarning) {
-          if (err === "AbortError: The operation was aborted") {
-            devLog.warn(logMessage);
+    logException(logMessage: string | undefined, exception: unknown, options: LogExceptionOptions = {}): void {
+      let err;
+      let isAbortError = false;
+      let isOk = false;
+
+      if (exception instanceof Error) {
+        isAbortError = AbortError.isAbortError(exception);
+        isOk = isAbortError && exception.isOk === true;
+
+        err = self.inspectException(exception, options);
+        if (err.includes("\n") && !err.endsWith("\n\n")) {
+          err += "\n";
+        }
+      } else {
+        err = exception;
+      }
+
+      if (logMessage) {
+        if (isAbortError) {
+          if (isOk) {
+            self.info(logMessage, err);
+          } else if (options.abortErrorIsWarning ?? self.abortErrorIsWarning) {
+            if (err === "AbortError: The operation was aborted") {
+              self.warn(logMessage);
+            } else {
+              self.warn(logMessage, err);
+            }
           } else {
-            devLog.warn(logMessage, err);
+            self.error(logMessage, err);
           }
         } else {
-          devLog.error(logMessage, err);
+          self.error(logMessage, err);
+        }
+      } else if (isAbortError) {
+        if (isOk) {
+          self.info(err);
+        } else if (options.abortErrorIsWarning ?? self.abortErrorIsWarning) {
+          self.warn(err);
+        } else {
+          self.error(err);
         }
       } else {
-        devLog.error(logMessage, err);
+        self.error(err);
       }
-    } else if (isAbortError) {
-      if (isOk) {
-        devLog.info(err);
-      } else if (options.abortErrorIsWarning ?? devLog.abortErrorIsWarning) {
-        devLog.warn(err);
+    },
+
+    inspectException(exception: Error, options: LogExceptionOptions = {}): string {
+      const showStack = self.errorShouldShowStack(exception, options);
+
+      if (showStack) {
+        const inspected = self.inspect(exception) || `${exception}`;
+        return showStack !== "once" || _inspectedErrorLoggedSet_add(exception.stack) ? inspected : `${exception}`;
+      }
+
+      return `${exception}`;
+    },
+
+    errorShouldShowStack(exception: Error, options: LogExceptionOptions = {}): boolean | "once" {
+      let showStack: boolean | "once" | undefined;
+
+      const errorShowStack = exception.showStack;
+      if (errorShowStack === false || errorShowStack === true || errorShowStack === "once") {
+        showStack = errorShowStack;
+      }
+
+      if (showStack === undefined || showStack) {
+        const optionsShowStack = options.showStack;
+        if (optionsShowStack === false || optionsShowStack === true || optionsShowStack === "once") {
+          showStack = optionsShowStack;
+        }
+      }
+
+      if (showStack === undefined) {
+        showStack = self.defaultShowStack;
+      }
+
+      return showStack;
+    },
+
+    /** Developer debug log. Appends the line where this function was called. */
+    dev(...args: unknown[]): void {
+      const oldStackTraceLimit = Error.stackTraceLimit;
+      const err: { stack?: string | undefined } = {};
+      Error.stackTraceLimit = 1;
+      try {
+        Error.captureStackTrace(err, self.dev);
+      } finally {
+        Error.stackTraceLimit = oldStackTraceLimit;
+      }
+      let devLine = "";
+      const stack = err.stack;
+      if (typeof stack === "string") {
+        for (const line of stack.split("\n")) {
+          if (line.startsWith("    at")) {
+            devLine = line.trim();
+            break;
+          }
+        }
+      }
+      self.log(
+        self.colors.blueBright(`${self.colors.underline("DEV")}: `) +
+          self.colors.blueBright(_devInspectForLogging(args)) +
+          (devLine ? `\n     ${self.colors.blackBright(devLine)}` : ""),
+      );
+    },
+
+    warn(...args: unknown[]): void {
+      if (args.length === 0) {
+        console.warn();
       } else {
-        devLog.error(err);
+        console.warn(
+          self.colors.rgb(
+            200,
+            200,
+            50,
+          )(`${self.colors.yellowBright(`⚠️  ${self.colors.underline("WARNING")}:`)} ${_devInspectForLogging(args)}`),
+        );
       }
-    } else {
-      devLog.error(err);
-    }
-  }
+    },
 
-  export function inspectException(exception: Error, options: LogExceptionOptions = {}): string {
-    const showStack = errorShouldShowStack(exception, options);
-
-    if (showStack) {
-      const inspected = devLog.inspect(exception) || `${exception}`;
-      return showStack !== "once" || _inspectedErrorLoggedSet_add(exception.stack) ? inspected : `${exception}`;
-    }
-
-    return `${exception}`;
-  }
-
-  export function errorShouldShowStack(exception: Error, options: LogExceptionOptions = {}): boolean | "once" {
-    let showStack: boolean | "once" | undefined;
-
-    const errorShowStack = exception.showStack;
-    if (errorShowStack === false || errorShowStack === true || errorShowStack === "once") {
-      showStack = errorShowStack;
-    }
-
-    if (showStack === undefined || showStack) {
-      const optionsShowStack = options.showStack;
-      if (optionsShowStack === false || optionsShowStack === true || optionsShowStack === "once") {
-        showStack = optionsShowStack;
+    info(...args: unknown[]): void {
+      if (args.length === 0) {
+        console.info();
+      } else {
+        console.info(
+          self.colors.cyan(
+            `${self.colors.cyanBright(`ℹ️  ${self.colors.underline("INFO")}:`)} ${_devInspectForLogging(args)}`,
+          ),
+        );
       }
-    }
+    },
 
-    if (showStack === undefined) {
-      showStack = devLog.defaultShowStack;
-    }
+    debug(...args: unknown[]): void {
+      if (args.length === 0) {
+        console.debug();
+      } else {
+        console.debug(
+          self.colors.blueBright(
+            `${self.colors.cyanBright(`🐛  ${self.colors.underline("DEBUG")}:`)} ${_devInspectForLogging(args)}`,
+          ),
+        );
+      }
+    },
 
-    return showStack;
-  }
+    verbose(...args: unknown[]): void {
+      if (args.length === 0) {
+        console.log();
+      } else {
+        console.log(
+          self.colors.magenta(
+            `${self.colors.magentaBright(`📖  ${self.colors.underline("VERBOSE")}:`)} ${_devInspectForLogging(args)}`,
+          ),
+        );
+      }
+    },
 
-  /** Developer debug log. Appends the line where this function was called. */
-  export function dev(...args: unknown[]): void {
-    const oldStackTraceLimit = Error.stackTraceLimit;
-    const err: { stack?: string | undefined } = {};
-    Error.stackTraceLimit = 1;
-    try {
-      Error.captureStackTrace(err, devLog.dev);
-    } finally {
-      Error.stackTraceLimit = oldStackTraceLimit;
-    }
-    let devLine = "";
-    const stack = err.stack;
-    if (typeof stack === "string") {
-      for (const line of stack.split("\n")) {
-        if (line.startsWith("    at")) {
-          devLine = line.trim();
+    emit(severity: "error" | 2 | "warning" | 1 | "info" | 0 | "debug" | "verbose", ...args: unknown[]): void {
+      switch (severity) {
+        case 2:
+        case "error":
+          self.error(...args);
           break;
+        case 1:
+        case "warning":
+          self.warn(...args);
+          break;
+        case 0:
+        case "info":
+          self.info(...args);
+          break;
+        case "debug":
+          self.debug(...args);
+          break;
+        case "verbose":
+          self.verbose(...args);
+          break;
+        default:
+          self.log(...args);
+          break;
+      }
+    },
+
+    inspect(what: unknown): string {
+      if (what instanceof Error) {
+        if (what.showStack === false) {
+          return `${what}`;
         }
+        what = devError(what, self.inspect);
       }
-    }
-    devLog.log(
-      devLog.colors.blueBright(`${devLog.colors.underline("DEV")}: `) +
-        devLog.colors.blueBright(_devInspectForLogging(args)) +
-        (devLine ? `\n     ${devLog.colors.blueBright(devLine)}` : ""),
-    );
-  }
+      return util.inspect(what, self.inspectOptions);
+    },
 
-  export function warn(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.warn();
-    } else {
-      console.warn(
-        devLog.colors.rgb(
-          200,
-          200,
-          50,
-        )(`${devLog.colors.yellowBright(`⚠️  ${devLog.colors.underline("WARNING")}:`)} ${_devInspectForLogging(args)}`),
-      );
-    }
-  }
-
-  export function info(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.info();
-    } else {
-      console.info(
-        devLog.colors.cyan(
-          `${devLog.colors.cyanBright(`ℹ️  ${devLog.colors.underline("INFO")}:`)} ${_devInspectForLogging(args)}`,
-        ),
-      );
-    }
-  }
-
-  export function debug(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.debug();
-    } else {
-      console.debug(
-        devLog.colors.blueBright(
-          `${devLog.colors.cyanBright(`🐛  ${devLog.colors.underline("DEBUG")}:`)} ${_devInspectForLogging(args)}`,
-        ),
-      );
-    }
-  }
-
-  export function emit(severity: "error" | 2 | "warning" | 1 | "info" | 0, ...args: unknown[]): void {
-    switch (severity) {
-      case 2:
-      case "error":
-        devLog.error(...args);
-        break;
-      case 1:
-      case "warning":
-        devLog.warn(...args);
-        break;
-      case 0:
-      case "info":
-        devLog.info(...args);
-        break;
-      default:
-        devLog.log(...args);
-        break;
-    }
-  }
-
-  export function inspect(what: unknown): string {
-    if (what instanceof Error) {
-      if (what.showStack === false) {
-        return `${what}`;
+    logOperationStart(title: string, options: DevLogTimeOptions = { printStarted: true }) {
+      let { timed: isTimed, printStarted } = options;
+      if (isTimed === undefined) {
+        isTimed = true;
       }
-      what = devError(what, devLog.inspect);
-    }
-    return util.inspect(what, devLog.inspectOptions);
-  }
+      if (printStarted === undefined) {
+        printStarted = isTimed;
+      }
+      if (printStarted) {
+        self.log(self.colors.cyan(`${self.colors.cyan("◆")} ${title}`) + self.colors.gray(" started..."));
+      }
+    },
 
-  /** Prints an horizontal line */
-  export function hr(color?: TermColor | null | undefined, char = "⎯") {
-    let columns = 10;
+    logOperationSuccess(
+      title: string,
+      options: DevLogTimeOptions = { printStarted: true },
+      elapsed?: number | undefined,
+      text?: string | undefined,
+    ) {
+      let { timed: isTimed, printStarted } = options;
+      if (isTimed === undefined) {
+        isTimed = !!elapsed;
+      }
+      if (printStarted === undefined) {
+        printStarted = isTimed;
+      }
+      if (isTimed || printStarted) {
+        let msg = `${printStarted ? "\n" : ""}${self.colors.green("✔")} ${title} ${self.colors.bold("OK")}`;
+        if (elapsed && (isTimed || elapsed > 5)) {
+          msg += ` in ${millisecondsToString(elapsed)}`;
+        }
+        msg += ".";
+        if (text) {
+          msg += ` ${text}`;
+        }
+        self.log(self.colors.green(msg));
+      }
+    },
 
-    if (devLog.colors.level < 1 || !process.stdout.isTTY) {
-      devLog.log("-".repeat(10));
-      return;
-    }
+    logOperationError(
+      title: string,
+      exception: unknown,
+      options: DevLogTimeOptions = { logError: true },
+      elapsed?: number | undefined,
+    ) {
+      let { timed: isTimed, logError } = options;
+      if (logError === undefined) {
+        logError = true;
+      }
+      if (logError) {
+        if (isTimed === undefined) {
+          isTimed = !!elapsed;
+        }
 
-    if (devLog.colors.level > 1 && process.stdout.isTTY && columns) {
-      columns = process.stdout.columns;
-    }
-    if (columns > 250) {
-      columns = 250;
-    }
+        const isAbortError = AbortError.isAbortError(exception);
 
-    devLog.log(getColor(color)(char.repeat(columns)));
-  }
+        const msg = `${title} ${isAbortError ? "aborted" : "FAILED"}${
+          elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
+        }.`;
+
+        if (options.showStack === undefined && isAbortError) {
+          options = { ...options, showStack: false };
+        }
+
+        self.logException(msg, exception, options);
+      }
+    },
+
+    /** Asks the user to input Yes or No */
+    askConfirmation(confirmationMessage: string, defaultValue: boolean) {
+      if (!process.stdin || !process.stdout || !process.stdout.isTTY) {
+        return true;
+      }
+      return new Promise((resolve) => {
+        const rl = readline.createInterface(process.stdin, process.stdout as any);
+        const question = `${self.colors.greenBright("?")} ${self.colors.whiteBright(
+          confirmationMessage,
+        )} ${self.colors.gray(defaultValue ? "(Y/n)" : "(N/y)")} `;
+        rl.question(question, (answer) => {
+          rl.close();
+          answer = (answer || "").trim();
+          const confirm = /^[yY]/.test(answer || (defaultValue ? "Y" : "N"));
+          console.log(confirm ? self.colors.greenBright("  Yes") : self.colors.redBright("  No"));
+          console.log();
+          resolve(confirm);
+        });
+      });
+    },
+
+    timed,
+  };
 
   /** Prints how much time it takes to run something */
-  export async function timed<T>(
+  function timed<T>(
     title: string,
     fnOrPromise: (() => Promise<T> | T) | Promise<T> | T,
     options?: DevLogTimeOptions | undefined,
   ): Promise<Awaited<T>>;
 
   /** Prints how much time it takes to run something */
-  export async function timed<T>(
+  function timed<T>(
     title: string,
     fnOrPromise: null | undefined | (() => Promise<T> | T) | Promise<T> | T,
     options?: DevLogTimeOptions | undefined,
   ): Promise<null | undefined | T>;
 
-  export async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOptions = {}) {
+  async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOptions = {}) {
     if (fnOrPromise === null || (typeof fnOrPromise !== "object" && typeof fnOrPromise !== "function")) {
       return fnOrPromise;
     }
@@ -349,95 +488,12 @@ export namespace devLog {
     }
   }
 
-  export function logOperationStart(title: string, options: DevLogTimeOptions = { printStarted: true }) {
-    let { timed: isTimed, printStarted } = options;
-    if (isTimed === undefined) {
-      isTimed = true;
-    }
-    if (printStarted === undefined) {
-      printStarted = isTimed;
-    }
-    if (printStarted) {
-      devLog.log(devLog.colors.cyan(`${devLog.colors.cyan("◆")} ${title}`) + devLog.colors.gray(" started..."));
-    }
-  }
+  return self;
+}
 
-  export function logOperationSuccess(
-    title: string,
-    options: DevLogTimeOptions = { printStarted: true },
-    elapsed?: number | undefined,
-    text?: string | undefined,
-  ) {
-    let { timed: isTimed, printStarted } = options;
-    if (isTimed === undefined) {
-      isTimed = !!elapsed;
-    }
-    if (printStarted === undefined) {
-      printStarted = isTimed;
-    }
-    if (isTimed || printStarted) {
-      let msg = `${printStarted ? "\n" : ""}${devLog.colors.green("✔")} ${title} ${devLog.colors.bold("OK")}`;
-      if (elapsed && (isTimed || elapsed > 5)) {
-        msg += ` in ${millisecondsToString(elapsed)}`;
-      }
-      msg += ".";
-      if (text) {
-        msg += ` ${text}`;
-      }
-      devLog.log(devLog.colors.green(msg));
-    }
-  }
+export const devLog = makeDevLog();
 
-  export function logOperationError(
-    title: string,
-    exception: unknown,
-    options: DevLogTimeOptions = { logError: true },
-    elapsed?: number | undefined,
-  ) {
-    let { timed: isTimed, logError } = options;
-    if (logError === undefined) {
-      logError = true;
-    }
-    if (logError) {
-      if (isTimed === undefined) {
-        isTimed = !!elapsed;
-      }
-
-      const isAbortError = AbortError.isAbortError(exception);
-
-      const msg = `${title} ${isAbortError ? "aborted" : "FAILED"}${
-        elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
-      }.`;
-
-      if (options.showStack === undefined && isAbortError) {
-        options = { ...options, showStack: false };
-      }
-
-      devLog.logException(msg, exception, options);
-    }
-  }
-
-  /** Asks the user to input Yes or No */
-  export async function askConfirmation(confirmationMessage: string, defaultValue: boolean) {
-    if (!process.stdin || !process.stdout || !process.stdout.isTTY) {
-      return true;
-    }
-    return new Promise((resolve) => {
-      const rl = readline.createInterface(process.stdin, process.stdout as any);
-      const question = `${devLog.colors.greenBright("?")} ${devLog.colors.whiteBright(
-        confirmationMessage,
-      )} ${devLog.colors.gray(defaultValue ? "(Y/n)" : "(N/y)")} `;
-      rl.question(question, (answer) => {
-        rl.close();
-        answer = (answer || "").trim();
-        const confirm = /^[yY]/.test(answer || (defaultValue ? "Y" : "N"));
-        console.log(confirm ? devLog.colors.greenBright("  Yes") : devLog.colors.redBright("  No"));
-        console.log();
-        resolve(confirm);
-      });
-    });
-  }
-
+export namespace devLog {
   export interface LogExceptionOptions {
     showStack?: boolean | "once" | undefined;
     abortErrorIsWarning?: boolean | undefined;
@@ -451,74 +507,44 @@ export namespace devLog {
   }
 }
 
-devLog.colors = _colors;
-
-devLog.inspectOptions = {
-  ...util.inspect.defaultOptions,
-  colors: !!devLog.colors.supportsColor && devLog.colors.supportsColor.hasBasic,
-  depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
-};
-
-/** Default on wether abort errors are treated as warnings or not */
-devLog.abortErrorIsWarning = true;
-
-/** Default option on how stack trace should be shown */
-devLog.defaultShowStack = "once" as boolean | "once";
-
 export type LogExceptionOptions = devLog.LogExceptionOptions;
 
 export type DevLogTimeOptions = devLog.DevLogTimeOptions;
 
-export class DevLogTimed {
+export class DevLogTimed extends ElapsedTime {
+  public title: string;
   public options: DevLogTimeOptions;
   public status: Deferred.Status = "starting";
-  public starTime: number;
-  private _elapsed: number | null = null;
 
-  constructor(public title: string, options: DevLogTimeOptions = {}) {
+  constructor(title: string, options: DevLogTimeOptions = {}) {
+    super(performance.now() + (options.elapsed ? +options.elapsed : 0));
+    this.title = title;
     this.options = options;
-    this.starTime = performance.now() + (options.elapsed ? +options.elapsed : 0);
   }
 
   public start(): this {
-    if (this.status !== "starting") {
-      return this;
+    if (this.status === "starting") {
+      this.status = "pending";
+      devLog.logOperationStart(this.title, this.options);
     }
-    this.status = "pending";
-    devLog.logOperationStart(this.title, this.options);
     return this;
   }
 
-  public get elapsed(): number {
-    return this._elapsed ?? performance.now() - this.starTime;
-  }
-
-  public getElapsedTime(): string {
-    return millisecondsToString(this.elapsed);
-  }
-
   public end(text?: string | undefined): void {
-    if (this.status !== "pending" && this.status !== "starting") {
-      return;
+    if (this.status === "pending" || this.status === "starting") {
+      this.stop();
+      this.status = "succeeded";
+      devLog.logOperationSuccess(this.title, this.options, this.elapsed, text);
     }
-    this._elapsed = this.elapsed;
-    this.status = "succeeded";
-    devLog.logOperationSuccess(this.title, this.options, this.elapsed, text);
   }
 
   public fail<TError = unknown>(error: TError): TError {
-    if (this.status !== "pending" && this.status !== "starting") {
-      return error;
+    if (this.status === "pending" || this.status === "starting") {
+      this.status = "rejected";
+      this.stop();
+      devLog.logOperationError(this.title, error, this.options, this.elapsed);
     }
-    this.status = "rejected";
-    this._elapsed = this.elapsed;
-    devLog.logOperationError(this.title, error, this.options, this.elapsed);
     return error;
-  }
-
-  /** True if running */
-  public get isRunning() {
-    return this.status === "pending" || this.status === "starting";
   }
 
   /** True if completed, with or without errors */

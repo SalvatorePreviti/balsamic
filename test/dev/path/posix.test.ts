@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import _nodePath from "path";
-import path from "../../../packages/dev/src/path";
-import * as posix from "../../../packages/dev/src/path/posix";
+import path from "@balsamic/dev/path";
+import * as posix from "@balsamic/dev/path/posix";
 import {
   absolutePathToFileURL,
   appendTrailingSlash,
@@ -20,7 +20,7 @@ import {
   splitSlashes,
   startsWithRelative,
   startsWithSlash,
-} from "../../../packages/dev/src/path/posix";
+} from "@balsamic/dev/path/posix";
 
 const nodePosix = _nodePath.posix;
 

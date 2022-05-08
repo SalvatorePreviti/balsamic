@@ -2,7 +2,7 @@
 require("ts-node/register/transpile-only");
 require("tsconfig-paths/register");
 
-const { isMainModule, devRunMain, PackageJsonParsed, devLog, devError, devChildTask } = require("@balsamic/dev");
+const { isMainModule, devRunMain, PackageJsonParsed, devLog, devError, devChildTask, glob } = require("@balsamic/dev");
 const fsasync = require("fs/promises");
 
 module.exports = async function build() {
@@ -18,16 +18,23 @@ module.exports = async function build() {
 
   const balsamicDev = project.getWorkspace("@balsamic/dev", true);
 
-  await fsasync.mkdir("dist/packages", { recursive: true });
-  await fsasync.rm("dist/packages/dev", { maxRetries: 5, recursive: true, force: true });
-  await fsasync.cp(balsamicDev.packageDirectoryPath, "dist/packages", { recursive: true });
+  await fsasync.rm("dist/dev", { maxRetries: 5, recursive: true, force: true });
+  await fsasync.cp(balsamicDev.packageDirectoryPath, "dist/dev", { recursive: true });
 
-  await fsasync.writeFile(
-    "dist/packages/dev/package.json",
-    JSON.stringify({ ...balsamicDev.toJSON(), private: false }),
+  const newPackageJson = { ...balsamicDev.toJSON(), private: false };
+  delete newPackageJson.scripts;
+
+  await fsasync.writeFile("dist/dev/package.json", JSON.stringify(newPackageJson));
+
+  await devChildTask.runModuleBin("typescript", "tsc", ["-p", "tsconfig.build.json"], {
+    cwd: "dist/dev",
+    title: `tsc ${balsamicDev.name}`,
+    showStack: false,
+  });
+
+  await Promise.all(
+    (await glob("dist/dev/tsconfig*.json")).map((item) => fsasync.rm(item, { force: true, maxRetries: 5 })),
   );
-
-  await devChildTask.npmCommand("typescript", "tsc", ["-p", "tsconfig.build.json"], { cwd: "dist/packages/dev" });
 };
 
 if (isMainModule(module)) {

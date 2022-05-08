@@ -29,10 +29,9 @@
     "precommit": "lint-staged && pretty-quick --staged",
     "postinstall": "husky install .husky",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --build ./tsconfig.build.json",
-    "clean": "rm -fr packages/*/dist packages/dev/*.js packages/dev/*.map packages/dev/*.d.ts",
-    "rebuild": "npm run clean && npm run build",
-    "prepack": "npm run rebuild"
+    "build": "node scripts/build.js",
+    "clean": "rm -fr dist",
+    "publish:@balsamic/dev": "npm run lint && npm run build && cd dist/dev && npm publish"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

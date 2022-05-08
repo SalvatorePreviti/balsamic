@@ -1,7 +1,7 @@
-import path from "path";
+import path from "node:path";
+import { ChildProcess } from "node:child_process";
 import { expect } from "chai";
-import { ChildProcess } from "child_process";
-import { AbortError, ChildProcessPromise, ChildProcessWrapper, devChildTask } from "../../../packages/dev/src";
+import { AbortError, ChildProcessPromise, ChildProcessWrapper, devChildTask } from "@balsamic/dev";
 
 describe("devChildTask", () => {
   let originalFolder: string;

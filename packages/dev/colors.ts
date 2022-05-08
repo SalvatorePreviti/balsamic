@@ -1,8 +1,8 @@
-import { devEnv } from "../dev-env";
+import { devEnv } from "./dev-env";
 
 import colors from "chalk";
 
-const n = devEnv.hasColors();
+const n = devEnv.colorsLevel;
 if (n > colors.level) {
   colors.level = n;
 }

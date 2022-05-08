@@ -1,7 +1,7 @@
 import util from "util";
 import child_process from "child_process";
 import { devError } from "../dev-error";
-import { millisecondsToString, noop } from "../utils/utils";
+import { noop } from "../utils/utils";
 import type { InterfaceFromClass } from "../types";
 import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
@@ -11,6 +11,7 @@ import type { Abortable } from "events";
 import { NodeResolver } from "../modules/node-resolver";
 import { ServicesRunner } from "../promises/services-runner";
 import treeKill from "tree-kill";
+import { millisecondsToString } from "../elapsed-time";
 
 const { defineProperty } = Reflect;
 
@@ -146,9 +147,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     this._promise = null;
 
     const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapper.defaultOptions;
-    options = { ...defaultOptions, ...options };
-    options = _sanitizeOptions(options, defaultOptions);
-
+    options = _sanitizeOptions({ ...defaultOptions, ...options }, defaultOptions);
     const captureOutputText = options.captureOutputText || false;
 
     if (typeof input === "function") {
@@ -1016,7 +1015,7 @@ function _sanitizeOptions(
   options: ChildProcessWrapper.Options,
   defaultOptions: Omit<ChildProcessWrapper.Options, "title" | "caller">,
 ) {
-  if (options.showStack === undefined) {
+  if (options.showStack === undefined && defaultOptions.showStack !== undefined) {
     options.showStack = defaultOptions.showStack;
   }
   if (options.rejectOnAbort === undefined) {
@@ -1025,10 +1024,10 @@ function _sanitizeOptions(
   if (options.rejectOnNonZeroStatusCode === undefined) {
     options.rejectOnAbort = defaultOptions.rejectOnNonZeroStatusCode ?? true;
   }
-  if (!options.killSignal) {
+  if (!options.killSignal && defaultOptions.killSignal !== undefined) {
     options.killSignal = defaultOptions.killSignal;
   }
-  if (options.killChildren === undefined) {
+  if (options.killChildren === undefined && defaultOptions.killChildren !== undefined) {
     options.killChildren = defaultOptions.killChildren;
   }
   return options;

@@ -1,4 +1,4 @@
-import "../types";
+import "./types";
 
 const { defineProperty } = Reflect;
 

@@ -65,6 +65,10 @@ export class PackageJsonParsed {
     this[private_WorkspacesSymbol] = value;
   }
 
+  public get name(): string {
+    return this.content.name;
+  }
+
   public getWorkspace(packageName: string, throwIfNotFound: true): PackageJsonParsed;
   public getWorkspace(packageName: string, throwIfNotFound?: false | undefined): PackageJsonParsed | undefined;
   public getWorkspace(packageName: string, throwIfNotFound?: boolean): PackageJsonParsed | undefined {
@@ -620,7 +624,7 @@ function _packageJsonValidationErrorFromAjvError(
 }
 
 function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
-  const packageJsonSchema = require("../package-json.schema.json");
+  const packageJsonSchema = require("./package-json.schema.json");
   return new Ajv({
     validateSchema: false,
     false: true,

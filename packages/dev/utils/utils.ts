@@ -1,50 +1,5 @@
-import { performance } from "node:perf_hooks";
-
-const { round, floor, ceil, min, log, abs } = Math;
-const { isArray } = Array;
+const { floor, ceil, min, log, abs } = Math;
 const { isFinite } = Number;
-
-const _timeUnits = [
-  { unit: "y", amount: 60 * 60 * 24 * 365.25 },
-  { unit: "d", amount: 60 * 60 * 24 },
-  { unit: "h", amount: 60 * 60 },
-  { unit: "m", amount: 60 },
-  { unit: "s", amount: 1 },
-  { unit: "ms", amount: 1 / 1000 },
-];
-
-export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
-  if (isArray(milliseconds)) {
-    milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6;
-  }
-  milliseconds = +milliseconds;
-  if (!isFinite(milliseconds)) {
-    return `${milliseconds}`;
-  }
-  let str = "";
-  const isNegative = milliseconds < 0;
-  let n = (isNegative ? -milliseconds : milliseconds) / 1000;
-  for (const { unit, amount } of _timeUnits) {
-    const v =
-      unit === "ms" ? (milliseconds > 500 ? round(n / amount) : round((n / amount) * 100) / 100) : floor(n / amount);
-    if (v) {
-      str += `${v}${unit} `;
-    }
-    n -= v * amount;
-  }
-  return str.length > 0 ? (isNegative ? "-" : "") + str.trim() : `0ms`;
-}
-
-/**
- * Starts measuring time. Returns a function that when called gets the number of elapsed milliseconds.
- * Calling toString on the result will get a prettyfied elapsed time string.
- */
-export function startMeasureTime() {
-  const startTime = performance.now();
-  const elapsedMilliseconds = () => performance.now() - startTime;
-  elapsedMilliseconds.toString = () => millisecondsToString(performance.now() - startTime);
-  return elapsedMilliseconds;
-}
 
 /** Gets the length of an UTF8 string */
 export function utf8ByteLength(b: number | string | Buffer | Uint8Array | null | undefined): number {

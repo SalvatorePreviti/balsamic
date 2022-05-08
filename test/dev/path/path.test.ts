@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import * as pathStar from "../../../packages/dev/src/path";
-import { isGlob, looksLikeFileURL } from "../../../packages/dev/src/path";
+import * as pathStar from "@balsamic/dev/path";
+import { isGlob, looksLikeFileURL } from "@balsamic/dev/path";
 
 describe("test/dev/path", () => {
   describe("exports", () => {
