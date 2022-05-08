@@ -1,4 +1,5 @@
 import "./types";
+import type { UnsafeAny } from "./types";
 
 const { defineProperty } = Reflect;
 
@@ -16,23 +17,37 @@ export function devError<TError, TFields extends {}>(
 ): (TError extends Error ? TError : Error) & TFields;
 
 /** Fixes an error, the return value is always an Error instance */
-export function devError(error?: any | undefined, a?: any | undefined, b?: any | undefined | null) {
+export function devError(error?: unknown | undefined, a?: unknown | undefined, b?: unknown | undefined | null) {
   try {
     if (!(error instanceof Error)) {
       if (typeof error === "object" && error !== null) {
-        error = Object.assign(new Error(error.message || "Unknown error"), error);
+        let options: { cause?: Error } | undefined;
+        if (typeof a === "object" && a !== null) {
+          if (a instanceof Error) {
+            options = { cause: a };
+          } else if ((a as { cause?: Error }).cause instanceof Error) {
+            options = { cause: (a as { cause: Error }).cause };
+          }
+        }
+        error = options
+          ? new Error((error as Error).message || "Unknown error", options)
+          : new Error((error as Error).message || "Unknown error");
       } else {
-        error = new Error((error as any) || "Unknown error");
+        error = new Error((error as string) || "Unknown error");
       }
-      if (!("stack" in error)) {
-        Error.captureStackTrace(error, typeof b === "function" ? b : typeof a === "function" ? a : devError);
+      if (!("stack" in (error as {}))) {
+        Error.captureStackTrace(error as {}, typeof b === "function" ? b : typeof a === "function" ? a : devError);
       }
     }
 
-    if ((typeof a === "string" || a instanceof Error) && a !== error) {
-      error.cause = a;
+    if (typeof a === "string") {
+      if (a.length > 0) {
+        devError.setReason(error, a);
+      }
+    } else if (a instanceof Error && a !== error) {
+      devError.setCause(error, a);
     } else if (typeof a === "object" && a !== null) {
-      Object.assign(error, a);
+      devError.setProperties(error, a, true);
     }
 
     // Hide some unuseful properties
@@ -41,7 +56,7 @@ export function devError(error?: any | undefined, a?: any | undefined, b?: any |
     hideProperty(error, "codeFrame");
     hideProperty(error, "watchFiles");
 
-    if (error.isAxiosError) {
+    if ((error as Error).isAxiosError) {
       hideProperty(error, "response");
     }
     hideProperty(error, "request");
@@ -109,6 +124,17 @@ devError.addProperties = function addProperties<TError = Error>(
   return error;
 };
 
+devError.setProperties = function setProperties<TError = Error>(
+  error: TError,
+  obj: {},
+  enumerable?: boolean | undefined,
+): TError {
+  for (const [key, value] of Object.entries(obj)) {
+    devError.setProperty<TError>(error, key, value, enumerable);
+  }
+  return error;
+};
+
 devError.setShowStack = function setShowStack<TError = Error>(
   error: TError,
   value: boolean | "once" | undefined,
@@ -140,3 +166,24 @@ function hideProperty<TError = Error>(error: TError, name: string): TError {
   }
   return error;
 }
+
+devError.getMessage = function getMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error === "object" && error !== null) {
+    const msg = (error as UnsafeAny).message;
+    if (msg !== error) {
+      return getMessage(msg);
+    }
+    try {
+      return `${msg}`;
+    } catch {
+      return "";
+    }
+  }
+  if (typeof error === "symbol") {
+    return error.toString();
+  }
+  return `${error}`;
+};

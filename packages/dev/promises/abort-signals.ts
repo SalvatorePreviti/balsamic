@@ -11,6 +11,7 @@ import type { TimerOptions } from "node:timers";
 import { devEnv } from "../dev-env";
 import { performance } from "node:perf_hooks";
 import { millisecondsToString } from "../elapsed-time";
+import type { UnsafeAny } from "../types";
 
 let _abortSignalAsyncLocalStorage: AsyncLocalStorage<AbortSignal | undefined> | null = null;
 const { defineProperty } = Reflect;
@@ -163,11 +164,11 @@ function isAbortController(controller: unknown): controller is AbortController {
 
 /** Returns true if the given value is an aborted AbortSignal or AbortController */
 function isAborted(signal?: MaybeSignal | { aborted?: boolean }): boolean {
-  const msignal = abortSignals.getSignal(signal as any);
+  const msignal = abortSignals.getSignal(signal as UnsafeAny);
   if (msignal) {
     return !!msignal.aborted;
   }
-  return typeof signal === "object" && signal !== null && !!(signal as any).aborted;
+  return typeof signal === "object" && signal !== null && !!(signal as UnsafeAny).aborted;
 }
 
 /**
@@ -213,7 +214,7 @@ function abort(
   reason?: unknown,
 ): boolean {
   try {
-    if (isAborted(abortController as any)) {
+    if (isAborted(abortController as UnsafeAny)) {
       return false;
     }
     if (reason === undefined) {
@@ -272,7 +273,7 @@ function getAbortReason<Reason = unknown>(signal?: MaybeSignal): Reason | undefi
 
 const _addAbortHandlerOptions: AddEventListenerOptions = { once: true, passive: true };
 const _pendingPromisesBySignalMap = new WeakMap<AbortSignal, Promise<unknown>[]>();
-const _abortHandlersRemap = new WeakMap<object, (this: AbortSignal, ev: Event) => any>();
+const _abortHandlersRemap = new WeakMap<object, (this: AbortSignal, ev: Event) => UnsafeAny>();
 
 /**
  * Removes an abort handler previously registered with addAbortHandler or addAsyncAbortHandler from a signal.
@@ -310,7 +311,7 @@ function addAbortHandler(
     return noop;
   }
 
-  let func: ((this: AbortSignal, ev: Event) => any) | undefined;
+  let func: ((this: AbortSignal, ev: Event) => UnsafeAny) | undefined;
   if (typeof handler === "function") {
     func = handler;
   } else if (typeof handler === "object" && handler !== null) {
@@ -319,7 +320,7 @@ function addAbortHandler(
       if (
         !(
           (!("abort" in handler) && !("reject" in handler) && !("dispose" in handler) && !("close" in handler)) ||
-          abortSignals.isAborted(handler as any)
+          abortSignals.isAborted(handler as UnsafeAny)
         )
       ) {
         const abortable = handler;
@@ -368,7 +369,7 @@ function addAsyncAbortHandler(
   }
 
   if (typeof handler === "object" && handler !== null) {
-    return abortSignals.addAbortHandler(signal, handler as any);
+    return abortSignals.addAbortHandler(signal, handler as UnsafeAny);
   }
 
   if (typeof handler !== "function") {

@@ -400,15 +400,16 @@ function _readPackageJsonFromFile(
   try {
     filePath = path.resolve(filePath);
     fileContent = fs.readFileSync(filePath, "utf8");
-  } catch (e: any) {
-    if (e?.code !== "EISDIR") {
-      addError(devError(e));
+  } catch (e: unknown) {
+    const error = devError(e);
+    if (error?.code !== "EISDIR") {
+      addError(devError(error));
     } else {
       try {
         filePath = path.resolve(filePath, "package.json");
         fileContent = fs.readFileSync(filePath, "utf8");
       } catch (e1) {
-        addError(devError(e));
+        addError(error);
       }
     }
   }
@@ -435,8 +436,8 @@ function _parsePackageJson(packageJson: unknown, addError: (err: PackageJsonPars
     } else {
       try {
         packageJson = JSON.parse(toUTF8(packageJson));
-      } catch (error: any) {
-        addError(new PackageJsonParseMessage("error", `JSON.parse error: ${error?.message}`));
+      } catch (error: unknown) {
+        addError(new PackageJsonParseMessage("error", `JSON.parse error: ${devError.getMessage(error)}`));
       }
     }
   }
@@ -549,11 +550,8 @@ function _npmNormalizePackageJson(
     }
     normalizedContent.dependencies = dependencies;
     content = normalizedContent;
-  } catch (error: any) {
-    let errorMessage = error?.message;
-    if (typeof errorMessage !== "string" || !errorMessage) {
-      errorMessage = "Invalid package.json";
-    }
+  } catch (e: unknown) {
+    const errorMessage = devError.getMessage(e) || "Invalid package.json";
     let field: string | undefined;
     if (errorMessage.startsWith("name field must be a string")) {
       field = "name";

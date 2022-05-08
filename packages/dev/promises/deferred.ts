@@ -1,4 +1,5 @@
 import { devError } from "../dev-error";
+import type { UnsafeAny } from "../types";
 import { noop } from "../utils/utils";
 import { abortSignals, MaybeSignal } from "./abort-signals";
 
@@ -25,7 +26,7 @@ export class Deferred<T = void> {
     fn?: ((this: Deferred<T>, resolve: (value: T) => void, reject: (error: unknown) => void) => void) | undefined,
   ) {
     this.promise = new Promise<T>((_resolve, _reject) => {
-      const resolve = (value: any) => {
+      const resolve = (value: UnsafeAny) => {
         if (this.status === "pending") {
           this.status = "succeeded";
           this.result = value;
@@ -38,7 +39,7 @@ export class Deferred<T = void> {
           _reject((this.error = devError(error, reject)));
         }
       };
-      this.resolve = resolve as any;
+      this.resolve = resolve as UnsafeAny;
       this.reject = reject;
       fn?.call(this, resolve, reject);
     });

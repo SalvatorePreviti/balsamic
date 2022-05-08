@@ -1,4 +1,5 @@
 import _nodePath from "path";
+import type { UnsafeAny } from "../types";
 
 import {
   WIN32_SEP_REGEX,
@@ -154,7 +155,7 @@ export const globJoin = (
 
 /** Converts a file:// URL to a path */
 export const pathFromFileURL = (url: string | Readonly<URL> | { readonly href: string }): string => {
-  const parsed = url instanceof URL ? url : new URL((typeof url === "object" && url.href) || (url as any));
+  const parsed = url instanceof URL ? url : new URL((typeof url === "object" && url.href) || (url as UnsafeAny));
   if (parsed.protocol !== "file:") {
     throw new TypeError("Must be a file URL.");
   }
@@ -172,7 +173,7 @@ export const tryPathFromFileURL = (
   url: string | Readonly<URL> | { readonly href: string } | null | undefined,
 ): string | null => {
   try {
-    return pathFromFileURL(url as any);
+    return pathFromFileURL(url as UnsafeAny);
   } catch {}
   return null;
 };

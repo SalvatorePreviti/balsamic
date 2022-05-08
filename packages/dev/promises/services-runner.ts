@@ -5,6 +5,7 @@ import { AbortError } from "./abort-error";
 import { runParallel, runSequential } from "./promises";
 import { setTimeout } from "timers/promises";
 import { Main } from "../main";
+import type { UnsafeAny } from "../types";
 
 export namespace ServicesRunner {
   export interface Options {
@@ -105,7 +106,7 @@ export class ServicesRunner implements AbortController {
     return this.abortController.signal.aborted;
   }
 
-  public get signal(): AbortSignal & { reason?: any | undefined } {
+  public get signal(): AbortSignal & { reason?: UnsafeAny | undefined } {
     return this.abortController.signal;
   }
 

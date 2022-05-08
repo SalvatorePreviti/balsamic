@@ -54,6 +54,7 @@ lerna-debug.log*
 .fuse_hidden*
 .fusebox
 .dynamodb
+tsbuildinfo
 *.tsbuildinfo
 .npm
 .history

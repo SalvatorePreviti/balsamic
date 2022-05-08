@@ -6,7 +6,7 @@ import { devLog } from "../dev-log";
 import { stripExtension } from "../path";
 import { AbortError } from "../promises/abort-error";
 import { noop } from "../utils/utils";
-import type { IntervalType, TimeoutType } from "../types";
+import type { IntervalType, TimeoutType, UnsafeAny } from "../types";
 import { millisecondsToString } from "../elapsed-time";
 import { setMaxListeners } from "node:events";
 
@@ -318,7 +318,7 @@ export function devRunMain<T extends null | false | undefined>(
 ): Promise<T>;
 
 export function devRunMain<T = unknown>(
-  main: any,
+  main: UnsafeAny,
   processTitle?: string | undefined,
   options: DevRunMainOptions<T> | undefined = {},
 ): Promise<T | Error> {
@@ -338,10 +338,10 @@ export function devRunMain<T = unknown>(
       }
       return error;
     } catch {}
-    return input as any;
+    return input as UnsafeAny;
   };
 
-  let result: any;
+  let result;
 
   const unref = Main.ref();
   try {
@@ -379,7 +379,7 @@ export function devRunMain<T = unknown>(
       }
     }
 
-    result = typeof main === "function" ? (main as any)() : main;
+    result = typeof main === "function" ? main() : main;
   } catch (error) {
     result = devRunMainError(error);
   } finally {
@@ -434,7 +434,11 @@ export function isMainModule(
     return true;
   }
   if (typeof module === "object") {
-    module = (module as any).url || (module as any).href || (module as any).filename || (module as any).id;
+    module =
+      (module as UnsafeAny).url ||
+      (module as UnsafeAny).href ||
+      (module as UnsafeAny).filename ||
+      (module as UnsafeAny).id;
   }
   if (typeof module !== "string" || !module.length) {
     return false;
@@ -476,11 +480,11 @@ function _mainProcessRefDoUpdate() {
   }
 }
 
-function _handleUncaughtException(error: any) {
+function _handleUncaughtException(error: unknown) {
   return Main.handleUncaughtException(error);
 }
 
-function _handleUnhandledRejection(error: any) {
+function _handleUnhandledRejection(error: unknown) {
   return Main.handleUnhandledRejection(error);
 }
 
@@ -511,7 +515,7 @@ function _processTimeExit() {
 function _initIgnoredWarnings(): Set<string> {
   const _emitWarning = process.emitWarning;
 
-  const emitWarning = (warning: string | Error, a: any, b?: any | undefined): void => {
+  const emitWarning = (warning: string | Error, a: UnsafeAny, b?: UnsafeAny | undefined): void => {
     if (typeof a === "object" && a !== null) {
       a = { ...a, ctor: a.ctor || emitWarning };
       if (

@@ -1,5 +1,8 @@
 /// <reference types="node" />
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type UnsafeAny = any;
+
 export type URLLikeObject = { readonly href: string };
 
 export type URLLike = string | Readonly<URL> | URLLikeObject;
@@ -29,19 +32,19 @@ declare global {
 
     addEventListener: (
       type: "abort",
-      listener: (this: AbortSignal, event: any) => any,
+      listener: (this: AbortSignal, event: UnsafeAny) => UnsafeAny,
       options?: boolean | AddEventListenerOptions,
     ) => void;
 
     removeEventListener: (
       type: "abort",
-      listener: (this: AbortSignal, event: any) => any,
+      listener: (this: AbortSignal, event: UnsafeAny) => UnsafeAny,
       options?: boolean | { capture?: boolean },
     ) => void;
 
-    dispatchEvent: (event: any) => boolean;
+    dispatchEvent: (event: UnsafeAny) => boolean;
 
-    onabort: null | ((this: AbortSignal, event: any) => void);
+    onabort: null | ((this: AbortSignal, event: UnsafeAny) => void);
   }
 }
 

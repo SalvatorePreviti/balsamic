@@ -788,7 +788,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   private [private_error]?: Error | undefined;
 
   public constructor(
-    executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any | undefined) => void) => void,
+    executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: unknown | undefined) => void) => void,
   ) {
     let wrapper: ChildProcessWrapper | undefined;
     let error: Error | undefined;
@@ -804,7 +804,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
           resolve(value);
         },
         (e) => {
-          error = e;
+          error = devError(e);
           reject(e);
         },
       );
@@ -964,7 +964,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
 
   public override then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
+    onrejected?: ((reason: Error) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): ChildProcessPromise<TResult1 | TResult2> {
     const result = super.then(onfulfilled, onrejected) as ChildProcessPromise<TResult1 | TResult2>;
     result.childProcessWrapper = this.childProcessWrapper;
@@ -972,7 +972,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public override catch<TResult = never>(
-    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
+    onrejected?: ((reason: Error) => TResult | PromiseLike<TResult>) | null | undefined,
   ): ChildProcessPromise<T | TResult> {
     const result = super.catch(onrejected) as ChildProcessPromise<T | TResult>;
     result.childProcessWrapper = this.childProcessWrapper;
@@ -996,7 +996,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
    * @param reason The reason the promise was rejected.
    * @returns A new rejected Promise.
    */
-  public static override reject<T = never>(reason?: any | undefined): ChildProcessPromise<T> {
+  public static override reject<T = never>(reason?: Error | undefined): ChildProcessPromise<T> {
     const result = new ChildProcessPromise<T>((_, reject) => {
       reject(reason);
     });

@@ -1,3 +1,5 @@
+import type { UnsafeAny } from ".";
+
 export interface TsconfigJson {
   /** Path to base configuration file to inherit from. Requires TypeScript version 2.1 or later. */
   extends?: string | undefined;
@@ -504,7 +506,7 @@ export namespace TsconfigJson {
       }
 
       for (const key of compilerOptionsStringArrayProperties) {
-        const value = compilerOptions[key] as any;
+        const value = compilerOptions[key] as UnsafeAny;
         if (value !== undefined) {
           if (Array.isArray(value)) {
             compilerOptions[key] = value.filter((x: unknown) => typeof x === "string");
@@ -526,7 +528,7 @@ export namespace TsconfigJson {
     }
 
     for (const key of ["files", "exclude", "include"]) {
-      const value = result[key] as any;
+      const value = result[key] as UnsafeAny;
       if (value !== undefined) {
         if (Array.isArray(value)) {
           result[key] = value.filter((x: unknown) => typeof x === "string");

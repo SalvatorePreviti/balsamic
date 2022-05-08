@@ -3,7 +3,7 @@ const { readFileSync: fsReadFileSync } = require("fs");
 const { findFileInParents } = require("./utils");
 const Module = require("module");
 
-const sourceNodeExtensions = [".ts", ".tsx", ".jsx", ".js", ".mjs", ".cjs"];
+const sourceNodeExtensions = [".ts", ".tsx", ".mts", ".cts", ".jsx", ".js", ".mjs", ".cjs"];
 
 /** @type {string[]} */
 let _ignorePatterns;

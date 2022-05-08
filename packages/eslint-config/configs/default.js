@@ -70,29 +70,6 @@ const jsRules = {
   "guard-for-in": 0,
   "handle-callback-err": 2,
   "implicit-arrow-linebreak": 0,
-  "import/export": 2,
-  "import/first": 2,
-  "import/named": 0,
-  "import/newline-after-import": 1,
-  "import/no-absolute-path": [2, { esmodule: true, commonjs: true, amd: false }],
-  "import/no-amd": 2,
-  "import/no-anonymous-default-export": 0,
-  "import/no-duplicates": 1,
-  "import/no-extraneous-dependencies": [
-    0,
-    { devDependencies: true, optionalDependencies: false, peerDependencies: true },
-  ],
-  "import/default": 0, // TOO SLOW!
-  "import/no-named-as-default": 0, // TOO SLOW!
-  "import/no-named-as-default-member": 0, // TOO SLOW!
-  "import/no-self-import": 0,
-  "import/no-unresolved": [2, { commonjs: true, caseSensitive: true }],
-  "import/no-useless-path-segments": [1, { noUselessIndex: false }],
-  "import/no-webpack-loader-syntax": 2,
-  "import/order": [
-    0,
-    { groups: ["builtin", "external", "internal", "parent", "sibling", "index"], "newlines-between": "never" },
-  ],
   indent: 0,
   "indent-legacy": 0,
   "jsx-quotes": 0,
@@ -327,6 +304,7 @@ const jsRules = {
   semi: 0,
   "semi-spacing": [0, { before: false, after: true }],
   "semi-style": 0,
+  "no-dupe-keys": 1,
   "space-after-function-name": 0,
   "space-after-keywords": 0,
   "space-before-blocks": [0, "always"],
@@ -390,7 +368,6 @@ const jsRules = {
   "no-dupe-class-members": 2,
   "no-empty-function": 0,
   "no-empty-interface": 0,
-  "no-explicit-any": 0,
   "no-extra-semi": 0,
   "no-inferrable-types": 0,
   "no-namespace": 0,
@@ -408,8 +385,6 @@ const jsRules = {
   "triple-slash-reference": 0,
   "unbound-method": 0,
 
-  "import/namespace": 0,
-
   "mocha/no-synchronous-tests": 0,
   "mocha/no-mocha-arrows": 0,
   "mocha/no-hooks": 0,
@@ -420,6 +395,7 @@ const jsRules = {
   "mocha/max-top-level-suites": 0,
   "mocha/no-setup-in-describe": 0,
   "mocha/prefer-arrow-callback": 0,
+
   "chai-expect/no-inner-compare": 0,
 };
 
@@ -430,7 +406,7 @@ const typescriptRules = {
   "@typescript-eslint/brace-style": 0,
   "@typescript-eslint/camelcase": 0,
   "@typescript-eslint/class-name-casing": 0,
-  "@typescript-eslint/consistent-type-assertions": 0,
+  "@typescript-eslint/consistent-type-assertions": 1,
   "@typescript-eslint/consistent-type-definitions": 0,
   "@typescript-eslint/default-param-last": 0,
   "@typescript-eslint/explicit-function-return-type": 0,
@@ -451,7 +427,7 @@ const typescriptRules = {
   "@typescript-eslint/no-duplicate-imports": 1,
   "@typescript-eslint/no-empty-function": 0,
   "@typescript-eslint/no-empty-interface": 0,
-  "@typescript-eslint/no-explicit-any": 0,
+  "@typescript-eslint/no-explicit-any": 1,
   "@typescript-eslint/no-extra-parens": 0,
   "@typescript-eslint/no-extra-semi": 0,
   "@typescript-eslint/no-implied-eval": 0,
@@ -470,11 +446,22 @@ const typescriptRules = {
   "@typescript-eslint/no-unsafe-return": 0,
   "@typescript-eslint/no-unused-expressions": [
     1,
-    { allowShortCircuit: false, allowTaggedTemplates: false, allowTernary: false, enforceForJSX: true },
+    {
+      allowShortCircuit: false,
+      allowTaggedTemplates: false,
+      allowTernary: false,
+      enforceForJSX: true,
+    },
   ],
   "@typescript-eslint/no-use-before-define": [
     2,
-    { classes: false, functions: false, typedefs: false, enums: true, ignoreTypeReferences: true },
+    {
+      classes: false,
+      functions: false,
+      typedefs: false,
+      enums: true,
+      ignoreTypeReferences: true,
+    },
   ],
   "@typescript-eslint/no-useless-constructor": 1,
   "@typescript-eslint/no-var-requires": 0,
@@ -493,9 +480,9 @@ const typescriptRules = {
       args: "after-used",
       ignoreRestSiblings: true,
       vars: "all",
-      argsIgnorePattern: "^_|^react$|^req$|^res$|^next$",
-      varsIgnorePattern: "^React$",
+      argsIgnorePattern: "^_|^req$|^res$|^next$",
       caughtErrorsIgnorePattern: "^_",
+      destructuredArrayIgnorePattern: "^_",
     },
   ],
   "no-shadow": 0,
@@ -529,6 +516,9 @@ const tsProjectRules = {
   "@typescript-eslint/prefer-namespace-keyword": 1,
   "@typescript-eslint/prefer-regexp-exec": 2,
   "@typescript-eslint/restrict-plus-operands": 2,
+  "@typescript-eslint/switch-exhaustiveness-check": 1,
+  "@typescript-eslint/non-nullable-type-assertion-style": 1,
+  "@typescript-eslint/no-implied-eval": 1,
 };
 
 const _testOverrides = {
@@ -539,6 +529,7 @@ const _testOverrides = {
     "node/no-unpublished-require": 0,
     "node/no-extraneous-import": 0,
     "node/no-extraneous-require": 0,
+    "@typescript-eslint/no-explicit-any": 0,
     "@typescript-eslint/no-unused-expressions": 0, // for chai
   },
 };
@@ -569,9 +560,6 @@ const eslintConfig = {
   extends: [
     "eslint:recommended",
     "plugin:node/recommended",
-    "plugin:import/errors",
-    "plugin:import/warnings",
-    "plugin:import/typescript",
     tsConfigPath
       ? "plugin:@typescript-eslint/recommended-requiring-type-checking"
       : "plugin:@typescript-eslint/recommended",
@@ -579,31 +567,47 @@ const eslintConfig = {
   overrides: [
     { files: patterns.sourceExtensions.map((x) => `*${x}`) },
     {
-      files: ["*.ts", "*.tsx"],
-      rules: {
-        "import/export": 0,
-      },
-    },
-    {
       files: ["*.d.ts", "*.d.tsx"],
       rules: {
         "no-var": 0,
-        "import/export": 0,
-        "import/no-default-export": 0,
         "@typescript-eslint/no-redeclare": 0,
+        "@typescript-eslint/restrict-plus-operands": 0,
+        "@typescript-eslint/no-floating-promises": 0,
+        "@typescript-eslint/no-misused-promises": 0,
+        "@typescript-eslint/no-unused-vars": 0,
+        "@typescript-eslint/await-thenable": 0,
+        "@typescript-eslint/no-explicit-any": 0,
+        "no-unmodified-loop-condition": 0,
+        "node/no-unsupported-features/es-builtins": 0,
+        "object-shorthand": 0,
+        "no-func-assign": 0,
       },
     },
     {
       files: ["*.jsx", "*.tsx"],
+      ecmaFeatures: {
+        globalReturn: false,
+        jsx: true,
+      },
       env: { browser: true },
       parserOptions: { jsx: true },
-      rules: { "@typescript-eslint/no-var-requires": 2, "node/shebang": 2 },
+      rules: {
+        strict: [1, "never"],
+        "@typescript-eslint/no-var-requires": 2,
+        "node/shebang": 2,
+        "no-extend-native": 1,
+        "no-sparse-arrays": 1,
+        "no-restricted-properties": [
+          "error",
+          { object: "require", property: "ensure", message: "Please use import() instead." },
+        ],
+      },
     },
     {
       files: ["*.mjs", "*.es", "*.es6", "*.jsx", "*.tsx"],
       parserOptions: {
         sourceType: "module",
-        ecmaVersion: 2021,
+        ecmaVersion: "latest",
         ecmaFeatures: {
           globalReturn: false,
         },
@@ -611,25 +615,48 @@ const eslintConfig = {
     },
     { files: patterns.scripts, ...scriptsConfig },
     { files: patterns.dist, ...distConfig },
+    {
+      files: ["*.json"],
+      parser: "espree",
+      rules: {
+        "json/undefined": 2,
+        "json/enum-value-mismatch": 2,
+        "json/unexpected-end-of-comment": 2,
+        "json/unexpected-end-of-string": 2,
+        "json/unexpected-end-of-number": 2,
+        "json/invalid-unicode": 2,
+        "json/invalid-escape-character": 2,
+        "json/invalid-character": 2,
+        "json/property-expected": 2,
+        "json/comma-expected": 2,
+        "json/colon-expected": 2,
+        "json/value-expected": 2,
+        "json/comma-or-close-backet-expected": 2,
+        "json/comma-or-close-brace-expected": 2,
+        "json/trailing-comma": 2,
+        "json/duplicate-key": 2,
+        "json/comment-not-permitted": 2,
+        "json/schema-resolve-error": 2,
+        "json/unknown": 2,
+      },
+    },
+    {
+      files: ["**/*tsconfig*.json"],
+      rules: {
+        "json/comment-not-permitted": 0,
+      },
+    },
     _testOverrides,
   ],
   parserOptions: {
     ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false, warnOnUnsupportedTypeScriptVersion: false },
-    ecmaVersion: 2021,
+    ecmaVersion: "latest",
     project: tsConfigPath,
+    extraFileExtensions: [".json"],
   },
-  plugins: ["node", "import", "@typescript-eslint"],
+  plugins: ["node", "@typescript-eslint", "json"],
   rules: { ...jsRules, ...typescriptRules },
-  settings: {
-    "import/ignore:": ["node_modules"],
-    "import/core-modules": ["electron", "aws-sdk", "typescript"],
-    "import/extensions": patterns.importableExtensions,
-    "import/external-module-folders": ["node_modules", "node_modules/@types", "dist"],
-    "import/parsers": { "@typescript-eslint/parser": patterns.sourceExtensions },
-    "import/resolver": {
-      [require.resolve("../lib/import-resolver.js")]: {},
-    },
-  },
+  settings: {},
 };
 
 if (config.getHasReact()) {

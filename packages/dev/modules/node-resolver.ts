@@ -5,6 +5,7 @@ import fs from "fs";
 import type { PackageJson } from "../package-json/package-json-type";
 import { toUTF8 } from "../utils/utils";
 import { PackageJsonParsed } from "../package-json/package-json-parsed";
+import type { UnsafeAny } from "../types";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;
@@ -332,9 +333,9 @@ export class NodePackageJson {
 
   /** Gets the content of the deserialized JSON file */
   public get manifest(): PackageJson {
-    let manifest = this._manifest as any;
+    let manifest = this._manifest as UnsafeAny;
     if (manifest === undefined) {
-      manifest = this.loadManifest() as any;
+      manifest = this.loadManifest() as UnsafeAny;
       this._manifest = manifest;
     }
     return manifest === this ? undefined : manifest;
@@ -372,7 +373,7 @@ export class NodeResolver {
 
   private _entries = new Map<string, NodeDirectory | NodeFile | null>();
   private _projectPath: string;
-  private _requireCache: Record<string, NodeModule> | null = (Module as any)._cache || null;
+  private _requireCache: Record<string, NodeModule> | null = (Module as UnsafeAny)._cache || null;
   private _projectDirectory: NodeDirectory | null | undefined = undefined;
 
   public constructor(cwd: string = process.cwd()) {
@@ -381,7 +382,7 @@ export class NodeResolver {
 
   public get requireCache(): Record<string, NodeModule> | null {
     const result = this._requireCache;
-    return result !== undefined ? result : (this._requireCache = (module as any)._cache || null);
+    return result !== undefined ? result : (this._requireCache = (module as UnsafeAny)._cache || null);
   }
 
   public set requireCache(value: Record<string, NodeModule> | null) {

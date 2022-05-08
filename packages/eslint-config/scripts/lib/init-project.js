@@ -129,7 +129,11 @@ function initGitHooks(project, gitDirectory) {
 
   if (!project["int-staged"]) {
     project["lint-staged"] = {
-      "*.{js,jsx,ts,tsx}": ["eslint --fix --max-warnings=0"],
+      "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json}": [
+        "eslint --no-error-on-unmatched-pattern --fix",
+        "prettier --write --loglevel=warn",
+      ],
+      "*.{yml,yaml,md,htm,html,css,scss,less}": ["prettier --write --loglevel=warn"],
     };
   }
 

@@ -1,4 +1,5 @@
 import { devError } from "../dev-error";
+import type { UnsafeAny } from "../types";
 import { abortSignals } from "./abort-signals";
 
 /** Runs lists of functions or promises in sequence */
@@ -14,11 +15,11 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
     if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
       continue;
     }
-    if (typeof (p as any).then === "function") {
+    if (typeof (p as UnsafeAny).then === "function") {
       p = await p;
     }
-    if (typeof p === "object" && p !== null && Symbol.iterator in (p as any)) {
-      await runSequential(...(p as any));
+    if (typeof p === "object" && p !== null && Symbol.iterator in (p as UnsafeAny)) {
+      await runSequential(...(p as UnsafeAny));
     }
   }
 }
@@ -31,8 +32,8 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
 export async function runParallel(...functionsOrPromises: unknown[]): Promise<void> {
   const promises: Promise<void>[] = [];
 
-  let error: any;
-  const handlePromise = async (p: any) => {
+  let error: UnsafeAny;
+  const handlePromise = async (p: UnsafeAny) => {
     try {
       if (typeof p === "function") {
         const signal = abortSignals.getSignal();
@@ -44,10 +45,10 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
         return undefined;
       }
-      if (typeof (p as any).then === "function") {
+      if (typeof (p as UnsafeAny).then === "function") {
         p = await p;
       }
-      if (typeof p === "object" && p !== null && Symbol.iterator in (p as any)) {
+      if (typeof p === "object" && p !== null && Symbol.iterator in (p as UnsafeAny)) {
         for (const q of p) {
           promises.push(handlePromise(q));
         }

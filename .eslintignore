@@ -11,6 +11,8 @@ dist
 !.*.es6
 !.*.assetgen
 !.*.ts
+!.*.mts
+!.*.cts
 !.*.tsx
 !.*.json
 !.eslintrc.js

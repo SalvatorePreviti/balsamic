@@ -6,6 +6,7 @@ import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import { performance } from "perf_hooks";
 import type { Deferred } from "../promises/deferred";
+import type { UnsafeAny } from "../types";
 
 const _inspectedErrorLoggedSet = new Set<unknown>();
 
@@ -430,7 +431,7 @@ function makeDevLog() {
         return true;
       }
       return new Promise((resolve) => {
-        const rl = readline.createInterface(process.stdin, process.stdout as any);
+        const rl = readline.createInterface(process.stdin, process.stdout as UnsafeAny);
         const question = `${self.colors.greenBright("?")} ${self.colors.whiteBright(
           confirmationMessage,
         )} ${self.colors.gray(defaultValue ? "(Y/n)" : "(N/y)")} `;
@@ -466,7 +467,7 @@ function makeDevLog() {
     if (fnOrPromise === null || (typeof fnOrPromise !== "object" && typeof fnOrPromise !== "function")) {
       return fnOrPromise;
     }
-    if (typeof fnOrPromise === "object" && typeof (fnOrPromise as any).then !== "function") {
+    if (typeof fnOrPromise === "object" && typeof (fnOrPromise as UnsafeAny).then !== "function") {
       return fnOrPromise;
     }
     if (!title && typeof fnOrPromise === "function") {
