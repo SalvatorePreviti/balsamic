@@ -27,24 +27,26 @@ declare global {
     passive?: boolean | undefined;
   }
 
+  export interface EventListenerOptions {
+    capture?: boolean;
+  }
+
   export interface AbortSignal {
     readonly aborted: boolean;
 
-    addEventListener: (
-      type: "abort",
-      listener: (this: AbortSignal, event: UnsafeAny) => UnsafeAny,
-      options?: boolean | AddEventListenerOptions,
-    ) => void;
-
-    removeEventListener: (
-      type: "abort",
-      listener: (this: AbortSignal, event: UnsafeAny) => UnsafeAny,
-      options?: boolean | { capture?: boolean },
-    ) => void;
-
     dispatchEvent: (event: UnsafeAny) => boolean;
 
-    onabort: null | ((this: AbortSignal, event: UnsafeAny) => void);
+    addEventListener(
+      type: "abort",
+      listener: (this: AbortSignal, ev: Event) => void,
+      options?: boolean | AddEventListenerOptions,
+    ): void;
+
+    removeEventListener(
+      type: "abort",
+      listener: (this: AbortSignal, ev: Event) => void,
+      options?: boolean | EventListenerOptions,
+    ): void;
   }
 }
 

@@ -1,3 +1,5 @@
+/// <reference path="./normalize-package-data.d.ts" />
+
 import path from "node:path";
 import fs from "node:fs";
 import glob from "fast-glob";
