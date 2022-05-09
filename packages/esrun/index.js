@@ -64,7 +64,7 @@ function pathNameToUrl(file) {
   if (file.indexOf("://") < 0) {
     try {
       return pathToFileURL(file).href;
-    } catch (_) {}
+    } catch {}
   }
   return file;
 }
@@ -80,7 +80,7 @@ function pathNameFromUrl(url) {
   if (url.startsWith("file://")) {
     try {
       return fileURLToPath(url);
-    } catch (_) {}
+    } catch {}
   }
   return undefined;
 }
@@ -182,7 +182,7 @@ exports.emitUncaughtException = (error) => {
     console.error(emitError);
     try {
       exports.handleUncaughtError(error);
-    } catch (_) {}
+    } catch {}
   }
 };
 
@@ -331,7 +331,7 @@ exports.isMainModule = function isMainModule(url) {
   if (url.startsWith(pathSep)) {
     try {
       url = fileURLToPath(url);
-    } catch (_) {}
+    } catch {}
   }
   const indexOfQuestionMark = url.indexOf("?");
   if (indexOfQuestionMark >= 0) {
@@ -392,7 +392,7 @@ exports.isValidIdentifier = function isValidIdentifier(name) {
     // eslint-disable-next-line no-new-func,no-new
     new Function(name, `var ${name}`);
     return true;
-  } catch (_) {}
+  } catch {}
   return false;
 };
 
@@ -923,7 +923,7 @@ async function _tryResolveFile(pathName) {
   let r;
   try {
     r = await fs.promises.stat(pathName);
-  } catch (_) {}
+  } catch {}
 
   if (r) {
     if (r.isFile()) {

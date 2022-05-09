@@ -138,7 +138,7 @@ exports.buildDts = async function buildDts({ files, cwd, outdir, outbase }) {
         inputDirectoriesCache.add(dir);
         dir = path.dirname(dir);
       }
-    } catch (_) {}
+    } catch {}
   }
 
   const readPromises = [];
@@ -154,16 +154,16 @@ exports.buildDts = async function buildDts({ files, cwd, outdir, outbase }) {
           readPromises.push(prereadFile(path.join(folderPath, fname)));
         }
       }
-    } catch (_) {}
+    } catch {}
   };
 
   try {
     readDirPromises.push(readDirDtsFiles(path.join(path.dirname(require.resolve("typescript/package.json")), "lib")));
-  } catch (_) {}
+  } catch {}
 
   try {
     readDirPromises.push(readDirDtsFiles(path.dirname(require.resolve("@types/node/package.json"))));
-  } catch (_) {}
+  } catch {}
 
   const host = ts.createCompilerHost(options);
 
@@ -181,7 +181,7 @@ exports.buildDts = async function buildDts({ files, cwd, outdir, outbase }) {
     let isDifferent = true;
     try {
       isDifferent = (await fs.promises.readFile(fileName, "utf8")) !== data;
-    } catch (_) {}
+    } catch {}
 
     if (isDifferent) {
       try {

@@ -3,7 +3,7 @@ const fs = require("fs");
 const tryMkDir = (dir) => {
   try {
     fs.mkdirSync(dir, { recursive: true });
-  } catch (_) {}
+  } catch {}
 };
 
 function xmur3(str) {

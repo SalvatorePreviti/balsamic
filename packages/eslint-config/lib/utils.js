@@ -23,7 +23,7 @@ function isFile(filename) {
   try {
     const stats = fsStatSync(filename);
     return stats.isFile() || stats.isFIFO();
-  } catch (_) {}
+  } catch {}
   return false;
 }
 

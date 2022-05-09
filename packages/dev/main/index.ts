@@ -72,17 +72,20 @@ export namespace Main {
   };
 
   /** Attach unhandledRejection and uncaughtException handlers for logging and process.exitCode */
-  export function initErrorHandling(): () => void {
-    if (++_devErrorHandlingInitialized === 1) {
-      process.on("unhandledRejection", _handleUnhandledRejection);
-      process.on("uncaughtException", _handleUncaughtException);
-
+  export function initErrorHandling(
+    options?: { setUncaughtExceptionCaptureCallback?: boolean | undefined } | undefined,
+  ): () => void {
+    if (options && options.setUncaughtExceptionCaptureCallback) {
       if (!process.hasUncaughtExceptionCaptureCallback()) {
         try {
           process.setUncaughtExceptionCaptureCallback(_handleUncaughtException);
-        } catch (_) {}
+        } catch {}
       }
+    }
 
+    if (++_devErrorHandlingInitialized === 1) {
+      process.on("unhandledRejection", _handleUnhandledRejection);
+      process.on("uncaughtException", _handleUncaughtException);
       initProcessTime();
     }
     let removed = false;
@@ -181,7 +184,7 @@ export namespace Main {
       devLog.error(emitError);
       try {
         Main.handleUncaughtException(error);
-      } catch (_) {}
+      } catch {}
     }
   }
 
@@ -292,6 +295,9 @@ export interface DevRunMainOptions<T = unknown> {
 
   initErrorHandling?: boolean | undefined;
 
+  /** If true, setups process.setUncaughtExceptionCaptureCallback */
+  setUncaughtExceptionCaptureCallback?: boolean | undefined;
+
   ignoreProcessWarnings?: string[] | undefined | null;
 
   /** When set, it does require('node:events').setMaxListener(nodeEventsMaxListeners), to avoid "Too many listener" warning */
@@ -303,6 +309,18 @@ export interface DevRunMainOptions<T = unknown> {
   /** If not false, setup ts-node and tsconfig-paths */
   initTsNode?: boolean | "typecheck" | "transpile-only" | undefined;
 }
+
+/** Top level run of functions and promises */
+export function devRunMain<T = unknown>(
+  main: { exports: () => T | Promise<T> } | (() => T | Promise<T>) | Promise<T> | T,
+  options: DevRunMainOptions<T> & { title?: string | undefined },
+): Promise<T | Error>;
+
+/** Top level run of functions and promises */
+export function devRunMain<T = unknown>(
+  main: T,
+  options: DevRunMainOptions<T> & { title?: string | undefined },
+): Promise<T | Error>;
 
 /** Top level run of functions and promises */
 export function devRunMain<T = unknown>(
@@ -319,10 +337,18 @@ export function devRunMain<T extends null | false | undefined>(
 
 export function devRunMain<T = unknown>(
   main: UnsafeAny,
-  processTitle?: string | undefined,
-  options: DevRunMainOptions<T> | undefined = {},
+  processTitle?: UnsafeAny | undefined,
+  options?: DevRunMainOptions<T> | undefined,
 ): Promise<T | Error> {
   const handledErrors = new Map<unknown, Error>();
+
+  if (typeof processTitle === "object" && processTitle !== null) {
+    options = processTitle;
+    processTitle = processTitle.title;
+  }
+  if (!options) {
+    options = {};
+  }
 
   if (main === false || main === undefined || main === null) {
     return Promise.resolve(main);
@@ -347,7 +373,7 @@ export function devRunMain<T = unknown>(
   try {
     const initErrorHandling = options.initErrorHandling;
     if (initErrorHandling === undefined || initErrorHandling) {
-      Main.initErrorHandling();
+      Main.initErrorHandling({ setUncaughtExceptionCaptureCallback: options.setUncaughtExceptionCaptureCallback });
     }
 
     if (processTitle) {
@@ -395,15 +421,15 @@ export function devRunMain<T = unknown>(
       return ret;
     }
     terminated = true;
-    if (options.processExitTimeout) {
+    if (options!.processExitTimeout) {
       try {
         Main.processExitTimeout({
-          milliseconds: options.processExitTimeout === true ? undefined : options.processExitTimeout,
+          milliseconds: options!.processExitTimeout === true ? undefined : options!.processExitTimeout,
         });
       } catch {}
     }
-    if (typeof options.onTerminated === "function") {
-      await options.onTerminated(ret);
+    if (typeof options!.onTerminated === "function") {
+      await options!.onTerminated(ret);
     }
     return ret;
   };
@@ -450,7 +476,7 @@ export function isMainModule(
     }
     try {
       module = path.resolve(fileURLToPath(module));
-    } catch (_) {}
+    } catch {}
   }
   const scriptPath = path.resolve(argv1);
   return module === scriptPath || stripExtension(module) === scriptPath;

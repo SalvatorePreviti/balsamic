@@ -20,7 +20,7 @@ export async function resolve(specifier, context, defaultResolve) {
     if (resolved) {
       return { url: resolved };
     }
-  } catch (_) {}
+  } catch {}
 
   return defaultResolve(specifier, context, defaultResolve);
 }

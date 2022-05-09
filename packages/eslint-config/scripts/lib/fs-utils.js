@@ -58,12 +58,12 @@ function rewritePackageJson(packageJsonPath, project) {
   let originalManifest;
   try {
     originalManifest = fs.readFileSync(packageJsonPath, "utf8");
-  } catch (_) {}
+  } catch {}
   let formatted;
   try {
     const prettierInterface = require("prettier");
     formatted = prettierInterface.format(stringified, { ignoreErrors: true, parser: "json-stringify" });
-  } catch (_) {}
+  } catch {}
   formatted = cleanupText(formatted || stringified);
   if (formatted !== originalManifest) {
     logging.progress("rewriting package.json ...");
@@ -112,7 +112,7 @@ function isDirectory(filename) {
   try {
     const stats = fs.statSync(filename);
     return stats.isDirectory();
-  } catch (_) {}
+  } catch {}
   return false;
 }
 

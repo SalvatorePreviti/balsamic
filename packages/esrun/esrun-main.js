@@ -172,11 +172,11 @@ async function _resolveEntryModule(esrun, entry, resolveDir) {
   if (!entry.startsWith("./") && !entry.startsWith(".\\") && !entry.startsWith("/") && !entry.startsWith("\\")) {
     try {
       return await esrun.resolveEsModule(`./${entry}`, pathJoin(resolveDir, "index.js"));
-    } catch (_) {}
+    } catch {}
   }
   try {
     return await esrun.resolveEsModule(entry, pathJoin(resolveDir, "index.js"));
-  } catch (_) {}
+  } catch {}
   return entry;
 }
 

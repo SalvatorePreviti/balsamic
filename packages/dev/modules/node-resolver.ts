@@ -82,7 +82,7 @@ export abstract class NodeFsEntry {
   public nodeResolve(id: string): string | null {
     try {
       return this.nodeRequire.resolve(id);
-    } catch (_) {}
+    } catch {}
     return null;
   }
 
@@ -362,7 +362,7 @@ export class NodePackageJson {
           mod.paths = [path.dirname(filePath)];
           cache[filePath] = mod;
         }
-      } catch (_) {}
+      } catch {}
     }
     return typeof manifest === "object" && manifest !== null && !Array.isArray(manifest) ? manifest : {};
   }
@@ -523,6 +523,6 @@ function fs_tryRealpathSync(unrealpath: string): string | null {
 function fs_tryStatSync(realpath: string): fs.Stats | null {
   try {
     return fs.statSync(realpath, { bigint: false, throwIfNoEntry: false }) || null;
-  } catch (_) {}
+  } catch {}
   return null;
 }

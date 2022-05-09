@@ -101,7 +101,7 @@ function _hasPackage(name) {
   try {
     _hasPackageResolver.resolve(name);
     result = true;
-  } catch (_) {}
+  } catch {}
   _hasPackageCache.set(name, result);
   return result;
 }
