@@ -489,6 +489,10 @@ function makeDevLog() {
     }
   }
 
+  timed.wrap = function timed_wrap<R>(title: string, fn: () => R, options?: DevLogTimeOptions | undefined) {
+    return () => timed(title, fn, options);
+  };
+
   return self;
 }
 

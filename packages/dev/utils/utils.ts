@@ -26,13 +26,22 @@ export function prettySize(
   }
   bytes = bytes < 0 ? floor(bytes) : ceil(bytes);
   let s;
-  if (!isFinite(bytes) || bytes < 1024) {
+  if (!isFinite(bytes)) {
     s = `${bytes} ${appendBytes ? "Bytes" : "B"}`;
   } else {
+    const isNegative = bytes < 0;
+    if (isNegative) {
+      bytes = -bytes;
+    }
     const i = min(floor(log(abs(bytes)) / log(1024)), 6);
-    s = `${+(bytes / 1024 ** i).toFixed(2)} ${i ? " kMGTPE"[i] : ""}`;
-    if (appendBytes) {
-      s += `, ${bytes} Bytes`;
+    s = `${isNegative ? "-" : ""}${(bytes / 1024 ** i).toLocaleString("en", {
+      decimalDigits: 2,
+      useGrouping: false,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} ${i ? " kMGTPE"[i] : ""}`;
+    if (appendBytes && bytes > 1024) {
+      s += `, ${isNegative ? "-" : ""}${bytes} Bytes`;
     }
   }
   return s;
