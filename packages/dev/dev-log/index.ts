@@ -249,7 +249,16 @@ function makeDevLog() {
     timed,
     timedSync,
     startSpinner,
+
+    greetings,
   };
+
+  function greetings(title: string = "GREETINGS PROFESSOR FALKEN.") {
+    self.hr(self.colors.rgb(115, 100, 255));
+    self.log(self.colors.rgb(80, 220, 255).bold(title));
+    self.hr(self.colors.rgb(115, 100, 255));
+    self.log();
+  }
 
   function error(...args: unknown[]): void {
     if (args.length === 0) {
