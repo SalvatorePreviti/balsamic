@@ -631,7 +631,13 @@ function makeDevLog() {
 
   function titled(title: string, ...args: unknown[]): void;
 
-  function titled(options: TitledOptions, ...args: unknown[]): void;
+  function titled(
+    options: {
+      title: string;
+      titlePaddingWidth?: number | undefined;
+    },
+    ...args: unknown[]
+  ): void;
 
   function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): void {
     let title: string;
