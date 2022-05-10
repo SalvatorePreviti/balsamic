@@ -209,11 +209,15 @@ function makeDevLog() {
       depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
     },
 
-    /** Default on wether abort errors are treated as warnings or not */
-    abortErrorIsWarning: true,
+    options: {
+      /** Default option on how stack trace should be shown */
+      showStack: "once" as boolean | "once",
 
-    /** Default option on how stack trace should be shown */
-    defaultShowStack: "once" as boolean | "once",
+      /** Default on wether abort errors are treated as warnings or not */
+      abortErrorIsWarning: true,
+
+      titlePaddingWidth: 0,
+    },
 
     stderr: {
       ...makeDevLogStream(
@@ -246,9 +250,11 @@ function makeDevLog() {
 
     askConfirmation,
 
+    startSpinner,
+
+    titled,
     timed,
     timedSync,
-    startSpinner,
 
     greetings,
   };
@@ -289,7 +295,7 @@ function makeDevLog() {
       if (isAbortError) {
         if (isOk) {
           self.info(logMessage, err);
-        } else if (options.abortErrorIsWarning ?? self.abortErrorIsWarning) {
+        } else if (options.abortErrorIsWarning ?? self.options.abortErrorIsWarning) {
           if (err === "AbortError: The operation was aborted") {
             self.warn(logMessage);
           } else {
@@ -304,7 +310,7 @@ function makeDevLog() {
     } else if (isAbortError) {
       if (isOk) {
         self.info(err);
-      } else if (options.abortErrorIsWarning ?? self.abortErrorIsWarning) {
+      } else if (options.abortErrorIsWarning ?? self.options.abortErrorIsWarning) {
         self.warn(err);
       } else {
         self.error(err);
@@ -341,7 +347,7 @@ function makeDevLog() {
     }
 
     if (showStack === undefined) {
-      showStack = self.defaultShowStack;
+      showStack = self.options.showStack;
     }
 
     return showStack;
@@ -469,6 +475,10 @@ function makeDevLog() {
       printStarted = isTimed;
     }
     if (printStarted) {
+      const titlePaddingWidth = (options.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
+      if (titlePaddingWidth > 0) {
+        title = title.padEnd(titlePaddingWidth, " ");
+      }
       self.log(self.colors.cyan(`${self.colors.cyan("◆")} ${title}`) + self.colors.gray(" started..."));
     }
   }
@@ -487,6 +497,10 @@ function makeDevLog() {
       printStarted = isTimed;
     }
     if (isTimed || printStarted) {
+      const titlePaddingWidth = (options.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
+      if (titlePaddingWidth > 0) {
+        title = title.padEnd(titlePaddingWidth, " ");
+      }
       let msg = `${printStarted && !spinner ? "\n" : ""}${self.colors.green("✔")} ${title} ${self.colors.bold("OK")}`;
       if (elapsed && (isTimed || elapsed > 5)) {
         msg += ` in ${millisecondsToString(elapsed)}`;
@@ -610,6 +624,31 @@ function makeDevLog() {
 
   startSpinner.chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
 
+  interface TitledOptions {
+    title: string;
+    titlePaddingWidth?: number | undefined;
+  }
+
+  function titled(title: string, ...args: unknown[]): void;
+
+  function titled(options: TitledOptions, ...args: unknown[]): void;
+
+  function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): void {
+    let title: string;
+    let titlePaddingWidth: number;
+    if (typeof titleOrOptions === "object") {
+      title = titleOrOptions.title;
+      titlePaddingWidth = (titleOrOptions.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
+    } else {
+      title = titleOrOptions;
+      titlePaddingWidth = self.options.titlePaddingWidth || 0;
+    }
+    if (titlePaddingWidth > 0) {
+      title = title.padEnd(titlePaddingWidth, " ");
+    }
+    self.log(self.colors.cyan(`${self.colors.blueBright("·")} ${title}`), ...args);
+  }
+
   /** Prints how much time it takes to run something */
   function timed<T>(
     title: string,
@@ -704,6 +743,7 @@ export namespace devLog {
     timed?: boolean | undefined;
     elapsed?: number | undefined;
     spinner?: boolean | undefined;
+    titlePaddingWidth?: number | undefined;
   }
 }
 
