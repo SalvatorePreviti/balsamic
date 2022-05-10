@@ -26,7 +26,7 @@ export function prettySize(
   }
   bytes = bytes < 0 ? floor(bytes) : ceil(bytes);
   let s;
-  if (!isFinite(bytes)) {
+  if (!isFinite(bytes) || Math.abs(bytes) < 1024) {
     s = `${bytes} ${appendBytes ? "Bytes" : "B"}`;
   } else {
     const isNegative = bytes < 0;
