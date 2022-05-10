@@ -563,26 +563,19 @@ function makeDevLog() {
     });
   }
 
-  let _spinnerStack: string[] | null = null;
-  let _spinnerInterval: IntervalType | null = null;
-  let _spinnerCounter = 0;
+  let _spinStack: string[] | null = null;
+  let _spinInterval: IntervalType | null = null;
+  let _spinCounter = 0;
 
   const _spinnerDraw = () => {
     const chars = startSpinner.chars;
-    process.stdout.write(
-      `\r${self.colors.blueBright(chars[_spinnerCounter++ % chars.length])} ${
-        _spinnerStack![_spinnerStack!.length - 1]
-      }${self.colors.blackBright("…")} `,
-    );
-  };
 
-  function _spinnerStartTimer() {
-    _spinnerCounter = 0;
-    _spinnerInterval = setInterval(_spinnerDraw, 100).unref();
-    process.stdout.write(
-      `${self.colors.blueBright("⠿")} ${_spinnerStack![_spinnerStack!.length - 1]}${self.colors.blackBright("…")} `,
-    );
-  }
+    const text = `\r${self.colors.blueBright(chars[_spinCounter++ % chars.length])} ${
+      _spinStack![_spinStack!.length - 1]
+    }${self.colors.blackBright(" … ")}`;
+
+    process.stdout.write(text);
+  };
 
   /** Starts a spinner. */
 
@@ -591,14 +584,18 @@ function makeDevLog() {
       return noop;
     }
 
-    if (_spinnerStack === null) {
-      _spinnerStack = [];
+    if (_spinStack === null) {
+      _spinStack = [title];
+    } else {
+      _spinStack.push(title);
     }
-    _spinnerStack.push(title);
+    if (!_spinInterval) {
+      _spinInterval = setInterval(_spinnerDraw, 100).unref();
+    }
+    _spinCounter = 0;
 
-    if (_spinnerStack.length === 1) {
-      _spinnerStartTimer();
-    }
+    const s = `${self.colors.blueBright("⠿")} ${_spinStack![_spinStack!.length - 1]}${self.colors.blackBright(" … ")}`;
+    process.stdout.write(s);
 
     let removed = false;
     return () => {
@@ -610,15 +607,13 @@ function makeDevLog() {
   }
 
   startSpinner.pop = () => {
-    if (_spinnerStack !== null && _spinnerStack.length !== 0) {
-      const t = _spinnerStack.pop() || "";
-      process.stdout.write(`\r${" ".repeat(t.length + 2)}\r`);
-      if (_spinnerStack.length === 0) {
-        if (_spinnerInterval) {
-          clearInterval(_spinnerInterval);
-          _spinnerInterval = null;
-        }
+    if (_spinStack !== null && _spinStack.length !== 0) {
+      const t = _spinStack.pop() || "";
+      if (_spinStack.length === 0 && _spinInterval) {
+        clearInterval(_spinInterval);
+        _spinInterval = null;
       }
+      process.stdout.write(`\r${" ".repeat(t.length + 4)}\r`);
     }
   };
 
