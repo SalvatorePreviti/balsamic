@@ -14,12 +14,52 @@ export type TimeoutType = ReturnType<typeof setTimeout>;
 export type IntervalType = ReturnType<typeof setInterval>;
 
 declare global {
-  export interface Event {}
+  export interface ErrorOptions {
+    cause?: Error;
+  }
 
   export interface Error {
     showStack?: boolean | "once" | undefined;
+    cause?: Error;
     [key: string]: unknown | undefined;
   }
+
+  export interface ErrorConstructor {
+    new (message?: string, options?: ErrorOptions): Error;
+    (message?: string, options?: ErrorOptions): Error;
+  }
+
+  export interface EvalErrorConstructor {
+    new (message?: string, options?: ErrorOptions): EvalError;
+    (message?: string, options?: ErrorOptions): EvalError;
+  }
+
+  export interface RangeErrorConstructor {
+    new (message?: string, options?: ErrorOptions): RangeError;
+    (message?: string, options?: ErrorOptions): RangeError;
+  }
+
+  export interface ReferenceErrorConstructor {
+    new (message?: string, options?: ErrorOptions): ReferenceError;
+    (message?: string, options?: ErrorOptions): ReferenceError;
+  }
+
+  export interface SyntaxErrorConstructor {
+    new (message?: string, options?: ErrorOptions): SyntaxError;
+    (message?: string, options?: ErrorOptions): SyntaxError;
+  }
+
+  export interface TypeErrorConstructor {
+    new (message?: string, options?: ErrorOptions): TypeError;
+    (message?: string, options?: ErrorOptions): TypeError;
+  }
+
+  export interface URIErrorConstructor {
+    new (message?: string, options?: ErrorOptions): URIError;
+    (message?: string, options?: ErrorOptions): URIError;
+  }
+
+  export interface Event {}
 
   export interface AddEventListenerOptions {
     capture?: boolean | undefined;
