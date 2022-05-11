@@ -1,3 +1,5 @@
+import { numberFixedString } from "./number-fixed";
+
 const { floor, ceil, min, log, abs } = Math;
 const { isFinite } = Number;
 
@@ -34,12 +36,7 @@ export function prettySize(
       bytes = -bytes;
     }
     const i = min(floor(log(abs(bytes)) / log(1024)), 6);
-    s = `${isNegative ? "-" : ""}${(bytes / 1024 ** i).toLocaleString("en", {
-      decimalDigits: 2,
-      useGrouping: false,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })} ${i ? " kMGTPE"[i] : ""}`;
+    s = `${isNegative ? "-" : ""}${numberFixedString(bytes / 1024 ** i, 2)} ${i ? " kMGTPE"[i] : ""}`;
     if (appendBytes && bytes > 1024) {
       s += `, ${isNegative ? "-" : ""}${bytes} Bytes`;
     }

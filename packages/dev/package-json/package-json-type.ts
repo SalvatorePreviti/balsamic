@@ -537,6 +537,7 @@ export namespace PackageJson {
     message: string;
     scope: string;
     name: string;
+    subPath: string;
   }
 
   export function validatePackageName(packageName: unknown): PackageNameValidation {

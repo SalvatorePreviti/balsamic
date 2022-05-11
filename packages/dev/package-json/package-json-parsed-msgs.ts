@@ -152,6 +152,7 @@ export class PackageJsonParseMessages {
   }: {
     colors?: boolean | undefined;
     severity?: PackageJsonParseMessageSeverity | undefined;
+    workspaces?: boolean | undefined;
     indent?: string | undefined;
   } = {}): string {
     let result = "";

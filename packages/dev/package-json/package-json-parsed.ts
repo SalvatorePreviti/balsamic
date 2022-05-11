@@ -627,7 +627,6 @@ function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
   const packageJsonSchema = require("./package-json.schema.json");
   return new Ajv({
     validateSchema: false,
-    false: true,
     allowUnionTypes: true,
     strictSchema: false,
     strictNumbers: true,

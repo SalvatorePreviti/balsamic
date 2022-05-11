@@ -5,15 +5,23 @@
     "baseUrl": ".",
     "rootDir": ".",
     "outDir": ".",
+    "declarationDir": ".",
 
     "module": "CommonJS",
     "sourceMap": true,
     "declarationMap": false,
     "declaration": true,
-    "declarationDir": "dist",
     "types": ["node"],
     "composite": true
   },
   "include": ["."],
-  "exclude": ["**/node_modules", "**/dist", "**/test", "**/*.spec.ts", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "**/node_modules/**/*",
+    "**/node_modules",
+    "**/dist",
+    "**/test",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

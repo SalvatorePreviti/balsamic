@@ -9,6 +9,7 @@ import type { Deferred } from "../promises/deferred";
 import type { IntervalType, UnsafeAny } from "../types";
 import { noop } from "../utils/utils";
 import { isCI } from "../dev-env";
+import { numberFixedString } from "../utils/number-fixed";
 
 const _inspectedErrorLoggedSet = new Set<unknown>();
 
@@ -166,16 +167,7 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
 
       s += `${self.colors.blueBright("]")}`;
 
-      s += _rgbColorFromValue(nv)(
-        `${(nv * 100)
-          .toLocaleString("en", {
-            useGrouping: false,
-            decimalDigits: 1,
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-          })
-          .padStart(7, " ")}%`,
-      );
+      s += _rgbColorFromValue(nv)(numberFixedString(nv * 100, { decimalDigits: 1, padStart: 7, postix: "%" }));
 
       s += "\n";
 
@@ -613,7 +605,11 @@ function makeDevLog() {
         clearInterval(_spinInterval);
         _spinInterval = null;
       }
-      process.stdout.write(`\r${" ".repeat(t.length + 4)}\r`);
+      if (self.isTerm()) {
+        process.stdout.write(`\r${" ".repeat(t.length + 4)}\r`);
+      } else {
+        process.stdout.write("\n");
+      }
     }
   };
 

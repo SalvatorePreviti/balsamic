@@ -262,6 +262,7 @@ export class NodePackageJsonWorkspace {
 
   public constructor(root: NodePackageJson) {
     this.root = root;
+    this.children = [];
   }
 }
 

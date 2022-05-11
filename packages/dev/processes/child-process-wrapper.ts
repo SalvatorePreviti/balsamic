@@ -111,7 +111,6 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   };
 
   public static defaultSpawnOptions: Omit<SpawnOrForkOptions, "title"> = {
-    throwOnExitCode: true,
     timed: true,
   };
 
@@ -847,8 +846,6 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   public addPendingPromise(promise: Promise<unknown>): void {
     this.childProcessWrapper.addPendingPromise(promise);
   }
-
-  self: ChildProcessWrapper;
 
   public get pid(): number | undefined {
     return this.childProcessWrapper.pid;

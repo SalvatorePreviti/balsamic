@@ -16,6 +16,8 @@ export * from "./elapsed-time";
 
 export * from "./utils/utils";
 
+export * from "./utils/number-fixed";
+
 export * from "./utils/plain-objects";
 
 export * from "./promises/promises";

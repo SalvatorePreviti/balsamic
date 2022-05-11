@@ -18,8 +18,8 @@ export class Deferred<T = void> {
   public error: Error | null = null;
   public result: T | undefined = undefined;
   public promise: Promise<T>;
-  public resolve: T extends undefined ? () => void : (value: T) => void;
-  public reject: (error: unknown) => void;
+  public resolve: T extends undefined ? () => void : (value: T) => void = noop as UnsafeAny;
+  public reject: (error: unknown) => void = noop;
   private _unhandledRejectionIgnored?: true | undefined;
 
   public constructor(

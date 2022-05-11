@@ -46,7 +46,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   private _building: boolean = false;
   private _fileChanged: boolean | null = null;
   private _closePromise: Promise<void> | null = null;
-  private _buildingPromise: Promise<void> | null;
+  private _buildingPromise: Promise<void> | null | undefined = undefined;
   private _firstBuildDeferred = new Deferred<void>().ignoreUnhandledRejection();
   private _closedDeferred: Deferred<void> | null = null;
   private _fileChangeDebounceTimer: TimeoutType | null = null;
