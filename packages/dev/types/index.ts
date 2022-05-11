@@ -1,6 +1,6 @@
 /// <reference types="node" />
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type UnsafeAny = any;
 
 export type URLLikeObject = { readonly href: string };
@@ -14,6 +14,22 @@ export type TimeoutType = ReturnType<typeof setTimeout>;
 export type IntervalType = ReturnType<typeof setInterval>;
 
 declare global {
+  export interface String {
+    /**
+     * Replace all instances of a substring in a string, using a regular expression or search string.
+     * @param searchValue A string to search for.
+     * @param replaceValue A string containing the text to replace for every successful match of searchValue in this string.
+     */
+    replaceAll(searchValue: string | RegExp, replaceValue: string): string;
+
+    /**
+     * Replace all instances of a substring in a string, using a regular expression or search string.
+     * @param searchValue A string to search for.
+     * @param replacer A function that returns the replacement text.
+     */
+    replaceAll(searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string;
+  }
+
   export interface ErrorOptions {
     cause?: Error;
   }
@@ -74,7 +90,7 @@ declare global {
   export interface AbortSignal {
     readonly aborted: boolean;
 
-    dispatchEvent: (event: UnsafeAny) => boolean;
+    dispatchEvent: (event: any) => boolean;
 
     addEventListener(
       type: "abort",
