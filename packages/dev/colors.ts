@@ -30,7 +30,7 @@ export type TermBasicColor =
   | "cyanBright"
   | "whiteBright";
 
-export type TermColor = Chalk | TermBasicColor | "error" | "warning" | "info" | "debug" | "verbose";
+export type TermColor = Chalk | TermBasicColor | "error" | "warning" | "info" | "debug" | "verbose" | "notice";
 
 export type Chalk = colors.Chalk;
 
@@ -47,6 +47,8 @@ export function getColor(color: TermColor | null | undefined): Chalk {
         return colors.blueBright;
       case "verbose":
         return colors.magenta;
+      case "notice":
+        return colors.rgb(120, 190, 255);
     }
     color = colors[color];
   }

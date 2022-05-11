@@ -1,5 +1,6 @@
 import util from "node:util";
 import { performance } from "node:perf_hooks";
+import { numberFixedString } from "./utils/number-fixed";
 
 const { isArray } = Array;
 const { isFinite } = Number;
@@ -82,7 +83,10 @@ export class ElapsedTime {
   }
 }
 
-export function millisecondsToString(milliseconds: number | string | readonly [number, number]) {
+export function millisecondsToString(
+  milliseconds: number | string | readonly [number, number],
+  options?: { fixed?: "s" | false | undefined },
+) {
   if (isArray(milliseconds)) {
     milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6;
   }
@@ -90,9 +94,22 @@ export function millisecondsToString(milliseconds: number | string | readonly [n
   if (!isFinite(milliseconds)) {
     return `${milliseconds}`;
   }
-  let str = "";
+
   const isNegative = milliseconds < 0;
-  let n = (isNegative ? -milliseconds : milliseconds) / 1000;
+  if (isNegative) {
+    milliseconds = -milliseconds;
+  }
+
+  let n = milliseconds / 1000;
+
+  const fixed = options?.fixed;
+  if (fixed === "s") {
+    return `${numberFixedString(isNegative ? -n : n, 3)
+      .replace(".", "s ")
+      .padStart(8, " ")}ms`;
+  }
+
+  let str = "";
   for (const { unit, amount } of ElapsedTime.timeUnits) {
     const v =
       unit === "ms" ? (milliseconds > 500 ? round(n / amount) : round((n / amount) * 100) / 100) : floor(n / amount);

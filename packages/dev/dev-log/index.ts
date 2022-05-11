@@ -1,6 +1,6 @@
 import util from "node:util";
 import readline from "node:readline";
-import { colors as _colors, getColor, TermColor } from "../colors";
+import { Chalk, colors as _colors, colors_disabled, getColor, TermColor } from "../colors";
 import { ElapsedTime, millisecondsToString } from "../elapsed-time";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
@@ -37,80 +37,80 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
 
     log: options.log,
 
+    getColor(color: TermColor | null | undefined): Chalk {
+      return self.colors.level > 0 ? getColor(color) : colors_disabled;
+    },
+
     isTerm() {
       return self.colors.level >= 2 && !isCI() && process[stream].isTTY;
     },
 
     logBlack(...args: unknown[]): void {
-      self.log(self.colors.black(_devInspectForLogging(args)));
+      self.log(self.colors.black(_devInspectForLogging(args, "")));
     },
 
     logRed(...args: unknown[]): void {
-      self.log(self.colors.red(_devInspectForLogging(args)));
+      self.log(self.colors.red(_devInspectForLogging(args, "")));
     },
 
     logGreen(...args: unknown[]): void {
-      self.log(self.colors.green(_devInspectForLogging(args)));
+      self.log(self.colors.green(_devInspectForLogging(args, "")));
     },
 
     logYellow(...args: unknown[]): void {
-      self.log(self.colors.yellow(_devInspectForLogging(args)));
+      self.log(self.colors.yellow(_devInspectForLogging(args, "")));
     },
 
     logBlue(...args: unknown[]): void {
-      self.log(self.colors.blue(_devInspectForLogging(args)));
+      self.log(self.colors.blue(_devInspectForLogging(args, "")));
     },
 
     logMagenta(...args: unknown[]): void {
-      self.log(self.colors.magenta(_devInspectForLogging(args)));
+      self.log(self.colors.magenta(_devInspectForLogging(args, "")));
     },
 
     logCyan(...args: unknown[]): void {
-      self.log(self.colors.cyan(_devInspectForLogging(args)));
+      self.log(self.colors.cyan(_devInspectForLogging(args, "")));
     },
 
     logWhite(...args: unknown[]): void {
-      self.log(self.colors.white(_devInspectForLogging(args)));
+      self.log(self.colors.white(_devInspectForLogging(args, "")));
     },
 
     logBlackBright(...args: unknown[]): void {
-      self.log(self.colors.blackBright(_devInspectForLogging(args)));
+      self.log(self.colors.blackBright(_devInspectForLogging(args, "")));
     },
 
     logRedBright(...args: unknown[]): void {
-      self.log(self.colors.redBright(_devInspectForLogging(args)));
+      self.log(self.colors.redBright(_devInspectForLogging(args, "")));
     },
 
     logGreenBright(...args: unknown[]): void {
-      self.log(self.colors.greenBright(_devInspectForLogging(args)));
+      self.log(self.colors.greenBright(_devInspectForLogging(args, "")));
     },
 
     logYellowBright(...args: unknown[]): void {
-      self.log(self.colors.yellowBright(_devInspectForLogging(args)));
+      self.log(self.colors.yellowBright(_devInspectForLogging(args, "")));
     },
 
     logBlueBright(...args: unknown[]): void {
-      self.log(self.colors.blueBright(_devInspectForLogging(args)));
+      self.log(self.colors.blueBright(_devInspectForLogging(args, "")));
     },
 
     logMagentaBright(...args: unknown[]): void {
-      self.log(self.colors.magentaBright(_devInspectForLogging(args)));
+      self.log(self.colors.magentaBright(_devInspectForLogging(args, "")));
     },
 
     logCyanBright(...args: unknown[]): void {
-      self.log(self.colors.cyanBright(_devInspectForLogging(args)));
+      self.log(self.colors.cyanBright(_devInspectForLogging(args, "")));
     },
 
     logWhiteBright(...args: unknown[]): void {
-      self.log(self.colors.whiteBright(_devInspectForLogging(args)));
+      self.log(self.colors.whiteBright(_devInspectForLogging(args, "")));
     },
 
     logColor(color: TermColor, ...args: unknown[]): void {
-      if (self.colors.level > 0) {
-        self.log(getColor(color)(_devInspectForLogging(args)));
-      } else {
-        self.log(_devInspectForLogging(args));
-      }
+      self.log(self.getColor(color)(_devInspectForLogging(args, "")));
     },
 
     /** Prints an horizontal line */
@@ -129,7 +129,7 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
         columns = 250;
       }
 
-      self.log(getColor(color)(char.repeat(columns)));
+      self.log(self.getColor(color)(char.repeat(columns)));
     },
 
     capacityBar({
@@ -189,7 +189,7 @@ function makeDevLog() {
     ...makeDevLogStream(
       {
         log(...args: unknown[]): void {
-          console.log(_devInspectForLogging(args));
+          console.log(_devInspectForLogging(args, ""));
         },
       },
       "stdout",
@@ -215,7 +215,7 @@ function makeDevLog() {
       ...makeDevLogStream(
         {
           log(...args: unknown[]): void {
-            console.error(_devInspectForLogging(args));
+            console.error(_devInspectForLogging(args, ""));
           },
         },
         "stderr",
@@ -232,6 +232,7 @@ function makeDevLog() {
     error,
     debug,
     verbose,
+    notice,
     emit,
 
     inspect,
@@ -259,11 +260,7 @@ function makeDevLog() {
   }
 
   function error(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.error();
-    } else {
-      console.error(self.colors.redBright(`❌ ${self.colors.underline("ERROR")}: ${_devInspectForLogging(args)}`));
-    }
+    console.error(self.colors.redBright(_devInspectForLogging(args, `❌ ${self.colors.underline("ERROR")}: `)));
   }
 
   function logException(logMessage: string | undefined, exception: unknown, options: LogExceptionOptions = {}): void {
@@ -366,63 +363,50 @@ function makeDevLog() {
       }
     }
     self.log(
-      self.colors.blueBright(`${self.colors.underline("DEV")}: `) +
-        self.colors.blueBright(_devInspectForLogging(args)) +
-        (devLine ? `\n     ${self.colors.blackBright(devLine)}` : ""),
+      self.colors.blueBright(
+        _devInspectForLogging(args.length > 0 ? args : [""], `${self.colors.underline("DEV")}: `),
+      ) + (devLine ? `\n     ${self.colors.blackBright(devLine)}` : ""),
     );
   }
 
   function warn(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.warn();
-    } else {
-      console.warn(
-        self.colors.rgb(
-          200,
-          200,
-          50,
-        )(`${self.colors.yellowBright(`⚠️  ${self.colors.underline("WARNING")}:`)} ${_devInspectForLogging(args)}`),
-      );
-    }
+    console.warn(
+      self.colors.yellow(
+        _devInspectForLogging(args, `${self.colors.yellowBright(`⚠️  ${self.colors.underline("WARNING")}:`)} `),
+      ),
+    );
   }
 
   function info(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.info();
-    } else {
-      console.info(
-        self.colors.cyan(
-          `${self.colors.cyanBright(`ℹ️  ${self.colors.underline("INFO")}:`)} ${_devInspectForLogging(args)}`,
-        ),
-      );
-    }
+    console.info(
+      self.colors.cyan(self.colors.cyanBright(_devInspectForLogging(args, `ℹ️  ${self.colors.underline("INFO")}: `))),
+    );
   }
 
   function debug(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.debug();
-    } else {
-      console.debug(
-        self.colors.blueBright(
-          `${self.colors.cyanBright(`🐛  ${self.colors.underline("DEBUG")}:`)} ${_devInspectForLogging(args)}`,
-        ),
-      );
-    }
+    console.debug(
+      self.colors.blueBright(
+        _devInspectForLogging(args, self.colors.cyanBright(`🐛  ${self.colors.underline("DEBUG")}: `)),
+      ),
+    );
   }
 
   function verbose(...args: unknown[]): void {
-    if (args.length === 0) {
-      console.log();
-    } else {
-      console.log(
-        self.colors.magenta(
-          `${self.colors.magentaBright(`📖  ${self.colors.underline("VERBOSE")}:`)} ${_devInspectForLogging(args)}`,
-        ),
-      );
-    }
+    console.log(
+      self.colors.magenta(
+        _devInspectForLogging(args, self.colors.magentaBright(`📖 ${self.colors.underline("VERBOSE")}: `)),
+      ),
+    );
   }
 
-  function emit(severity: "error" | 2 | "warning" | 1 | "info" | 0 | "debug" | "verbose", ...args: unknown[]): void {
+  function notice(...args: unknown[]): void {
+    console.log(self.getColor("notice")(_devInspectForLogging(args, "⬢ ")));
+  }
+
+  function emit(
+    severity: "error" | 2 | "warning" | 1 | "info" | 0 | "debug" | "verbose" | "notice",
+    ...args: unknown[]
+  ): void {
     switch (severity) {
       case 2:
       case "error":
@@ -441,6 +425,9 @@ function makeDevLog() {
         break;
       case "verbose":
         self.verbose(...args);
+        break;
+      case "notice":
+        self.notice(...args);
         break;
       default:
         self.log(...args);
@@ -478,7 +465,7 @@ function makeDevLog() {
   function logOperationSuccess(
     title: string,
     options: DevLogTimeOptions = { printStarted: true },
-    elapsed?: number | undefined,
+    elapsed?: number | undefined | null,
     text?: string | undefined,
   ) {
     let { timed: isTimed, printStarted, spinner } = options;
@@ -488,18 +475,53 @@ function makeDevLog() {
     if (printStarted === undefined) {
       printStarted = isTimed;
     }
-    if (isTimed || printStarted) {
+
+    text = text !== null && text !== undefined ? `${text}` : "";
+
+    let okNotice = options.okNotice;
+    if (typeof options.okNotice === "function") {
+      okNotice = options.okNotice() || "";
+    }
+    if (okNotice === null || okNotice === undefined) {
+      okNotice = "";
+    } else {
+      okNotice = `${okNotice}`;
+    }
+
+    if (okNotice) {
+      okNotice = self.getColor("notice")(okNotice);
+      if (text) {
+        text += " ";
+        text += okNotice;
+      } else {
+        text = okNotice;
+      }
+    }
+
+    if (isTimed || printStarted || okNotice) {
       const titlePaddingWidth = (options.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
       if (titlePaddingWidth > 0) {
         title = title.padEnd(titlePaddingWidth, " ");
       }
-      let msg = `${printStarted && !spinner ? "\n" : ""}${self.colors.green("✔")} ${title} ${self.colors.bold("OK")}`;
-      if (elapsed && (isTimed || elapsed > 5)) {
-        msg += ` in ${millisecondsToString(elapsed)}`;
+      let msg = `${printStarted && !spinner ? "\n" : ""}${self.colors.greenBright("✔")} ${title} ${self.colors.bold(
+        "OK",
+      )}`;
+
+      if (elapsed && (isTimed || elapsed > 5 || titlePaddingWidth)) {
+        if (titlePaddingWidth) {
+          msg += `.${self.colors.blueBright(` ${millisecondsToString(elapsed, { fixed: "s" })}`)}`;
+        } else {
+          msg += " in ";
+          msg += millisecondsToString(elapsed);
+          msg += ".";
+        }
+      } else {
+        msg += ".";
       }
-      msg += ".";
+
       if (text) {
-        msg += ` ${text}`;
+        msg += "  ";
+        msg += text;
       }
       self.log(self.colors.green(msg));
     }
@@ -555,18 +577,24 @@ function makeDevLog() {
     });
   }
 
-  let _spinStack: string[] | null = null;
+  let _spinStack: { title: string }[] | null = null;
   let _spinInterval: IntervalType | null = null;
   let _spinCounter = 0;
+  let _spinLastWritten: number = 0;
 
   const _spinnerDraw = () => {
-    const chars = startSpinner.chars;
-
-    const text = `\r${self.colors.blueBright(chars[_spinCounter++ % chars.length])} ${
-      _spinStack![_spinStack!.length - 1]
-    }${self.colors.blackBright(" … ")}`;
-
-    process.stdout.write(text);
+    const entry = _spinStack![_spinStack!.length - 1];
+    if (entry) {
+      try {
+        const t = entry.title;
+        const chars = startSpinner.chars;
+        const text = `\r${self.colors.blueBright(chars[_spinCounter++ % chars.length])} ${t}${self.colors.blackBright(
+          " … ",
+        )}`;
+        _spinLastWritten = t.length;
+        process.stdout.write(text);
+      } catch {}
+    }
   };
 
   /** Starts a spinner. */
@@ -577,39 +605,50 @@ function makeDevLog() {
     }
 
     if (_spinStack === null) {
-      _spinStack = [title];
-    } else {
-      _spinStack.push(title);
+      _spinStack = [];
     }
+
+    let entry: { title: string } | null = { title };
+
+    _spinStack.push(entry);
+
     if (!_spinInterval) {
       _spinInterval = setInterval(_spinnerDraw, 100).unref();
     }
     _spinCounter = 0;
 
-    const s = `${self.colors.blueBright("⠿")} ${_spinStack![_spinStack!.length - 1]}${self.colors.blackBright(" … ")}`;
+    const t = (_spinStack![_spinStack!.length - 1] || entry).title;
+    const s = `\r${self.colors.blueBright("⠿")} ${t}${self.colors.blackBright(" … ")}`;
+    _spinLastWritten = t.length;
     process.stdout.write(s);
 
-    let removed = false;
     return () => {
-      if (!removed) {
-        removed = true;
-        startSpinner.pop();
+      const removed = entry;
+      if (removed !== null) {
+        entry = null;
+        const index = _spinStack!.indexOf(removed);
+        if (index >= 0) {
+          _spinStack!.splice(index, 1);
+        }
+        _spinnerRemoved();
       }
     };
   }
 
-  startSpinner.pop = () => {
-    if (_spinStack !== null && _spinStack.length !== 0) {
-      const t = _spinStack.pop() || "";
-      if (_spinStack.length === 0 && _spinInterval) {
+  function _spinnerRemoved() {
+    try {
+      if (_spinStack!.length === 0 && _spinInterval) {
         clearInterval(_spinInterval);
         _spinInterval = null;
       }
-      if (self.isTerm()) {
-        process.stdout.write(`\r${" ".repeat(t.length + 4)}\r`);
-      } else {
-        process.stdout.write("\n");
-      }
+      process.stdout.write(self.isTerm() ? `\r${" ".repeat(_spinLastWritten + 5)}\r` : "\n");
+    } catch {}
+  }
+
+  startSpinner.pop = () => {
+    if (_spinStack !== null && _spinStack.length !== 0) {
+      _spinStack.pop();
+      _spinnerRemoved();
     }
   };
 
@@ -741,6 +780,9 @@ export namespace devLog {
     elapsed?: number | undefined;
     spinner?: boolean | undefined;
     titlePaddingWidth?: number | undefined;
+
+    /** The text or the function that returns a text to be written on timed completion. */
+    okNotice?: (() => string | null | undefined) | string | null | undefined;
   }
 }
 
@@ -807,6 +849,31 @@ export class DevLogTimed extends ElapsedTime {
   }
 }
 
-function _devInspectForLogging(args: unknown[]) {
-  return args.map((what) => (typeof what === "string" ? what : devLog.inspect(what))).join(" ");
+function _devInspectForLogging(args: unknown[], prefix: string): string {
+  if (args.length === 0) {
+    return "";
+  }
+  let result = prefix;
+  for (let i = 0, len = args.length; i < len; ++i) {
+    if (i !== 0) {
+      result += " ";
+    }
+    const what = args[i];
+    if (typeof what === "string") {
+      if (i === 0 && prefix) {
+        const newLines = what.match(/^\n+/g);
+        if (newLines) {
+          const nl = newLines[0] || "";
+          result = nl + prefix + what.slice(nl.length);
+        } else {
+          result += what;
+        }
+      } else {
+        result += what;
+      }
+    } else {
+      result += devLog.inspect(what);
+    }
+  }
+  return result;
 }
