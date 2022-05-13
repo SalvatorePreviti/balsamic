@@ -4,9 +4,11 @@ import os from "node:os";
 import util from "node:util";
 import { fileURLToPath } from "node:url";
 import { makePathRelative } from "./path";
+import type { WriteStream } from "node:tty";
 
 const private_isCI = Symbol("isCI");
 const private_colorsLevel = Symbol("colorsLevel");
+const private_stderrColorsLevel = Symbol("stderrColorsLevel");
 const private_processTitle = Symbol("processTitle");
 const private_defaultProcessTitle = Symbol("defaultProcessTitle");
 
@@ -23,6 +25,7 @@ export class DevEnv {
 
   private [private_isCI]: boolean | undefined = undefined;
   private [private_colorsLevel]: 0 | 1 | 2 | 3 | undefined = undefined;
+  private [private_stderrColorsLevel]: 0 | 1 | 2 | 3 | undefined = undefined;
   private [private_processTitle]: string | undefined = undefined;
   private [private_defaultProcessTitle]: string | undefined = undefined;
 
@@ -55,7 +58,7 @@ export class DevEnv {
   public get colorsLevel(): 0 | 1 | 2 | 3 {
     let result = this[private_colorsLevel];
     if (result === undefined) {
-      result = _loadHasColors();
+      result = _loadHasColors(process.stdout);
       this[private_colorsLevel] = result;
     }
     return result;
@@ -66,6 +69,26 @@ export class DevEnv {
       value = Number.parseInt(value);
     }
     this[private_colorsLevel] = !value
+      ? 0
+      : value === true
+      ? 1
+      : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
+  }
+
+  public get stderrColorsLevel(): 0 | 1 | 2 | 3 {
+    let result = this[private_stderrColorsLevel];
+    if (result === undefined) {
+      result = _loadHasColors(process.stderr);
+      this[private_stderrColorsLevel] = result;
+    }
+    return result;
+  }
+
+  public set stderrColorsLevel(value: number | boolean | string | null) {
+    if (typeof value === "string") {
+      value = Number.parseInt(value);
+    }
+    this[private_stderrColorsLevel] = !value
       ? 0
       : value === true
       ? 1
@@ -184,7 +207,7 @@ function _extrapolateProcessTitle(
   return value;
 }
 
-function _loadHasColors(): 0 | 1 | 2 | 3 {
+function _loadHasColors(stream: WriteStream): 0 | 1 | 2 | 3 {
   if (process.argv.includes("--no-color") || process.argv.includes("--no-colors")) {
     return 0;
   }
@@ -193,10 +216,8 @@ function _loadHasColors(): 0 | 1 | 2 | 3 {
     return 0;
   }
 
-  const stdout = process.stdout;
-
-  if (stdout && typeof stdout.hasColors === "function") {
-    const level = stdout.hasColors(2 ** 24) ? 3 : stdout.hasColors(2 ** 8) ? 2 : stdout.hasColors() ? 1 : 0;
+  if (stream && typeof stream.hasColors === "function") {
+    const level = stream.hasColors(2 ** 24) ? 3 : stream.hasColors(2 ** 8) ? 2 : stream.hasColors() ? 1 : 0;
     if (level) {
       return level;
     }

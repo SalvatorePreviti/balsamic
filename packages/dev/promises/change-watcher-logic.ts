@@ -1,5 +1,5 @@
 import { devError } from "../dev-error";
-import { devLog, DevLogTimeOptions } from "../dev-log";
+import { devLog, DevLogTimedOptions } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
 import type { TimeoutType } from "../types";
 import { noop } from "../utils/utils";
@@ -15,7 +15,7 @@ export namespace ChangeWatcherLogic {
     buildRunner?: ServicesRunner | ServicesRunner.Options | null | undefined;
     signal?: AbortSignal | undefined | null;
 
-    devLogTimedOptions?: DevLogTimeOptions | undefined;
+    devLogTimedOptions?: DevLogTimedOptions | undefined;
     initialDebounceTimer?: number | undefined;
     defaultDebounceTimer?: number | undefined;
     filesChangedDuringBuildDebounceTimer?: number | undefined;
@@ -34,7 +34,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
 
   public defaultDebounceTimer: number;
   public filesChangedDuringBuildDebounceTimer: number;
-  public devLogTimedOptions: DevLogTimeOptions;
+  public devLogTimedOptions: DevLogTimedOptions;
   public loggingEnabled: boolean;
 
   /** A number that gets incremented each time a new build starts */

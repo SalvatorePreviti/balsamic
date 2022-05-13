@@ -3,7 +3,7 @@ import child_process from "child_process";
 import { devError } from "../dev-error";
 import { noop } from "../utils/utils";
 import type { InterfaceFromClass } from "../types";
-import { DevLogTimed, DevLogTimeOptions } from "../dev-log";
+import { DevLogTimed, DevLogTimedOptions } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
 import type { Deferred } from "../promises/deferred";
@@ -22,7 +22,7 @@ const { isArray } = Array;
 const util_inspect_custom = util.inspect.custom;
 
 export interface SpawnOptions
-  extends DevLogTimeOptions,
+  extends DevLogTimedOptions,
     ChildProcessWrapper.Options,
     Abortable,
     child_process.SpawnOptions {
@@ -31,7 +31,7 @@ export interface SpawnOptions
 }
 
 export interface ForkOptions
-  extends DevLogTimeOptions,
+  extends DevLogTimedOptions,
     ChildProcessWrapper.Options,
     Abortable,
     child_process.ForkOptions {
@@ -50,7 +50,7 @@ export type SpawnArg =
   | readonly (string | null | undefined | number | false)[];
 
 export namespace ChildProcessWrapper {
-  export interface Options extends DevLogTimeOptions {
+  export interface Options extends DevLogTimedOptions {
     /** Initial elapsed time, defaults to 0 */
     elapsed?: number | undefined;
 

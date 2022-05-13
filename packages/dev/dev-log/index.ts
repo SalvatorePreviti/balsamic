@@ -152,9 +152,7 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
       }
 
       let s = ` ${self.colors.blueBright("[")}`;
-
       const barWidth = width - 13;
-
       let nv = (value - min) / max;
       if (!nv) {
         nv = 0;
@@ -166,11 +164,8 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
       }
 
       s += `${self.colors.blueBright("]")}`;
-
       s += _rgbColorFromValue(nv)(numberFixedString(nv * 100, { decimalDigits: 1, padStart: 7, postix: "%" }));
-
       s += "\n";
-
       out.write(s);
     },
   };
@@ -184,653 +179,597 @@ function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream
   return self;
 }
 
-function makeDevLog() {
-  const self = {
+export const devLog = {
+  ...makeDevLogStream(
+    {
+      log(...args: unknown[]): void {
+        console.log(_devInspectForLogging(args, ""));
+      },
+    },
+    "stdout",
+  ),
+
+  inspectOptions: {
+    ...util.inspect.defaultOptions,
+    colors: !!_colors.supportsColor && _colors.supportsColor.hasBasic,
+    depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
+  },
+
+  options: {
+    /** Default option on how stack trace should be shown */
+    showStack: "once" as boolean | "once",
+
+    /** Default on wether abort errors are treated as warnings or not */
+    abortErrorIsWarning: true,
+
+    titlePaddingWidth: 0,
+  },
+
+  stderr: {
     ...makeDevLogStream(
       {
         log(...args: unknown[]): void {
-          console.log(_devInspectForLogging(args, ""));
+          console.error(_devInspectForLogging(args, ""));
         },
       },
-      "stdout",
+      "stderr",
     ),
+  },
 
-    inspectOptions: {
-      ...util.inspect.defaultOptions,
-      colors: !!_colors.supportsColor && _colors.supportsColor.hasBasic,
-      depth: Math.max(8, util.inspect.defaultOptions.depth || 0),
-    },
+  logException,
+  inspectException,
+  errorShouldShowStack,
 
-    options: {
-      /** Default option on how stack trace should be shown */
-      showStack: "once" as boolean | "once",
+  dev,
+  warn,
+  info,
+  error,
+  debug,
+  verbose,
+  notice,
+  emit,
 
-      /** Default on wether abort errors are treated as warnings or not */
-      abortErrorIsWarning: true,
+  inspect,
 
-      titlePaddingWidth: 0,
-    },
+  logOperationStart,
+  logOperationSuccess,
+  logOperationError,
 
-    stderr: {
-      ...makeDevLogStream(
-        {
-          log(...args: unknown[]): void {
-            console.error(_devInspectForLogging(args, ""));
-          },
-        },
-        "stderr",
-      ),
-    },
+  askConfirmation,
 
-    logException,
-    inspectException,
-    errorShouldShowStack,
+  startSpinner,
 
-    dev,
-    warn,
-    info,
-    error,
-    debug,
-    verbose,
-    notice,
-    emit,
+  titled,
+  timed,
+  timedSync,
 
-    inspect,
+  greetings,
+};
 
-    logOperationStart,
-    logOperationSuccess,
-    logOperationError,
+function greetings(title: string = "GREETINGS PROFESSOR FALKEN.") {
+  devLog.hr(devLog.colors.rgb(115, 100, 255));
+  devLog.log(devLog.colors.rgb(80, 220, 255).bold(title));
+  devLog.hr(devLog.colors.rgb(115, 100, 255));
+  devLog.log();
+}
 
-    askConfirmation,
+function error(...args: unknown[]): void {
+  console.error(devLog.colors.redBright(_devInspectForLogging(args, `❌ ${devLog.colors.underline("ERROR")}: `)));
+}
 
-    startSpinner,
+function logException(logMessage: string | undefined, exception: unknown, options: LogExceptionOptions = {}): void {
+  let err;
+  let isAbortError = false;
+  let isOk = false;
 
-    titled,
-    timed,
-    timedSync,
+  if (exception instanceof Error) {
+    isAbortError = AbortError.isAbortError(exception);
+    isOk = isAbortError && exception.isOk === true;
 
-    greetings,
-  };
-
-  function greetings(title: string = "GREETINGS PROFESSOR FALKEN.") {
-    self.hr(self.colors.rgb(115, 100, 255));
-    self.log(self.colors.rgb(80, 220, 255).bold(title));
-    self.hr(self.colors.rgb(115, 100, 255));
-    self.log();
-  }
-
-  function error(...args: unknown[]): void {
-    console.error(self.colors.redBright(_devInspectForLogging(args, `❌ ${self.colors.underline("ERROR")}: `)));
-  }
-
-  function logException(logMessage: string | undefined, exception: unknown, options: LogExceptionOptions = {}): void {
-    let err;
-    let isAbortError = false;
-    let isOk = false;
-
-    if (exception instanceof Error) {
-      isAbortError = AbortError.isAbortError(exception);
-      isOk = isAbortError && exception.isOk === true;
-
-      err = self.inspectException(exception, options);
-      if (err.includes("\n") && !err.endsWith("\n\n")) {
-        err += "\n";
-      }
-    } else {
-      err = exception;
+    err = devLog.inspectException(exception, options);
+    if (err.includes("\n") && !err.endsWith("\n\n")) {
+      err += "\n";
     }
+  } else {
+    err = exception;
+  }
 
-    if (logMessage) {
-      if (isAbortError) {
-        if (isOk) {
-          self.info(logMessage, err);
-        } else if (options.abortErrorIsWarning ?? self.options.abortErrorIsWarning) {
-          if (err === "AbortError: The operation was aborted") {
-            self.warn(logMessage);
-          } else {
-            self.warn(logMessage, err);
-          }
-        } else {
-          self.error(logMessage, err);
-        }
-      } else {
-        self.error(logMessage, err);
-      }
-    } else if (isAbortError) {
+  if (logMessage) {
+    if (isAbortError) {
       if (isOk) {
-        self.info(err);
-      } else if (options.abortErrorIsWarning ?? self.options.abortErrorIsWarning) {
-        self.warn(err);
-      } else {
-        self.error(err);
-      }
-    } else {
-      self.error(err);
-    }
-  }
-
-  function inspectException(exception: Error, options: LogExceptionOptions = {}): string {
-    const showStack = self.errorShouldShowStack(exception, options);
-
-    if (showStack) {
-      const inspected = self.inspect(exception) || `${exception}`;
-      return showStack !== "once" || _inspectedErrorLoggedSet_add(exception.stack) ? inspected : `${exception}`;
-    }
-
-    return `${exception}`;
-  }
-
-  function errorShouldShowStack(exception: Error, options: LogExceptionOptions = {}): boolean | "once" {
-    let showStack: boolean | "once" | undefined;
-
-    const errorShowStack = exception.showStack;
-    if (errorShowStack === false || errorShowStack === true || errorShowStack === "once") {
-      showStack = errorShowStack;
-    }
-
-    if (showStack === undefined || showStack) {
-      const optionsShowStack = options.showStack;
-      if (optionsShowStack === false || optionsShowStack === true || optionsShowStack === "once") {
-        showStack = optionsShowStack;
-      }
-    }
-
-    if (showStack === undefined) {
-      showStack = self.options.showStack;
-    }
-
-    return showStack;
-  }
-
-  /** Developer debug log. Appends the line where this function was called. */
-  function dev(...args: unknown[]): void {
-    const oldStackTraceLimit = Error.stackTraceLimit;
-    const err: { stack?: string | undefined } = {};
-    Error.stackTraceLimit = 1;
-    try {
-      Error.captureStackTrace(err, self.dev);
-    } finally {
-      Error.stackTraceLimit = oldStackTraceLimit;
-    }
-    let devLine = "";
-    const stack = err.stack;
-    if (typeof stack === "string") {
-      for (const line of stack.split("\n")) {
-        if (line.startsWith("    at")) {
-          devLine = line.trim();
-          break;
-        }
-      }
-    }
-    self.log(
-      self.colors.blueBright(
-        _devInspectForLogging(args.length > 0 ? args : [""], `${self.colors.underline("DEV")}: `),
-      ) + (devLine ? `\n     ${self.colors.blackBright(devLine)}` : ""),
-    );
-  }
-
-  function warn(...args: unknown[]): void {
-    console.warn(
-      self.colors.yellow(
-        _devInspectForLogging(args, `${self.colors.yellowBright(`⚠️  ${self.colors.underline("WARNING")}:`)} `),
-      ),
-    );
-  }
-
-  function info(...args: unknown[]): void {
-    console.info(
-      self.colors.cyan(self.colors.cyanBright(_devInspectForLogging(args, `ℹ️  ${self.colors.underline("INFO")}: `))),
-    );
-  }
-
-  function debug(...args: unknown[]): void {
-    console.debug(
-      self.colors.blueBright(
-        _devInspectForLogging(args, self.colors.cyanBright(`🐛  ${self.colors.underline("DEBUG")}: `)),
-      ),
-    );
-  }
-
-  function verbose(...args: unknown[]): void {
-    console.log(
-      self.colors.magenta(
-        _devInspectForLogging(args, self.colors.magentaBright(`📖 ${self.colors.underline("VERBOSE")}: `)),
-      ),
-    );
-  }
-
-  function notice(...args: unknown[]): void {
-    console.log(self.getColor("notice")(_devInspectForLogging(args, "⬢ ")));
-  }
-
-  function emit(
-    severity: "error" | 2 | "warning" | 1 | "info" | 0 | "debug" | "verbose" | "notice",
-    ...args: unknown[]
-  ): void {
-    switch (severity) {
-      case 2:
-      case "error":
-        self.error(...args);
-        break;
-      case 1:
-      case "warning":
-        self.warn(...args);
-        break;
-      case 0:
-      case "info":
-        self.info(...args);
-        break;
-      case "debug":
-        self.debug(...args);
-        break;
-      case "verbose":
-        self.verbose(...args);
-        break;
-      case "notice":
-        self.notice(...args);
-        break;
-      default:
-        self.log(...args);
-        break;
-    }
-  }
-
-  function inspect(what: unknown): string {
-    if (what instanceof Error) {
-      if (what.showStack === false) {
-        return `${what}`;
-      }
-      what = devError(what, self.inspect);
-    }
-    return util.inspect(what, self.inspectOptions);
-  }
-
-  function logOperationStart(title: string, options: DevLogTimeOptions = { printStarted: true }) {
-    let { timed: isTimed, printStarted } = options;
-    if (isTimed === undefined) {
-      isTimed = true;
-    }
-    if (printStarted === undefined) {
-      printStarted = isTimed;
-    }
-    if (printStarted) {
-      const titlePaddingWidth = (options.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
-      if (titlePaddingWidth > 0) {
-        title = title.padEnd(titlePaddingWidth, " ");
-      }
-      self.log(self.colors.cyan(`${self.colors.cyan("◆")} ${title}`) + self.colors.gray(" started..."));
-    }
-  }
-
-  function logOperationSuccess(
-    title: string,
-    options: DevLogTimeOptions = { printStarted: true },
-    elapsed?: number | undefined | null,
-    text?: string | undefined,
-  ) {
-    let { timed: isTimed, printStarted, spinner } = options;
-    if (isTimed === undefined) {
-      isTimed = !!elapsed;
-    }
-    if (printStarted === undefined) {
-      printStarted = isTimed;
-    }
-
-    text = text !== null && text !== undefined ? `${text}` : "";
-
-    let okNotice = options.okNotice;
-    if (typeof options.okNotice === "function") {
-      okNotice = options.okNotice() || "";
-    }
-    if (okNotice === null || okNotice === undefined) {
-      okNotice = "";
-    } else {
-      okNotice = `${okNotice}`;
-    }
-
-    if (okNotice) {
-      okNotice = self.getColor("notice")(okNotice);
-      if (text) {
-        text += " ";
-        text += okNotice;
-      } else {
-        text = okNotice;
-      }
-    }
-
-    if (isTimed || printStarted || okNotice) {
-      const titlePaddingWidth = (options.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
-      if (titlePaddingWidth > 0) {
-        title = title.padEnd(titlePaddingWidth, " ");
-      }
-      let msg = `${printStarted && !spinner ? "\n" : ""}${self.colors.greenBright("✔")} ${title} ${self.colors.bold(
-        "OK",
-      )}`;
-
-      if (elapsed && (isTimed || elapsed > 5 || titlePaddingWidth)) {
-        if (titlePaddingWidth) {
-          msg += `.${self.colors.blueBright(` ${millisecondsToString(elapsed, { fixed: "s" })}`)}`;
+        devLog.info(logMessage, err);
+      } else if (options.abortErrorIsWarning ?? devLog.options.abortErrorIsWarning) {
+        if (err === "AbortError: The operation was aborted") {
+          devLog.warn(logMessage);
         } else {
-          msg += " in ";
-          msg += millisecondsToString(elapsed);
-          msg += ".";
+          devLog.warn(logMessage, err);
         }
       } else {
-        msg += ".";
+        devLog.error(logMessage, err);
       }
-
-      if (text) {
-        msg += "  ";
-        msg += text;
-      }
-      self.log(self.colors.green(msg));
-    }
-  }
-
-  function logOperationError(
-    title: string,
-    exception: unknown,
-    options: DevLogTimeOptions = { logError: true },
-    elapsed?: number | undefined,
-  ) {
-    let { timed: isTimed, logError } = options;
-    if (logError === undefined) {
-      logError = true;
-    }
-    if (logError) {
-      if (isTimed === undefined) {
-        isTimed = !!elapsed;
-      }
-
-      const isAbortError = AbortError.isAbortError(exception);
-
-      const msg = `${title} ${isAbortError ? "aborted" : "FAILED"}${
-        elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
-      }.`;
-
-      if (options.showStack === undefined && isAbortError) {
-        options = { ...options, showStack: false };
-      }
-
-      self.logException(msg, exception, options);
-    }
-  }
-
-  function /** Asks the user to input Yes or No */
-  askConfirmation(confirmationMessage: string, defaultValue: boolean) {
-    if (!process.stdin || !process.stdout || !process.stdout.isTTY) {
-      return true;
-    }
-    return new Promise((resolve) => {
-      const rl = readline.createInterface(process.stdin, process.stdout as UnsafeAny);
-      const question = `${self.colors.greenBright("?")} ${self.colors.whiteBright(
-        confirmationMessage,
-      )} ${self.colors.gray(defaultValue ? "(Y/n)" : "(N/y)")} `;
-      rl.question(question, (answer) => {
-        rl.close();
-        answer = (answer || "").trim();
-        const confirm = /^[yY]/.test(answer || (defaultValue ? "Y" : "N"));
-        console.log(confirm ? self.colors.greenBright("  Yes") : self.colors.redBright("  No"));
-        console.log();
-        resolve(confirm);
-      });
-    });
-  }
-
-  let _spinStack: { title: string }[] | null = null;
-  let _spinInterval: IntervalType | null = null;
-  let _spinCounter = 0;
-  let _spinLastWritten: number = 0;
-
-  const _spinnerDraw = () => {
-    const entry = _spinStack![_spinStack!.length - 1];
-    if (entry) {
-      try {
-        const t = entry.title;
-        const chars = startSpinner.chars;
-        const text = `\r${self.colors.blueBright(chars[_spinCounter++ % chars.length])} ${t}${self.colors.blackBright(
-          " … ",
-        )}`;
-        _spinLastWritten = t.length;
-        process.stdout.write(text);
-      } catch {}
-    }
-  };
-
-  /** Starts a spinner. */
-
-  function startSpinner(title: string = ""): () => void {
-    if (!self.isTerm()) {
-      return noop;
-    }
-
-    if (_spinStack === null) {
-      _spinStack = [];
-    }
-
-    let entry: { title: string } | null = { title };
-
-    _spinStack.push(entry);
-
-    if (!_spinInterval) {
-      _spinInterval = setInterval(_spinnerDraw, 100).unref();
-    }
-    _spinCounter = 0;
-
-    const t = (_spinStack![_spinStack!.length - 1] || entry).title;
-    const s = `\r${self.colors.blueBright("⠿")} ${t}${self.colors.blackBright(" … ")}`;
-    _spinLastWritten = t.length;
-    process.stdout.write(s);
-
-    return () => {
-      const removed = entry;
-      if (removed !== null) {
-        entry = null;
-        const index = _spinStack!.indexOf(removed);
-        if (index >= 0) {
-          _spinStack!.splice(index, 1);
-        }
-        _spinnerRemoved();
-      }
-    };
-  }
-
-  function _spinnerRemoved() {
-    try {
-      if (_spinStack!.length === 0 && _spinInterval) {
-        clearInterval(_spinInterval);
-        _spinInterval = null;
-      }
-      process.stdout.write(self.isTerm() ? `\r${" ".repeat(_spinLastWritten + 5)}\r` : "\n");
-    } catch {}
-  }
-
-  startSpinner.pop = () => {
-    if (_spinStack !== null && _spinStack.length !== 0) {
-      _spinStack.pop();
-      _spinnerRemoved();
-    }
-  };
-
-  startSpinner.chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
-
-  interface TitledOptions {
-    title: string;
-    titlePaddingWidth?: number | undefined;
-  }
-
-  function titled(title: string, ...args: unknown[]): void;
-
-  function titled(
-    options: {
-      title: string;
-      titlePaddingWidth?: number | undefined;
-    },
-    ...args: unknown[]
-  ): void;
-
-  function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): void {
-    let title: string;
-    let titlePaddingWidth: number;
-    if (typeof titleOrOptions === "object") {
-      title = titleOrOptions.title;
-      titlePaddingWidth = (titleOrOptions.titlePaddingWidth ?? self.options.titlePaddingWidth) || 0;
     } else {
-      title = titleOrOptions;
-      titlePaddingWidth = self.options.titlePaddingWidth || 0;
+      devLog.error(logMessage, err);
     }
+  } else if (isAbortError) {
+    if (isOk) {
+      devLog.info(err);
+    } else if (options.abortErrorIsWarning ?? devLog.options.abortErrorIsWarning) {
+      devLog.warn(err);
+    } else {
+      devLog.error(err);
+    }
+  } else {
+    devLog.error(err);
+  }
+}
+
+function inspectException(exception: Error, options: LogExceptionOptions = {}): string {
+  const showStack = devLog.errorShouldShowStack(exception, options);
+
+  if (showStack) {
+    const inspected = devLog.inspect(exception) || `${exception}`;
+    return showStack !== "once" || _inspectedErrorLoggedSet_add(exception.stack) ? inspected : `${exception}`;
+  }
+
+  return `${exception}`;
+}
+
+function errorShouldShowStack(exception: Error, options: LogExceptionOptions = {}): boolean | "once" {
+  let showStack: boolean | "once" | undefined;
+
+  const errorShowStack = exception.showStack;
+  if (errorShowStack === false || errorShowStack === true || errorShowStack === "once") {
+    showStack = errorShowStack;
+  }
+
+  if (showStack === undefined || showStack) {
+    const optionsShowStack = options.showStack;
+    if (optionsShowStack === false || optionsShowStack === true || optionsShowStack === "once") {
+      showStack = optionsShowStack;
+    }
+  }
+
+  if (showStack === undefined) {
+    showStack = devLog.options.showStack;
+  }
+
+  return showStack;
+}
+
+/** Developer debug log. Appends the line where this function was called. */
+function dev(...args: unknown[]): void {
+  const oldStackTraceLimit = Error.stackTraceLimit;
+  const err: { stack?: string | undefined } = {};
+  Error.stackTraceLimit = 1;
+  try {
+    Error.captureStackTrace(err, devLog.dev);
+  } finally {
+    Error.stackTraceLimit = oldStackTraceLimit;
+  }
+  let devLine = "";
+  const stack = err.stack;
+  if (typeof stack === "string") {
+    for (const line of stack.split("\n")) {
+      if (line.startsWith("    at")) {
+        devLine = line.trim();
+        break;
+      }
+    }
+  }
+  devLog.log(
+    devLog.colors.blueBright(
+      _devInspectForLogging(args.length > 0 ? args : [""], `${devLog.colors.underline("DEV")}: `),
+    ) + (devLine ? `\n     ${devLog.colors.blackBright(devLine)}` : ""),
+  );
+}
+
+function warn(...args: unknown[]): void {
+  console.warn(
+    devLog.colors.yellow(
+      _devInspectForLogging(args, `${devLog.colors.yellowBright(`⚠️  ${devLog.colors.underline("WARNING")}:`)} `),
+    ),
+  );
+}
+
+function info(...args: unknown[]): void {
+  console.info(
+    devLog.colors.cyan(
+      devLog.colors.cyanBright(_devInspectForLogging(args, `ℹ️  ${devLog.colors.underline("INFO")}: `)),
+    ),
+  );
+}
+
+function debug(...args: unknown[]): void {
+  console.debug(
+    devLog.colors.blueBright(
+      _devInspectForLogging(args, devLog.colors.cyanBright(`🐛  ${devLog.colors.underline("DEBUG")}: `)),
+    ),
+  );
+}
+
+function verbose(...args: unknown[]): void {
+  console.log(
+    devLog.colors.magenta(
+      _devInspectForLogging(args, devLog.colors.magentaBright(`📖 ${devLog.colors.underline("VERBOSE")}: `)),
+    ),
+  );
+}
+
+function notice(...args: unknown[]): void {
+  console.log(devLog.getColor("notice")(_devInspectForLogging(args, "⬢ ")));
+}
+
+function emit(
+  severity: "error" | 2 | "warning" | 1 | "info" | 0 | "debug" | "verbose" | "notice",
+  ...args: unknown[]
+): void {
+  switch (severity) {
+    case 2:
+    case "error":
+      devLog.error(...args);
+      break;
+    case 1:
+    case "warning":
+      devLog.warn(...args);
+      break;
+    case 0:
+    case "info":
+      devLog.info(...args);
+      break;
+    case "debug":
+      devLog.debug(...args);
+      break;
+    case "verbose":
+      devLog.verbose(...args);
+      break;
+    case "notice":
+      devLog.notice(...args);
+      break;
+    default:
+      devLog.log(...args);
+      break;
+  }
+}
+
+function inspect(what: unknown): string {
+  if (what instanceof Error) {
+    if (what.showStack === false) {
+      return `${what}`;
+    }
+    what = devError(what, devLog.inspect);
+  }
+  return util.inspect(what, devLog.inspectOptions);
+}
+
+function logOperationStart(title: string, options: DevLogTimedOptions = { printStarted: true }) {
+  let { timed: isTimed, printStarted } = options;
+  if (isTimed === undefined) {
+    isTimed = true;
+  }
+  if (printStarted === undefined) {
+    printStarted = isTimed;
+  }
+  if (printStarted) {
+    const titlePaddingWidth = (options.titlePaddingWidth ?? devLog.options.titlePaddingWidth) || 0;
     if (titlePaddingWidth > 0) {
       title = title.padEnd(titlePaddingWidth, " ");
     }
-    self.log(self.colors.cyan(`${self.colors.blueBright("·")} ${title}`), ...args);
+    devLog.log(devLog.colors.cyan(`${devLog.colors.cyan("◆")} ${title}`) + devLog.colors.gray(" started..."));
   }
-
-  /** Prints how much time it takes to run something */
-  function timed<T>(
-    title: string,
-    fnOrPromise: (() => Promise<T> | T) | Promise<T> | T,
-    options?: DevLogTimeOptions | undefined,
-  ): Promise<Awaited<T>>;
-
-  /** Prints how much time it takes to run something */
-  function timed<T>(
-    title: string,
-    fnOrPromise: null | undefined | (() => Promise<T> | T) | Promise<T> | T,
-    options?: DevLogTimeOptions | undefined,
-  ): Promise<null | undefined | T>;
-
-  async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimeOptions = {}) {
-    if (fnOrPromise === null || (typeof fnOrPromise !== "object" && typeof fnOrPromise !== "function")) {
-      return fnOrPromise;
-    }
-    if (typeof fnOrPromise === "object" && typeof (fnOrPromise as UnsafeAny).then !== "function") {
-      return fnOrPromise;
-    }
-    if (!title && typeof fnOrPromise === "function") {
-      title = fnOrPromise.name;
-    }
-
-    const _timed = new DevLogTimed(`${title}`, options);
-
-    try {
-      _timed.start();
-      if (typeof fnOrPromise === "function") {
-        if (title && !fnOrPromise.name) {
-          Reflect.defineProperty(fnOrPromise, "name", { value: title, configurable: true });
-        }
-        fnOrPromise = fnOrPromise();
-      }
-      const result = await fnOrPromise;
-      _timed.end();
-      return result;
-    } catch (e) {
-      _timed.fail(e);
-      throw e;
-    }
-  }
-
-  timed.wrap = function timed_wrap<R>(title: string, fn: () => R, options?: DevLogTimeOptions | undefined) {
-    return () => timed(title, fn, options);
-  };
-
-  timed.sync = timedSync;
-
-  function timedSync<R>(title: string, fnOrValue: () => R, options: DevLogTimeOptions = {}): R {
-    if (!title) {
-      title = fnOrValue.name;
-    }
-    const _timed = new DevLogTimed(`${title}`, options);
-    try {
-      _timed.start();
-      if (title && !fnOrValue.name) {
-        Reflect.defineProperty(fnOrValue, "name", { value: title, configurable: true });
-      }
-      const result = fnOrValue();
-      _timed.end();
-      return result;
-    } catch (e) {
-      _timed.fail(e);
-      throw e;
-    }
-  }
-
-  timedSync.wrap = function timedSync_wrap<R>(
-    title: string,
-    fn: () => R,
-    options?: DevLogTimeOptions | undefined,
-  ): () => R {
-    return () => timedSync<R>(title, fn, options);
-  };
-
-  return self;
 }
 
-export const devLog = makeDevLog();
-
-export namespace devLog {
-  export interface LogExceptionOptions {
-    showStack?: boolean | "once" | undefined;
-    abortErrorIsWarning?: boolean | undefined;
+function logOperationSuccess(
+  title: string,
+  options: DevLogTimedOptions = { printStarted: true },
+  elapsed?: number | undefined | null,
+  successText?: string | undefined,
+) {
+  let { timed: isTimed, printStarted, spinner } = options;
+  if (isTimed === undefined) {
+    isTimed = !!elapsed;
+  }
+  if (printStarted === undefined) {
+    printStarted = isTimed;
   }
 
-  export interface DevLogTimeOptions extends LogExceptionOptions {
-    printStarted?: boolean | undefined;
-    logError?: boolean | undefined;
-    timed?: boolean | undefined;
-    elapsed?: number | undefined;
-    spinner?: boolean | undefined;
+  successText = successText !== null && successText !== undefined ? `${successText}` : "";
+
+  if (isTimed || printStarted) {
+    const titlePaddingWidth = (options.titlePaddingWidth ?? devLog.options.titlePaddingWidth) || 0;
+    if (titlePaddingWidth > 0) {
+      title = title.padEnd(titlePaddingWidth, " ");
+    }
+    let msg = `${printStarted && !spinner ? "\n" : ""}${devLog.colors.greenBright("✔")} ${title} ${devLog.colors.bold(
+      "OK",
+    )}`;
+
+    if (elapsed && (isTimed || elapsed > 5 || titlePaddingWidth)) {
+      if (titlePaddingWidth) {
+        msg += `.${devLog.colors.blueBright(` ${millisecondsToString(elapsed, { fixed: "s" })}`)}`;
+      } else {
+        msg += " in ";
+        msg += millisecondsToString(elapsed);
+        msg += ".";
+      }
+    } else {
+      msg += ".";
+    }
+
+    if (successText) {
+      msg += "  ";
+      msg += devLog.getColor("notice")(successText);
+    }
+    devLog.log(devLog.colors.green(msg));
+  }
+}
+
+function logOperationError(
+  title: string,
+  exception: unknown,
+  options: DevLogTimedOptions = { logError: true },
+  elapsed?: number | undefined,
+) {
+  let { timed: isTimed, logError } = options;
+  if (logError === undefined) {
+    logError = true;
+  }
+  if (logError) {
+    if (isTimed === undefined) {
+      isTimed = !!elapsed;
+    }
+
+    const isAbortError = AbortError.isAbortError(exception);
+
+    const msg = `${title} ${isAbortError ? "aborted" : "FAILED"}${
+      elapsed && (isTimed || elapsed > 5) ? ` in ${millisecondsToString(elapsed)}` : ""
+    }.`;
+
+    if (options.showStack === undefined && isAbortError) {
+      options = { ...options, showStack: false };
+    }
+
+    devLog.logException(msg, exception, options);
+  }
+}
+
+function /** Asks the user to input Yes or No */
+askConfirmation(confirmationMessage: string, defaultValue: boolean) {
+  if (!process.stdin || !process.stdout || !process.stdout.isTTY) {
+    return true;
+  }
+  return new Promise((resolve) => {
+    const rl = readline.createInterface(process.stdin, process.stdout as UnsafeAny);
+    const question = `${devLog.colors.greenBright("?")} ${devLog.colors.whiteBright(
+      confirmationMessage,
+    )} ${devLog.colors.gray(defaultValue ? "(Y/n)" : "(N/y)")} `;
+    rl.question(question, (answer) => {
+      rl.close();
+      answer = (answer || "").trim();
+      const confirm = /^[yY]/.test(answer || (defaultValue ? "Y" : "N"));
+      console.log(confirm ? devLog.colors.greenBright("  Yes") : devLog.colors.redBright("  No"));
+      console.log();
+      resolve(confirm);
+    });
+  });
+}
+
+let _spinStack: { title: string }[] | null = null;
+let _spinInterval: IntervalType | null = null;
+let _spinCounter = 0;
+let _spinLastWritten: number = 0;
+
+const _spinnerDraw = () => {
+  const entry = _spinStack![_spinStack!.length - 1];
+  if (entry) {
+    try {
+      const t = entry.title;
+      const chars = startSpinner.chars;
+      const text = `\r${devLog.colors.blueBright(chars[_spinCounter++ % chars.length])} ${t}${devLog.colors.blackBright(
+        " … ",
+      )}`;
+      _spinLastWritten = t.length;
+      process.stdout.write(text);
+    } catch {}
+  }
+};
+
+/** Starts a spinner. */
+
+function startSpinner(title: string = ""): () => void {
+  if (!devLog.isTerm()) {
+    return noop;
+  }
+
+  if (_spinStack === null) {
+    _spinStack = [];
+  }
+
+  let entry: { title: string } | null = { title };
+
+  _spinStack.push(entry);
+
+  if (!_spinInterval) {
+    _spinInterval = setInterval(_spinnerDraw, 100).unref();
+  }
+  _spinCounter = 0;
+
+  const t = (_spinStack![_spinStack!.length - 1] || entry).title;
+  const s = `\r${devLog.colors.blueBright("⠿")} ${t}${devLog.colors.blackBright(" … ")}`;
+  _spinLastWritten = t.length;
+  process.stdout.write(s);
+
+  return () => {
+    const removed = entry;
+    if (removed !== null) {
+      entry = null;
+      const index = _spinStack!.indexOf(removed);
+      if (index >= 0) {
+        _spinStack!.splice(index, 1);
+      }
+      _spinnerRemoved();
+    }
+  };
+}
+
+function _spinnerRemoved() {
+  try {
+    if (_spinStack!.length === 0 && _spinInterval) {
+      clearInterval(_spinInterval);
+      _spinInterval = null;
+    }
+    process.stdout.write(devLog.isTerm() ? `\r${" ".repeat(_spinLastWritten + 5)}\r` : "\n");
+  } catch {}
+}
+
+startSpinner.pop = () => {
+  if (_spinStack !== null && _spinStack.length !== 0) {
+    _spinStack.pop();
+    _spinnerRemoved();
+  }
+};
+
+startSpinner.chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
+
+interface TitledOptions {
+  title: string;
+  titlePaddingWidth?: number | undefined;
+}
+
+function titled(title: string, ...args: unknown[]): void;
+
+function titled(
+  options: {
+    title: string;
     titlePaddingWidth?: number | undefined;
+  },
+  ...args: unknown[]
+): void;
 
-    /** The text or the function that returns a text to be written on timed completion. */
-    okNotice?: (() => string | null | undefined) | string | null | undefined;
+function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): void {
+  let title: string;
+  let titlePaddingWidth: number;
+  if (typeof titleOrOptions === "object") {
+    title = titleOrOptions.title;
+    titlePaddingWidth = (titleOrOptions.titlePaddingWidth ?? devLog.options.titlePaddingWidth) || 0;
+  } else {
+    title = titleOrOptions;
+    titlePaddingWidth = devLog.options.titlePaddingWidth || 0;
+  }
+  if (titlePaddingWidth > 0) {
+    title = title.padEnd(titlePaddingWidth, " ");
+  }
+  devLog.log(devLog.colors.cyan(`${devLog.colors.blueBright("·")} ${title}`), ...args);
+}
+
+/** Prints how much time it takes to run something */
+function timed<T>(
+  title: string,
+  fnOrPromise: ((ctx: DevLogTimedContext) => Promise<T> | T) | Promise<T> | T,
+  options?: DevLogTimedOptions | undefined,
+): Promise<Awaited<T>>;
+
+/** Prints how much time it takes to run something */
+function timed<T>(
+  title: string,
+  fnOrPromise: null | undefined | ((ctx: DevLogTimedContext) => Promise<T> | T) | Promise<T> | T,
+  options?: DevLogTimedOptions | undefined,
+): Promise<null | undefined | T>;
+
+async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimedOptions = {}) {
+  if (fnOrPromise === null || (typeof fnOrPromise !== "object" && typeof fnOrPromise !== "function")) {
+    return fnOrPromise;
+  }
+  if (typeof fnOrPromise === "object" && typeof (fnOrPromise as UnsafeAny).then !== "function") {
+    return fnOrPromise;
+  }
+  if (!title && typeof fnOrPromise === "function") {
+    title = fnOrPromise.name;
+  }
+
+  const _timed = new DevLogTimed(`${title}`, options);
+
+  try {
+    _timed.start();
+    if (typeof fnOrPromise === "function") {
+      if (title && !fnOrPromise.name) {
+        Reflect.defineProperty(fnOrPromise, "name", { value: title, configurable: true });
+      }
+      fnOrPromise = fnOrPromise(new DevLogTimedContext(_timed));
+    }
+    const result = await fnOrPromise;
+    _timed.end();
+    return result;
+  } catch (e) {
+    _timed.fail(e);
+    throw e;
   }
 }
 
-export type LogExceptionOptions = devLog.LogExceptionOptions;
+timed.wrap = function timed_wrap<R>(
+  title: string,
+  fn: (ctx: DevLogTimedContext) => R,
+  options?: DevLogTimedOptions | undefined,
+) {
+  return () => timed(title, fn, options);
+};
 
-export type DevLogTimeOptions = devLog.DevLogTimeOptions;
+timed.sync = timedSync;
+
+function timedSync<R>(title: string, fnOrValue: (ctx: DevLogTimedContext) => R, options: DevLogTimedOptions = {}): R {
+  if (!title) {
+    title = fnOrValue.name;
+  }
+  const _timed = new DevLogTimed(`${title}`, options);
+  try {
+    _timed.start();
+    if (title && !fnOrValue.name) {
+      Reflect.defineProperty(fnOrValue, "name", { value: title, configurable: true });
+    }
+    const result = fnOrValue(new DevLogTimedContext(_timed));
+    _timed.end();
+    return result;
+  } catch (e) {
+    _timed.fail(e);
+    throw e;
+  }
+}
+
+timedSync.wrap = function timedSync_wrap<R>(
+  title: string,
+  fn: () => R,
+  options?: DevLogTimedOptions | undefined,
+): () => R {
+  return () => timedSync<R>(title, fn, options);
+};
+
+export interface LogExceptionOptions {
+  showStack?: boolean | "once" | undefined;
+  abortErrorIsWarning?: boolean | undefined;
+}
+
+export interface DevLogTimedOptions extends LogExceptionOptions {
+  printStarted?: boolean | undefined;
+  logError?: boolean | undefined;
+  timed?: boolean | undefined;
+  elapsed?: number | undefined;
+  spinner?: boolean | undefined;
+  titlePaddingWidth?: number | undefined;
+  successText?: string;
+}
 
 export class DevLogTimed extends ElapsedTime {
   public title: string;
-  public options: DevLogTimeOptions;
   public status: Deferred.Status = "starting";
+  public options: DevLogTimedOptions;
+  public successText: string;
+
   private _stopSpinner = noop;
 
-  constructor(title: string, options: DevLogTimeOptions = {}) {
+  constructor(title: string, options: DevLogTimedOptions = {}) {
     super(performance.now() + (options.elapsed ? +options.elapsed : 0));
     this.title = title;
     this.options = options;
-  }
-
-  public start(): this {
-    if (this.status === "starting") {
-      this.status = "pending";
-      if (this.options.spinner) {
-        this._stopSpinner = devLog.startSpinner(this.title);
-      } else {
-        devLog.logOperationStart(this.title, this.options);
-      }
-    }
-    return this;
-  }
-
-  public end(text?: string | undefined): void {
-    if (this.status === "pending" || this.status === "starting") {
-      this._stopSpinner();
-      this.stop();
-      this.status = "succeeded";
-      devLog.logOperationSuccess(this.title, this.options, this.elapsed, text);
-    }
-  }
-
-  public fail<TError = unknown>(error: TError): TError {
-    if (this.status === "pending" || this.status === "starting") {
-      this.status = "rejected";
-      this._stopSpinner();
-      this.stop();
-      devLog.logOperationError(this.title, error, this.options, this.elapsed);
-    }
-    return error;
+    this.successText = options.successText || "";
   }
 
   /** True if completed, with or without errors */
@@ -846,6 +785,102 @@ export class DevLogTimed extends ElapsedTime {
   /** True if failed */
   public get isRejected() {
     return this.status === "rejected";
+  }
+
+  public start(): this {
+    if (this.status === "starting") {
+      this.status = "pending";
+      if (this.options.spinner) {
+        this._stopSpinner = devLog.startSpinner(this.title);
+      } else {
+        devLog.logOperationStart(this.title, this.options);
+      }
+    }
+    return this;
+  }
+
+  public end(text: string | undefined = this.successText): void {
+    if (this.status === "pending" || this.status === "starting") {
+      this._stopSpinner();
+      this.stop();
+      this.status = "succeeded";
+      devLog.logOperationSuccess(this.title, this.options, this.elapsed, text);
+    }
+  }
+
+  public fail<TError = unknown>(reason: TError): TError {
+    if (this.status === "pending" || this.status === "starting") {
+      this.status = "rejected";
+      this._stopSpinner();
+      this.stop();
+      devLog.logOperationError(this.title, reason, this.options, this.elapsed);
+    }
+    return reason;
+  }
+
+  public override toString(): string {
+    return `${this.title}: ${ElapsedTime.millisecondsToString(this.elapsed)}`;
+  }
+}
+
+const private_devLogTimed = Symbol("devLogTimed");
+
+export class DevLogTimedContext {
+  private [private_devLogTimed]: DevLogTimed;
+
+  public constructor(t: DevLogTimed) {
+    this[private_devLogTimed] = t;
+  }
+
+  public get options(): DevLogTimedOptions {
+    return this[private_devLogTimed].options;
+  }
+
+  public get successText(): string {
+    return this[private_devLogTimed].successText;
+  }
+
+  public set successText(value: string | null | undefined) {
+    this[private_devLogTimed].successText = value || "";
+  }
+
+  public get elapsed(): number {
+    return this[private_devLogTimed].elapsed;
+  }
+
+  public get isRunning(): boolean {
+    return this[private_devLogTimed].isRunning;
+  }
+
+  /** True if completed, with or without errors */
+  public get isSettled() {
+    return this[private_devLogTimed].isSettled;
+  }
+
+  /** True if completed without errors */
+  public get isSucceeded() {
+    return this[private_devLogTimed].isSucceeded;
+  }
+
+  /** True if failed */
+  public get isRejected() {
+    return this[private_devLogTimed].isRejected;
+  }
+
+  public getElapsedTime(): string {
+    return this[private_devLogTimed].getElapsedTime();
+  }
+
+  public toJSON(): string {
+    return this[private_devLogTimed].toJSON();
+  }
+
+  public [util.inspect.custom](): string {
+    return this[private_devLogTimed][util.inspect.custom]();
+  }
+
+  public toString(): string {
+    return this[private_devLogTimed].toString();
   }
 }
 
@@ -877,3 +912,8 @@ function _devInspectForLogging(args: unknown[], prefix: string): string {
   }
   return result;
 }
+
+devLog.timed("hello", async (t) => {
+  await require("timers/promises").setTimeout(1000);
+  t.successText = "success text!";
+});

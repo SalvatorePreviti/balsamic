@@ -60,10 +60,6 @@ export class ElapsedTime {
     return hint === "number" ? this.elapsed : this.toString();
   }
 
-  public toString(): string {
-    return ElapsedTime.millisecondsToString(this.elapsed);
-  }
-
   public getElapsedTime(): string {
     return ElapsedTime.millisecondsToString(this.elapsed);
   }
@@ -74,6 +70,10 @@ export class ElapsedTime {
 
   public [util.inspect.custom](): string {
     return this.toString();
+  }
+
+  public toString(): string {
+    return ElapsedTime.millisecondsToString(this.elapsed);
   }
 
   public static readonly millisecondsToString = millisecondsToString;
