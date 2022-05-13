@@ -11,6 +11,9 @@ import type { IntervalType, UnsafeAny } from "../types";
 import { noop } from "../utils/utils";
 import { isCI } from "../dev-env";
 import { numberFixedString } from "../utils/number-fixed";
+import { setImmediate as promiseSetImmediate } from "node:timers/promises";
+import { abortSignals } from "../promises/abort-signals";
+import type { TimerOptions } from "node:timers";
 
 const _inspectedErrorLoggedSet = new Set<unknown>();
 
@@ -540,7 +543,6 @@ askConfirmation(confirmationMessage: string, defaultValue: boolean) {
 let _spinStack: { title: string }[] | null = null;
 let _spinInterval: IntervalType | null = null;
 let _spinCounter = 0;
-let _spinLastWritten: number = 0;
 
 const _spinnerDraw = () => {
   const entry = _spinStack![_spinStack!.length - 1];
@@ -551,7 +553,6 @@ const _spinnerDraw = () => {
       const text = `\r${devLog.colors.blueBright(chars[_spinCounter++ % chars.length])} ${t}${devLog.colors.blackBright(
         " … ",
       )}`;
-      _spinLastWritten = t.length;
       process.stdout.write(text);
     } catch {}
   }
@@ -579,7 +580,6 @@ function startSpinner(title: string = ""): () => void {
 
   const t = (_spinStack[_spinStack.length - 1] || entry).title;
   const s = `\r${devLog.colors.blueBright("⠿")} ${t}${devLog.colors.blackBright(" … ")}`;
-  _spinLastWritten = t.length;
   process.stdout.write(s);
 
   return () => {
@@ -601,7 +601,12 @@ function _spinnerRemoved() {
       clearInterval(_spinInterval);
       _spinInterval = null;
     }
-    process.stdout.write(devLog.isTerm() ? `\r${" ".repeat(_spinLastWritten + 5)}\r` : "\n");
+    if (devLog.isTerm()) {
+      process.stdout.clearLine(-1);
+      process.stdout.write("\r");
+    } else {
+      process.stdout.write("\n");
+    }
   } catch {}
 }
 
@@ -647,18 +652,18 @@ function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): voi
 
 function timed<R = unknown>(
   title: string,
-  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R,
+  fnOrPromise: ((this: DevLogTimedContext, ctx: DevLogTimedContext) => R) | R,
   options?: DevLogTimedOptions,
 ): R;
 
 function timed<R = unknown>(
-  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R,
+  fnOrPromise: ((this: DevLogTimedContext, ctx: DevLogTimedContext) => R) | R,
   options?: DevLogTimedOptions & { title: string },
 ): R;
 
 function timed<R = unknown>(
   title: unknown,
-  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R | DevLogTimedOptions,
+  fnOrPromise: ((this: DevLogTimedContext, ctx: DevLogTimedContext) => R) | R | DevLogTimedOptions,
   options?: DevLogTimedOptions & { title?: string },
 ): unknown {
   if (typeof title !== "string" && options === undefined) {
@@ -688,38 +693,83 @@ function timed<R = unknown>(
   const _timed = new DevLogTimed(title as string, options);
 
   try {
+    const context = new DevLogTimedContext(_timed);
     _timed.start();
     if (typeof fnOrPromise === "function") {
       if (title && title !== "<anonymous>" && !fnOrPromise.name) {
         Reflect.defineProperty(fnOrPromise, "name", { value: title, configurable: true });
       }
-      fnOrPromise = (fnOrPromise as UnsafeAny)(new DevLogTimedContext(_timed));
+      fnOrPromise = (fnOrPromise as UnsafeAny).call(context, context);
     }
+
+    const timedEnd = (data: unknown): unknown => {
+      if (context.pendingPromises.length > 0) {
+        return _flushPendingPromises(context, data).then(timedEnd);
+      }
+      if (context.error) {
+        throw devError(context.error);
+      }
+      _timed.end();
+      return data;
+    };
+
+    const timedError = (e: unknown): unknown => {
+      if (context.pendingPromises.length > 0) {
+        return _flushPendingPromises(context, e).then(timedError, timedError);
+      }
+      _timed.fail(e);
+      return Promise.reject(e);
+    };
+
     if (
       typeof fnOrPromise === "object" &&
       fnOrPromise !== null &&
       typeof (fnOrPromise as UnsafeAny).then === "function"
     ) {
-      const timedEnd = (data: unknown) => {
-        _timed.end();
-        return data;
-      };
-
-      const timedError = (e: unknown) => {
-        _timed.fail(e);
-        return Promise.reject(e);
-      };
-
       return typeof (fnOrPromise as UnsafeAny).catch === "function"
         ? (fnOrPromise as UnsafeAny).then(timedEnd).catch(timedError)
         : (fnOrPromise as UnsafeAny).then(timedEnd, timedError);
     }
-    _timed.end();
+
+    if (context.pendingPromises.length > 0) {
+      _flushPendingPromises(context, fnOrPromise).then(timedEnd).catch(timedError);
+    } else {
+      if (context.error) {
+        throw devError(context.error);
+      }
+      _timed.end();
+    }
+
     return fnOrPromise as R;
   } catch (e) {
     _timed.fail(e);
     throw e;
   }
+}
+
+async function _flushPendingPromises<T>(context: DevLogTimedContext, data: T): Promise<T> {
+  const promises = context.pendingPromises;
+  for (let i = 0; i < promises.length; ++i) {
+    const p = promises[i];
+    if (typeof p === "function") {
+      try {
+        promises[i] = p();
+      } catch (e) {
+        promises[i] = Promise.reject(e);
+      }
+    }
+  }
+  while (context.pendingPromises.length > 0) {
+    try {
+      const p = context.pendingPromises.pop();
+      await (typeof p === "function" ? p() : p);
+    } catch (e) {
+      try {
+        devLog.logException(context.title, e, context.options);
+      } catch {}
+    }
+  }
+  return data;
 }
 
 timed.wrap = function timed_wrap<R>(
@@ -816,8 +866,19 @@ const private_devLogTimed = Symbol("devLogTimed");
 export class DevLogTimedContext {
   private [private_devLogTimed]: DevLogTimed;
 
+  public error: Error | string | undefined | null = undefined;
+  public pendingPromises: (Promise<void> | Promise<unknown> | (() => Promise<void> | Promise<unknown>))[] = [];
+
   public constructor(t: DevLogTimed) {
     this[private_devLogTimed] = t;
+  }
+
+  public get title(): string {
+    return this[private_devLogTimed].title;
+  }
+
+  public set title(value: string) {
+    this[private_devLogTimed].title = value;
   }
 
   public get options(): DevLogTimedOptions {
@@ -869,6 +930,33 @@ export class DevLogTimedContext {
 
   public toString(): string {
     return this[private_devLogTimed].toString();
+  }
+
+  public setTimeout<T = void>(
+    delay?: number | undefined,
+    value?: T | undefined,
+    options?: TimerOptions | undefined,
+  ): Promise<T> {
+    return this.addPendingPromise(abortSignals.setTimeout(delay, value, options));
+  }
+
+  public setImmediate<T = void>(value?: T, options?: TimerOptions): Promise<T> {
+    return this.addPendingPromise(promiseSetImmediate(value, options));
+  }
+
+  /** Add promises to await before exiting the timed block. */
+  public addPendingPromise<
+    T extends null | undefined | Promise<unknown> | Promise<void> | (() => Promise<unknown> | Promise<void>),
+  >(promise: T): T {
+    if (promise && (typeof promise === "function" || this.pendingPromises.indexOf(promise) < 0)) {
+      this.pendingPromises.push(promise);
+    }
+    return promise;
+  }
+
+  /** Sets an error that wil be thrown when the timed block ends. */
+  public setError(e: null | undefined | string | Error): void {
+    this.error = e ? devError(e, this.setError) : undefined;
   }
 }
 
