@@ -3,18 +3,16 @@
 import path from "node:path";
 import fs from "node:fs";
 import glob from "fast-glob";
-import Ajv, { ValidateFunction, ErrorObject } from "ajv";
+import type { ValidateFunction, ErrorObject } from "ajv";
+import Ajv from "ajv";
 import normalizePackageData from "normalize-package-data";
 import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
 import { plainObjects } from "../utils/plain-objects";
-import {
-  PackageJsonParseMessage,
-  PackageJsonParseMessages,
-  PackageJsonParseMessageSeverity,
-} from "./package-json-parsed-msgs";
+import type { PackageJsonParseMessageSeverity } from "./package-json-parsed-msgs";
+import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
 import { getColor } from "../colors";
 
 const { isArray } = Array;
@@ -842,7 +840,7 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
 
   let index = 0;
   for (let pattern of patterns) {
-    const excl = pattern.match(/^!+/);
+    const excl = /^!+/.exec(pattern);
     if (excl) {
       pattern = pattern.slice(excl[0]?.length ?? 0);
     }

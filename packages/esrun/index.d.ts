@@ -1,10 +1,10 @@
 /// <reference types="node" />
 
-import { URL } from "url";
-import Module from "module";
+import type { URL } from "url";
+import type Module from "module";
 
-import _chalk from "chalk";
-import _fastglob from "fast-glob";
+import type _chalk from "chalk";
+import type _fastglob from "fast-glob";
 
 export interface EsrunTransformResult {
   source: string;

@@ -45,10 +45,10 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
       if (!p || typeof p === "number" || typeof p === "boolean" || typeof p === "string") {
         return undefined;
       }
-      if (typeof (p as UnsafeAny).then === "function") {
+      if (typeof p.then === "function") {
         p = await p;
       }
-      if (typeof p === "object" && p !== null && Symbol.iterator in (p as UnsafeAny)) {
+      if (typeof p === "object" && p !== null && Symbol.iterator in p) {
         for (const q of p) {
           promises.push(handlePromise(q));
         }

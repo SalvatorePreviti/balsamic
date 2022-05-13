@@ -1,6 +1,7 @@
 import util from "node:util";
 import readline from "node:readline";
-import { Chalk, colors as _colors, colors_disabled, getColor, TermColor } from "../colors";
+import type { Chalk, TermColor } from "../colors";
+import { colors as _colors, colors_disabled, getColor } from "../colors";
 import { ElapsedTime, millisecondsToString } from "../elapsed-time";
 import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
@@ -14,22 +15,6 @@ import { numberFixedString } from "../utils/number-fixed";
 const _inspectedErrorLoggedSet = new Set<unknown>();
 
 const _inspectedErrorLoggedSet_maxSize = 25;
-
-function _inspectedErrorLoggedSet_add(value: unknown): boolean {
-  if (_inspectedErrorLoggedSet.has(value)) {
-    return false;
-  }
-  if (_inspectedErrorLoggedSet.size > _inspectedErrorLoggedSet_maxSize) {
-    for (const item of _inspectedErrorLoggedSet) {
-      if (_inspectedErrorLoggedSet.size <= _inspectedErrorLoggedSet_maxSize) {
-        break;
-      }
-      _inspectedErrorLoggedSet.delete(item);
-    }
-  }
-  _inspectedErrorLoggedSet.add(value);
-  return true;
-}
 
 function makeDevLogStream(options: { log: (...args: unknown[]) => void }, stream: "stderr" | "stdout") {
   const self = {
@@ -241,7 +226,6 @@ export const devLog = {
 
   titled,
   timed,
-  timedSync,
 
   greetings,
 };
@@ -593,7 +577,7 @@ function startSpinner(title: string = ""): () => void {
   }
   _spinCounter = 0;
 
-  const t = (_spinStack![_spinStack!.length - 1] || entry).title;
+  const t = (_spinStack[_spinStack.length - 1] || entry).title;
   const s = `\r${devLog.colors.blueBright("⠿")} ${t}${devLog.colors.blackBright(" … ")}`;
   _spinLastWritten = t.length;
   process.stdout.write(s);
@@ -661,44 +645,77 @@ function titled(titleOrOptions: string | TitledOptions, ...args: unknown[]): voi
   devLog.log(devLog.colors.cyan(`${devLog.colors.blueBright("·")} ${title}`), ...args);
 }
 
-/** Prints how much time it takes to run something */
-function timed<T>(
+function timed<R = unknown>(
   title: string,
-  fnOrPromise: ((ctx: DevLogTimedContext) => Promise<T> | T) | Promise<T> | T,
-  options?: DevLogTimedOptions | undefined,
-): Promise<Awaited<T>>;
+  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R,
+  options?: DevLogTimedOptions,
+): R;
 
-/** Prints how much time it takes to run something */
-function timed<T>(
-  title: string,
-  fnOrPromise: null | undefined | ((ctx: DevLogTimedContext) => Promise<T> | T) | Promise<T> | T,
-  options?: DevLogTimedOptions | undefined,
-): Promise<null | undefined | T>;
+function timed<R = unknown>(
+  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R,
+  options?: DevLogTimedOptions & { title: string },
+): R;
 
-async function timed(title: unknown, fnOrPromise: unknown, options: DevLogTimedOptions = {}) {
+function timed<R = unknown>(
+  title: unknown,
+  fnOrPromise: ((ctx: DevLogTimedContext) => R) | R | DevLogTimedOptions,
+  options?: DevLogTimedOptions & { title?: string },
+): unknown {
+  if (typeof title !== "string" && options === undefined) {
+    options = fnOrPromise as DevLogTimedOptions;
+    fnOrPromise = title as UnsafeAny;
+    title = options?.title;
+  }
+
   if (fnOrPromise === null || (typeof fnOrPromise !== "object" && typeof fnOrPromise !== "function")) {
     return fnOrPromise;
   }
   if (typeof fnOrPromise === "object" && typeof (fnOrPromise as UnsafeAny).then !== "function") {
-    return fnOrPromise;
+    return fnOrPromise as R;
   }
   if (!title && typeof fnOrPromise === "function") {
     title = fnOrPromise.name;
   }
+  if (typeof title === "symbol") {
+    title = title.toString();
+  }
+  if (!title) {
+    title = "<anonymous>";
+  }
 
-  const _timed = new DevLogTimed(`${title}`, options);
+  title = `${title}`;
+
+  const _timed = new DevLogTimed(title as string, options);
 
   try {
     _timed.start();
     if (typeof fnOrPromise === "function") {
-      if (title && !fnOrPromise.name) {
+      if (title && title !== "<anonymous>" && !fnOrPromise.name) {
         Reflect.defineProperty(fnOrPromise, "name", { value: title, configurable: true });
       }
-      fnOrPromise = fnOrPromise(new DevLogTimedContext(_timed));
+      fnOrPromise = (fnOrPromise as UnsafeAny)(new DevLogTimedContext(_timed));
     }
-    const result = await fnOrPromise;
+    if (
+      typeof fnOrPromise === "object" &&
+      fnOrPromise !== null &&
+      typeof (fnOrPromise as UnsafeAny).then === "function"
+    ) {
+      const timedEnd = (data: unknown) => {
+        _timed.end();
+        return data;
+      };
+
+      const timedError = (e: unknown) => {
+        _timed.fail(e);
+        return Promise.reject(e);
+      };
+
+      return typeof (fnOrPromise as UnsafeAny).catch === "function"
+        ? (fnOrPromise as UnsafeAny).then(timedEnd).catch(timedError)
+        : (fnOrPromise as UnsafeAny).then(timedEnd, timedError);
+    }
     _timed.end();
-    return result;
+    return fnOrPromise as R;
   } catch (e) {
     _timed.fail(e);
     throw e;
@@ -711,35 +728,6 @@ timed.wrap = function timed_wrap<R>(
   options?: DevLogTimedOptions | undefined,
 ) {
   return () => timed(title, fn, options);
-};
-
-timed.sync = timedSync;
-
-function timedSync<R>(title: string, fnOrValue: (ctx: DevLogTimedContext) => R, options: DevLogTimedOptions = {}): R {
-  if (!title) {
-    title = fnOrValue.name;
-  }
-  const _timed = new DevLogTimed(`${title}`, options);
-  try {
-    _timed.start();
-    if (title && !fnOrValue.name) {
-      Reflect.defineProperty(fnOrValue, "name", { value: title, configurable: true });
-    }
-    const result = fnOrValue(new DevLogTimedContext(_timed));
-    _timed.end();
-    return result;
-  } catch (e) {
-    _timed.fail(e);
-    throw e;
-  }
-}
-
-timedSync.wrap = function timedSync_wrap<R>(
-  title: string,
-  fn: () => R,
-  options?: DevLogTimedOptions | undefined,
-): () => R {
-  return () => timedSync<R>(title, fn, options);
 };
 
 export interface LogExceptionOptions {
@@ -913,7 +901,18 @@ function _devInspectForLogging(args: unknown[], prefix: string): string {
   return result;
 }
 
-devLog.timed("hello", async (t) => {
-  await require("timers/promises").setTimeout(1000);
-  t.successText = "success text!";
-});
+function _inspectedErrorLoggedSet_add(value: unknown): boolean {
+  if (_inspectedErrorLoggedSet.has(value)) {
+    return false;
+  }
+  if (_inspectedErrorLoggedSet.size > _inspectedErrorLoggedSet_maxSize) {
+    for (const item of _inspectedErrorLoggedSet) {
+      if (_inspectedErrorLoggedSet.size <= _inspectedErrorLoggedSet_maxSize) {
+        break;
+      }
+      _inspectedErrorLoggedSet.delete(item);
+    }
+  }
+  _inspectedErrorLoggedSet.add(value);
+  return true;
+}

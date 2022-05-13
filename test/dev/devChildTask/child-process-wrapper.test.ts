@@ -1,4 +1,5 @@
-import child_process, { ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
+import child_process from "node:child_process";
 import { expect } from "chai";
 import { AbortError, abortSignals, ChildProcessWrapper } from "@balsamic/dev";
 

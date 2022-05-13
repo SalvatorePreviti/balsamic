@@ -43,9 +43,9 @@ describe("ServicesRunner", () => {
 
       runner.startService("e", p);
 
-      runParallel([
-        () => {
-          runSequential([
+      await runParallel([
+        async () => {
+          await runSequential([
             async () => {
               await runner.setTimeout(10);
               f = ++counter;

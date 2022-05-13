@@ -1018,7 +1018,7 @@ function _loadDotEnv(dotenvPath) {
 
     for (const line of fs.readFileSync(dotenvPath, "utf8").split(REGEX_NEWLINES_MATCH)) {
       // matching "KEY' and 'VAL' in 'KEY=VAL'
-      const keyValueArr = line.match(REGEX_INI_KEY_VAL);
+      const keyValueArr = REGEX_INI_KEY_VAL.exec(line);
       // matched?
       if (keyValueArr !== null) {
         const key = keyValueArr[1];
@@ -1122,7 +1122,7 @@ exports.loadNpmWorkspace = async function loadNpmWorkspace(rootDirectory) {
     let hasSearchPatterns = false;
     for (let pattern of manifest.workspaces) {
       if (typeof pattern === "string" && pattern.length !== 0) {
-        const negations = pattern.match(/^!+/);
+        const negations = /^!+/.exec(pattern);
         if (negations) {
           pattern = pattern.substr(negations[0].length);
         }

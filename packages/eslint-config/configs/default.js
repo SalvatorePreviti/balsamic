@@ -397,6 +397,10 @@ const jsRules = {
   "mocha/prefer-arrow-callback": 0,
 
   "chai-expect/no-inner-compare": 0,
+
+  "@typescript-eslint/no-unsafe-argument": 0,
+  "@typescript-eslint/no-misused-promises": 0,
+  "@typescript-eslint/restrict-plus-operands": 0,
 };
 
 const typescriptRules = {
@@ -508,14 +512,12 @@ const tsProjectRules = {
   "@typescript-eslint/no-floating-promises": 2,
   "@typescript-eslint/no-for-in-array": 2,
   "@typescript-eslint/no-misused-new": 2,
-  "@typescript-eslint/no-misused-promises": 2,
   "@typescript-eslint/no-non-null-asserted-optional-chain": 2,
   "@typescript-eslint/no-throw-literal": 2,
   "@typescript-eslint/no-unnecessary-type-assertion": 2,
   "@typescript-eslint/prefer-as-const": 2,
   "@typescript-eslint/prefer-namespace-keyword": 1,
   "@typescript-eslint/prefer-regexp-exec": 2,
-  "@typescript-eslint/restrict-plus-operands": 2,
   "@typescript-eslint/switch-exhaustiveness-check": 1,
   "@typescript-eslint/non-nullable-type-assertion-style": 1,
   "@typescript-eslint/no-implied-eval": 1,
@@ -590,7 +592,7 @@ const eslintConfig = {
         jsx: true,
       },
       env: { browser: true },
-      parserOptions: { jsx: true },
+      parserOptions: { jsx: true, project: tsConfigPath },
       rules: {
         strict: [1, "never"],
         "@typescript-eslint/no-var-requires": 2,
@@ -608,6 +610,7 @@ const eslintConfig = {
       parserOptions: {
         sourceType: "module",
         ecmaVersion: "latest",
+        project: tsConfigPath,
         ecmaFeatures: {
           globalReturn: false,
         },
@@ -618,6 +621,9 @@ const eslintConfig = {
     {
       files: ["*.json"],
       parser: "espree",
+      parserOptions: {
+        project: tsConfigPath,
+      },
       rules: {
         "json/undefined": 2,
         "json/enum-value-mismatch": 2,
@@ -638,6 +644,9 @@ const eslintConfig = {
         "json/comment-not-permitted": 2,
         "json/schema-resolve-error": 2,
         "json/unknown": 2,
+
+        ...Object.fromEntries(Object.entries(typescriptRules).map((x) => [x[0], 0])),
+        ...Object.fromEntries(Object.entries(tsProjectRules).map((x) => [x[0], 0])),
       },
     },
     {
@@ -667,7 +676,14 @@ if (config.getHasReact()) {
 }
 
 if (tsConfigPath) {
-  eslintConfig.rules = { ...eslintConfig.rules, ...tsProjectRules };
+  eslintConfig.overrides.push({
+    files: ["*.ts", "*.tsx", "*.mts", "*.cts"],
+    rules: tsProjectRules,
+    parserOptions: {
+      project: tsConfigPath,
+    },
+  });
+  eslintConfig.rules["@typescript-eslint/await-thenable"] = 2;
 }
 
 module.exports = eslintConfig;

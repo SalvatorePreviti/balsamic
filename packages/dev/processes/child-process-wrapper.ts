@@ -3,7 +3,8 @@ import child_process from "child_process";
 import { devError } from "../dev-error";
 import { noop } from "../utils/utils";
 import type { InterfaceFromClass } from "../types";
-import { DevLogTimed, DevLogTimedOptions } from "../dev-log";
+import type { DevLogTimedOptions } from "../dev-log";
+import { DevLogTimed } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
 import type { Deferred } from "../promises/deferred";
@@ -252,7 +253,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       const pendingPromises = this._pendingPromises;
       if (pendingPromises.length > 0) {
         this._pendingPromises = [];
-        Promise.allSettled(pendingPromises).then(onClose);
+        void Promise.allSettled(pendingPromises).then(onClose);
         return;
       }
 
@@ -382,7 +383,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   public promise(): ChildProcessPromise<this> {
     let promise = this._promise;
     if (promise === null) {
-      promise = new ChildProcessPromise<this>((resolve, reject) => {
+      const childProcessPromise = (resolve: (self: this) => void, reject: (e: unknown) => void) => {
         let completed = false;
         const terminated = (instance: this | Error) => {
           if (!completed) {
@@ -403,8 +404,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
             }
           }
         };
-        return this.terminationPromise().then(terminated, terminated);
-      });
+        this.terminationPromise().then(terminated, terminated);
+      };
+
+      promise = new ChildProcessPromise<this>(childProcessPromise);
       promise.childProcessWrapper = this;
       this._promise = promise;
     }

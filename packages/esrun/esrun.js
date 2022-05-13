@@ -2,7 +2,7 @@
 "use strict";
 
 if (process.argv.indexOf("--build", 2) > 0) {
-  require("./esrun-build.js").esrunBuildMain();
+  void require("./esrun-build.js").esrunBuildMain();
 } else {
-  require("./esrun-main.js").esrunMain();
+  void require("./esrun-main.js").esrunMain();
 }

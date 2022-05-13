@@ -1,7 +1,8 @@
 import { devError } from "../dev-error";
 import type { UnsafeAny } from "../types";
 import { noop } from "../utils/utils";
-import { abortSignals, MaybeSignal } from "./abort-signals";
+import type { MaybeSignal } from "./abort-signals";
+import { abortSignals } from "./abort-signals";
 
 export namespace Deferred {
   export type Status = "starting" | "pending" | "succeeded" | "rejected";

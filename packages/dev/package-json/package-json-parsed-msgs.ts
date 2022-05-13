@@ -141,8 +141,9 @@ export class PackageJsonParseMessages {
         return [...this.errors];
       case "info":
         return [...this.errors, ...this.warnings, ...this.informations];
+      default:
+        return [...this.errors, ...this.warnings];
     }
-    return [...this.errors, ...this.warnings];
   }
 
   public toFormattedString({

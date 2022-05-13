@@ -1,5 +1,6 @@
 import { devError } from "../dev-error";
-import { devLog, DevLogTimedOptions } from "../dev-log";
+import type { DevLogTimedOptions } from "../dev-log";
+import { devLog } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
 import type { TimeoutType } from "../types";
 import { noop } from "../utils/utils";
@@ -78,7 +79,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
     this.startFirstBuild = this.startFirstBuild.bind(this);
 
     this._removeInitialSignalHandler = abortSignals.addAbortHandler(options.signal, () => {
-      this.close();
+      this.close().catch(noop);
     });
 
     this.buildFunction = buildFunction;
@@ -108,7 +109,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
 
       if (this._building) {
         const debouncedBuild = () => {
-          this._buildingPromise = this._buildingPromise?.finally(this._runBuild) ?? this._runBuild();
+          this._buildingPromise = this._buildingPromise?.then(this._runBuild, this._runBuild) ?? this._runBuild();
         };
 
         this._fileChangeDebounceTimer = setTimeout(debouncedBuild, this.filesChangedDuringBuildDebounceTimer);
@@ -265,7 +266,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
     }
 
     const debouncedBuild = () => {
-      this._buildingPromise = this._buildingPromise?.finally(this._runBuild) ?? this._runBuild();
+      this._buildingPromise = this._buildingPromise?.then(this._runBuild, this._runBuild) ?? this._runBuild();
     };
 
     this._fileChangeDebounceTimer = global.setTimeout(debouncedBuild, debounceTimer);

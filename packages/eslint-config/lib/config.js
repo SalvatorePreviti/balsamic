@@ -8,7 +8,7 @@ const sourceNodeExtensions = [".ts", ".tsx", ".mts", ".cts", ".jsx", ".js", ".mj
 /** @type {string[]} */
 let _ignorePatterns;
 
-let _tsConfigPath = "";
+let _tsConfigPath;
 
 module.exports = {
   sourceExtensions: [...sourceNodeExtensions, "._js", ".es", ".es6"],

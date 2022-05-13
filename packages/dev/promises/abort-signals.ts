@@ -122,7 +122,7 @@ export const abortSignals = {
  *
  * If promises are added with signalAddPendingPromise or addAsyncAbortHandler, you can call signalAwaitPendingPromises.
  */
-function withAbortSignal<R = void>(signal: MaybeSignal, callback: () => R): R {
+function withAbortSignal<R>(signal: MaybeSignal, callback: () => R): R {
   return (_abortSignalAsyncLocalStorage ?? (_abortSignalAsyncLocalStorage = new AsyncLocalStorage())).run(
     signal === null ? undefined : abortSignals.getSignal(signal),
     callback,
@@ -411,13 +411,13 @@ function signalAddPendingPromise(
     return noop;
   }
 
-  let pendingPromises = _pendingPromisesBySignalMap.get(signal as AbortSignal);
+  let pendingPromises = _pendingPromisesBySignalMap.get(signal);
 
   const removePendingPromise = () => {
     if (pendingPromises) {
       const index = pendingPromises.indexOf(promise);
       if (index >= 0) {
-        pendingPromises!.splice(index, 1);
+        pendingPromises.splice(index, 1);
       }
       pendingPromises = undefined;
     }
@@ -425,7 +425,7 @@ function signalAddPendingPromise(
 
   if (!pendingPromises) {
     pendingPromises = [promise];
-    _pendingPromisesBySignalMap.set(signal as AbortSignal, pendingPromises);
+    _pendingPromisesBySignalMap.set(signal, pendingPromises);
   } else {
     pendingPromises.push(promise);
   }
@@ -446,7 +446,7 @@ function signalRemovePendingPromise(
   if (!signal || !promise) {
     return false;
   }
-  const pendingPromises = _pendingPromisesBySignalMap.get(signal as AbortSignal);
+  const pendingPromises = _pendingPromisesBySignalMap.get(signal);
   if (!pendingPromises) {
     return false;
   }

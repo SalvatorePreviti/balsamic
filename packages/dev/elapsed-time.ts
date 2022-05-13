@@ -84,7 +84,7 @@ export class ElapsedTime {
 }
 
 export function millisecondsToString(
-  milliseconds: number | string | readonly [number, number],
+  milliseconds: number | string | [number, number],
   options?: { fixed?: "s" | false | undefined },
 ) {
   if (isArray(milliseconds)) {

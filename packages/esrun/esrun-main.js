@@ -406,5 +406,5 @@ function _forkRestart() {
 }
 
 if (require.main === module) {
-  this.esrunMain();
+  void this.esrunMain();
 }

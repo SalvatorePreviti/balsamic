@@ -40,7 +40,7 @@ class TsFilesSearcher {
       return;
     }
 
-    const negations = pattern.match(/^!+/);
+    const negations = /^!+/.exec(pattern);
     if (negations) {
       pattern = pattern.substr(negations[0].length);
     }
@@ -512,5 +512,5 @@ function commonPathPrefix(paths) {
 }
 
 if (esrun.isMainModule(module)) {
-  esrunBuildMain();
+  void esrunBuildMain();
 }

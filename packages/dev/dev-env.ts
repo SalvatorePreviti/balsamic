@@ -149,7 +149,7 @@ export class DevEnv {
         : dotenvPath;
 
       for (const line of fs.readFileSync(dotenvPath, "utf8").split(REGEX_NEWLINES_MATCH)) {
-        const keyValueArr = line.match(REGEX_INI_KEY_VAL);
+        const keyValueArr = REGEX_INI_KEY_VAL.exec(line);
         if (keyValueArr !== null) {
           const key = keyValueArr[1]!;
           let val = (keyValueArr[2] || "").trim();

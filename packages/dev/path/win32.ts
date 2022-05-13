@@ -180,7 +180,7 @@ export const tryPathFromFileURL = (
 
 /** Converts an absolute path to a file URL. */
 export const absolutePathToFileURL = (path: string): URL => {
-  const match = path.match(WIN32_TO_URL_SPLIT_REGEX);
+  const match = WIN32_TO_URL_SPLIT_REGEX.exec(path);
   if (!match) {
     throw new TypeError(`Invalid win32 path "${path}"`);
   }

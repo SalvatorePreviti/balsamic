@@ -1,12 +1,12 @@
 import type child_process from "node:child_process";
-import {
-  ChildProcessWrapper,
+import type {
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
   SpawnOptions as childProcesses_SpawnOptions,
   ForkOptions as childProcess_ForkOptions,
   SpawnArg as childProcess_SpawnArg,
   ChildProcessPromise,
 } from "./child-process-wrapper";
+import { ChildProcessWrapper } from "./child-process-wrapper";
 
 export namespace devChildTask {
   export type SpawnOptions = childProcesses_SpawnOptions;

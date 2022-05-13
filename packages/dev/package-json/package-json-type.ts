@@ -592,7 +592,7 @@ export namespace PackageJson {
     }
     if (encodeURIComponent(packageName) !== packageName) {
       // Maybe it's a scoped package name, like @user/package
-      const nameMatch = packageName.match(/^(?:@([^/]+?)[/};?([^/]+?)$/);
+      const nameMatch = /^(?:@([^/]+?)[/};?([^/]+?)$/.exec(packageName);
       if (nameMatch) {
         scope = nameMatch[1] || "";
         name = nameMatch[2] || "";

@@ -49,8 +49,9 @@ export function getColor(color: TermColor | null | undefined): Chalk {
         return colors.magenta;
       case "notice":
         return colors.rgb(120, 190, 255);
+      default:
+        color = colors[color];
     }
-    color = colors[color];
   }
   return typeof color === "function" ? color : colors_disabled;
 }
