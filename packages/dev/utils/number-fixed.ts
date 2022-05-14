@@ -4,16 +4,18 @@ const INFINITY_REGEX = /^([+-])?(∞|infinity)/i;
 
 export interface NumberFixedStringOptions {
   // Number of decimal digits to use.
-  decimalDigits?: number;
+  decimalDigits?: number | undefined;
 
   // True if , separator should be added
-  useGrouping?: boolean;
+  useGrouping?: boolean | undefined;
 
-  minimumFractionDigits?: number;
-  maximumFractionDigits?: number;
+  sign?: boolean | undefined;
 
-  padStart?: number;
-  postix?: string;
+  minimumFractionDigits?: number | undefined;
+  maximumFractionDigits?: number | undefined;
+
+  padStart?: number | undefined;
+  postix?: string | undefined;
 }
 
 /**
@@ -49,21 +51,25 @@ export function numberFixedString(
   let maximumFractionDigits: number;
   let padStart: number;
   let postfix: string | undefined;
+  let sign: boolean;
 
   if (typeof options === "number") {
     useGrouping = false;
     minimumFractionDigits = options;
     maximumFractionDigits = options;
     padStart = 0;
+    sign = false;
   } else if (options) {
     useGrouping = !!options.useGrouping;
     minimumFractionDigits = options.minimumFractionDigits ?? options.decimalDigits;
     maximumFractionDigits = options.maximumFractionDigits ?? options.decimalDigits ?? 6;
     padStart = options.padStart || 0;
     postfix = options.postix;
+    sign = options.sign || false;
   } else {
     maximumFractionDigits = 6;
     padStart = 0;
+    sign = false;
   }
 
   if (typeof minimumFractionDigits === "number") {
@@ -96,6 +102,10 @@ export function numberFixedString(
 
     if (postfix) {
       result += postfix;
+    }
+
+    if (sign && !result.startsWith("-") && !result.startsWith("+")) {
+      result = (value > 0 ? "+" : "-") + result;
     }
   }
 
