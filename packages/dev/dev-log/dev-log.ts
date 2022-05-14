@@ -533,7 +533,7 @@ export class DevLog extends DevLogStream {
     return () => this.timed(title, fn, options);
   }
 
-  public static termBox(options?: TermBox.Options): TermBox {
+  public termBox(options?: TermBox.Options): TermBox {
     return TermBox.begin(options);
   }
 }
