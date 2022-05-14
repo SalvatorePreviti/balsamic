@@ -9,7 +9,6 @@ import { DevLogTimed, DevLogTimedContext } from "./dev-log-timed";
 import type { DevLogTimedOptions } from "./dev-log-timed";
 import { DevLogStream } from "./dev-log-stream";
 import { TermBox } from "./term-box";
-import { colors } from "../colors";
 
 const _inspectedErrorLoggedSet_maxSize = 32;
 const _inspectedErrorLoggedSet = new Set<unknown>();
@@ -33,15 +32,13 @@ export let devLog: DevLog;
 export class DevLog extends DevLogStream {
   public stderr: DevLogStream;
 
-  public options = {
-    /** Default option on how stack trace should be shown */
-    showStack: "once" as boolean | "once",
+  /** Default option on how stack trace should be shown */
+  public showStack: boolean | "once" = "once";
 
-    /** Default on wether abort errors are treated as warnings or not */
-    abortErrorIsWarning: true,
+  /** Default on wether abort errors are treated as warnings or not */
+  public abortErrorIsWarning = true;
 
-    titlePaddingWidth: 0,
-  };
+  public titlePaddingWidth = 0;
 
   /** Starts a spinner. */
   public startSpinner: (title?: string | undefined) => () => void;
@@ -259,7 +256,7 @@ export class DevLog extends DevLogStream {
       if (isAbortError) {
         if (isOk) {
           this.info(logMessage, err);
-        } else if (options.abortErrorIsWarning ?? this.options.abortErrorIsWarning) {
+        } else if (options.abortErrorIsWarning ?? this.abortErrorIsWarning) {
           if (err === "AbortError: The operation was aborted") {
             this.warn(logMessage);
           } else {
@@ -274,7 +271,7 @@ export class DevLog extends DevLogStream {
     } else if (isAbortError) {
       if (isOk) {
         this.info(err);
-      } else if (options.abortErrorIsWarning ?? this.options.abortErrorIsWarning) {
+      } else if (options.abortErrorIsWarning ?? this.abortErrorIsWarning) {
         this.warn(err);
       } else {
         this.error(err);
@@ -313,7 +310,7 @@ export class DevLog extends DevLogStream {
     }
 
     if (showStack === undefined) {
-      showStack = this.options.showStack;
+      showStack = this.showStack;
     }
 
     return showStack;
@@ -328,7 +325,7 @@ export class DevLog extends DevLogStream {
       printStarted = isTimed;
     }
     if (printStarted) {
-      const titlePaddingWidth = (options.titlePaddingWidth ?? this.options.titlePaddingWidth) || 0;
+      const titlePaddingWidth = (options.titlePaddingWidth ?? this.titlePaddingWidth) || 0;
       if (titlePaddingWidth > 0) {
         title = title.padEnd(titlePaddingWidth, " ");
       }
@@ -353,7 +350,7 @@ export class DevLog extends DevLogStream {
     successText = successText !== null && successText !== undefined ? `${successText}` : "";
 
     if (isTimed || printStarted) {
-      const titlePaddingWidth = (options.titlePaddingWidth ?? this.options.titlePaddingWidth) || 0;
+      const titlePaddingWidth = (options.titlePaddingWidth ?? this.titlePaddingWidth) || 0;
       if (titlePaddingWidth > 0) {
         title = title.padEnd(titlePaddingWidth, " ");
       }
@@ -419,10 +416,10 @@ export class DevLog extends DevLogStream {
     let titlePaddingWidth: number;
     if (typeof titleOrOptions === "object") {
       title = titleOrOptions.title;
-      titlePaddingWidth = (titleOrOptions.titlePaddingWidth ?? this.options.titlePaddingWidth) || 0;
+      titlePaddingWidth = (titleOrOptions.titlePaddingWidth ?? this.titlePaddingWidth) || 0;
     } else {
       title = titleOrOptions;
-      titlePaddingWidth = this.options.titlePaddingWidth || 0;
+      titlePaddingWidth = this.titlePaddingWidth || 0;
     }
     if (titlePaddingWidth > 0) {
       title = title.padEnd(titlePaddingWidth, " ");

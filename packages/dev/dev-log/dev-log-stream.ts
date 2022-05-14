@@ -74,18 +74,15 @@ export class DevLogStream {
   }
 
   /** Clears the screen */
-  public clearScreen(full: boolean = false) {
+  public clearScreen(dir: "down" | "full" | boolean | undefined) {
     if (this.isTerm) {
-      this.stream.write(full ? "\x1b[2J" : "\x1b[0f");
+      if (dir === "down") {
+        this.stream.clearScreenDown();
+      } else {
+        this.stream.write(dir === true || dir === "full" ? "\x1b[2J" : "\x1b[0f");
+      }
     } else {
       this.writeln();
-    }
-  }
-
-  /** clears from the current cursor down. */
-  public clearScreenDown() {
-    if (this.isTerm) {
-      this.stream.clearScreenDown();
     }
   }
 
