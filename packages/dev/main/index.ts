@@ -2,7 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { devEnv } from "../dev-env";
 import { devError } from "../dev-error";
-import { devLog } from "../dev-log";
+import { devLog } from "../dev-log/dev-log";
 import { stripExtension } from "../path";
 import { AbortError } from "../promises/abort-error";
 import { noop } from "../utils/utils";

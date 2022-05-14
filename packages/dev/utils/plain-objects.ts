@@ -1,7 +1,53 @@
 const { isArray } = Array;
 const { keys: objectKeys } = Object;
+const { defineProperty, getPrototypeOf, getOwnPropertyDescriptor } = Reflect;
 
 export namespace plainObjects {
+  export function hasOwnProp(object: unknown, name: string) {
+    return typeof object === "object" && object !== null && Object.prototype.hasOwnProperty.call(object, name);
+  }
+
+  /** Given a class instance, bind all prototype functions recursively so every method is bound. */
+  export function bindProtoFunctions(
+    instance: {},
+    {
+      allowPrivate = false,
+      enumerable = false,
+      ignoreSet,
+    }: {
+      allowPrivate?: boolean | undefined;
+      enumerable?: boolean | undefined;
+      ignoreSet?: Set<string> | undefined;
+    } = {},
+  ) {
+    const keys = new Set<string>();
+
+    for (let p = getPrototypeOf(instance); p && p !== Object.prototype; p = getPrototypeOf(p)) {
+      for (const key of Object.keys(p)) {
+        const prop = getOwnPropertyDescriptor(p, key);
+        if (
+          prop &&
+          prop.writable &&
+          prop.enumerable &&
+          prop.configurable &&
+          !keys.has(key) &&
+          (allowPrivate || !key.startsWith("_")) &&
+          (!ignoreSet || !ignoreSet.has(key)) &&
+          typeof prop.value === "function" &&
+          hasOwnProp(prop.value, "prototype")
+        ) {
+          defineProperty(prop.value, "name", { value: key, configurable: true });
+          defineProperty(instance, key, {
+            value: prop.value.bind(instance),
+            configurable: true,
+            enumerable,
+            writable: true,
+          });
+        }
+      }
+    }
+  }
+
   /**
    * Compares two json objects for equality
    */

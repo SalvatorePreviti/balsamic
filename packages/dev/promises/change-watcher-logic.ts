@@ -1,6 +1,6 @@
 import { devError } from "../dev-error";
-import type { DevLogTimedOptions } from "../dev-log";
 import { devLog } from "../dev-log";
+import type { DevLogTimedOptions } from "../dev-log";
 import { ChildProcessWrapper } from "../processes/child-process-wrapper";
 import type { TimeoutType } from "../types";
 import { noop } from "../utils/utils";

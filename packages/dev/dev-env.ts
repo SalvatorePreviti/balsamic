@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import type { InspectOptions as _InspectOptions } from "node:util";
 import util from "node:util";
 import { fileURLToPath } from "node:url";
 import { makePathRelative } from "./path";
@@ -11,6 +12,7 @@ const private_colorsLevel = Symbol("colorsLevel");
 const private_stderrColorsLevel = Symbol("stderrColorsLevel");
 const private_processTitle = Symbol("processTitle");
 const private_defaultProcessTitle = Symbol("defaultProcessTitle");
+const private_env = Symbol("env");
 
 export let devEnv: DevEnv;
 
@@ -21,16 +23,18 @@ export function isCI() {
 
 export class DevEnv {
   public initialCwd: string = process.cwd();
-  public env: NodeJS.ProcessEnv;
 
+  private [private_env]: NodeJS.ProcessEnv | undefined = undefined;
   private [private_isCI]: boolean | undefined = undefined;
   private [private_colorsLevel]: 0 | 1 | 2 | 3 | undefined = undefined;
   private [private_stderrColorsLevel]: 0 | 1 | 2 | 3 | undefined = undefined;
   private [private_processTitle]: string | undefined = undefined;
   private [private_defaultProcessTitle]: string | undefined = undefined;
 
+  public readonly inspectOptions = new DevEnv.InspectOptions();
+
   public constructor(env: NodeJS.ProcessEnv) {
-    this.env = env;
+    this[private_env] = env;
   }
 
   public static get instance(): DevEnv {
@@ -39,6 +43,14 @@ export class DevEnv {
 
   public static set instance(value: DevEnv) {
     devEnv = value;
+  }
+
+  public get env(): NodeJS.ProcessEnv {
+    return this[private_env] ?? process.env;
+  }
+
+  public set env(value: NodeJS.ProcessEnv | undefined) {
+    this[private_env] = value;
   }
 
   public get isCI(): boolean {
@@ -171,6 +183,18 @@ export class DevEnv {
       // Do nothing
     }
     return false;
+  }
+}
+
+export namespace DevEnv {
+  export class InspectOptions implements _InspectOptions {
+    public sorted: boolean = false;
+    public getters: boolean = false;
+    public showHidden: boolean = false;
+    public customInspect: boolean = true;
+    public colors_forced: boolean | undefined;
+    public depth: number | undefined = Math.max(6, util.inspect.defaultOptions.depth || 0);
+    public colors?: boolean | undefined;
   }
 }
 

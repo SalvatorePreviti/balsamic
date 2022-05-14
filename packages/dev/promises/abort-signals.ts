@@ -4,7 +4,7 @@ import {
   setTimeout as timers_setTimeout,
   setInterval as timers_setInterval,
 } from "node:timers/promises";
-import { devLog } from "../dev-log";
+import { devLog } from "../dev-log/dev-log";
 import { noop } from "../utils/utils";
 import { AbortError } from "./abort-error";
 import type { TimerOptions } from "node:timers";
