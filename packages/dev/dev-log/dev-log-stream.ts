@@ -166,7 +166,7 @@ export class DevLogStream {
   }
 
   /** Prints an horizontal line */
-  public hr(color?: TermColor | null | undefined, char?: string | undefined): void;
+  public hr(color?: TermColor | undefined, char?: string | undefined): void;
 
   public hr(options: { color?: TermColor | undefined; char?: string | undefined; width?: number | undefined }): void;
 
@@ -174,7 +174,6 @@ export class DevLogStream {
     options?:
       | { color?: TermColor | undefined; char?: string | undefined; width?: number | undefined }
       | TermColor
-      | null
       | undefined,
     char?: string | undefined,
   ): void {
@@ -190,6 +189,8 @@ export class DevLogStream {
       color = options.color;
       char = options.char;
       width = options.width;
+    } else {
+      color = options;
     }
 
     if (char === undefined) {
