@@ -8,6 +8,8 @@ import { devEnv } from "../dev-env";
 import { DevLogTimed, DevLogTimedContext } from "./dev-log-timed";
 import type { DevLogTimedOptions } from "./dev-log-timed";
 import { DevLogStream } from "./dev-log-stream";
+import { TermBox } from "./term-box";
+import { colors } from "../colors";
 
 const _inspectedErrorLoggedSet_maxSize = 32;
 const _inspectedErrorLoggedSet = new Set<unknown>();
@@ -28,37 +30,8 @@ export type devLog = DevLog;
 
 export let devLog: DevLog;
 
-const CHARS = {
-  VBLOCKS: "▁▂▃▄▅▆▇█",
-  HBLOCKS: "▏▎▍▌▋▊▉█",
-  SPINNER: "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
-
-  DOT: "∙",
-  ELLIPSIS: "…",
-
-  CIRCLE: "●",
-  SQUARE: "■",
-  DIAMOND: "◆",
-  STAR: "★",
-  TRIANGLE_UP: "▲",
-  TRIANGLE_DOWN: "▼",
-  TRIANGLE_LEFT: "◀",
-  TRIANGLE_RIGHT: "▶",
-
-  BLOCK: "█",
-
-  ERROR: "❌",
-  WARN: "⚠️ ",
-  INFO: "ℹ️ ",
-  DEBUG: "🐛",
-  VERBOSE: "📖",
-  CHECK: "✔",
-};
-
 export class DevLog extends DevLogStream {
   public stderr: DevLogStream;
-
-  public CHARS = CHARS;
 
   public options = {
     /** Default option on how stack trace should be shown */
@@ -561,6 +534,10 @@ export class DevLog extends DevLogStream {
     options?: DevLogTimedOptions | undefined,
   ) {
     return () => this.timed(title, fn, options);
+  }
+
+  public static termBox(options?: TermBox.Options): TermBox {
+    return TermBox.begin(options);
   }
 }
 

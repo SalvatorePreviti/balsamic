@@ -6,11 +6,16 @@ import { devEnv, isCI } from "../dev-env";
 import { numberFixedString } from "../utils/number-fixed";
 import { devError } from "../dev-error";
 import { plainObjects } from "../utils/plain-objects";
+import { TERM_CHARS } from "./term-chars";
 
 export class DevLogStream {
   public readonly stream: NodeJS.WriteStream;
 
   public colors: Chalk;
+
+  public maxHrWidth = 250;
+
+  public CHARS = TERM_CHARS;
 
   public dev: (...args: unknown[]) => void;
 
@@ -164,17 +169,44 @@ export class DevLogStream {
   }
 
   /** Prints an horizontal line */
-  public hr(color?: TermColor | null | undefined, char = "⎯"): void {
+  public hr(color?: TermColor | null | undefined, char?: string | undefined): void;
+
+  public hr(options: { color?: TermColor | undefined; char?: string | undefined; width?: number | undefined }): void;
+
+  public hr(
+    options?:
+      | { color?: TermColor | undefined; char?: string | undefined; width?: number | undefined }
+      | TermColor
+      | null
+      | undefined,
+    char?: string | undefined,
+  ): void {
     if (!this.isTerm) {
       this.writeln("-".repeat(10));
       return;
     }
 
+    let width: number | undefined;
+    let color: TermColor | undefined;
+
+    if (typeof options === "object" && options !== null) {
+      color = options.color;
+      char = options.char;
+      width = options.width;
+    }
+
+    if (char === undefined) {
+      char = "─";
+    }
+    if (width === undefined || width > this.maxHrWidth) {
+      width = this.maxHrWidth;
+    }
+
     let columns = this.stream.columns;
-    if (columns < 15) {
-      columns = 15;
-    } else if (columns > 250) {
-      columns = 250;
+    if (columns < 10) {
+      columns = 10;
+    } else if (columns > width) {
+      columns = width;
     }
 
     this.writeln(this.getColor(color)(char.repeat(columns)));
