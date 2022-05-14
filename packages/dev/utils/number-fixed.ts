@@ -9,13 +9,12 @@ export interface NumberFixedStringOptions {
   // True if , separator should be added
   useGrouping?: boolean | undefined;
 
-  sign?: boolean | undefined;
-
   minimumFractionDigits?: number | undefined;
   maximumFractionDigits?: number | undefined;
 
-  padStart?: number | undefined;
-  postix?: string | undefined;
+  sign?: boolean | undefined;
+  padStart?: number | false | undefined;
+  postix?: string | false | undefined;
 }
 
 /**
@@ -50,7 +49,7 @@ export function numberFixedString(
   let minimumFractionDigits: number | undefined;
   let maximumFractionDigits: number;
   let padStart: number;
-  let postfix: string | undefined;
+  let postfix: string | false | undefined;
   let sign: boolean;
 
   if (typeof options === "number") {

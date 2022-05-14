@@ -184,33 +184,37 @@ export class DevLogStream {
     value,
     min = 0,
     max = 1,
-    width = 120,
+    width = 80,
+    label = "",
   }: {
     value: number;
     min?: number | undefined;
     max?: number | undefined;
     width?: number | undefined;
+    label?: string | false | undefined;
   }) {
-    let columns = this.isTerm ? this.stream.columns : 0;
-    if (columns < 15) {
-      columns = 15;
-    } else if (columns > 250) {
-      columns = 250;
-    }
-    let s = ` ${this.colors.blueBright("[")}`;
-    const barWidth = width - 13;
+    label = label ? `${label} ` : "";
+    const columns = this.isTerm ? this.stream.columns : 0;
+    let s = label ? this.getColor("info")(label) : "";
+
+    s += this.colors.blueBright(`[`);
+
     let nv = (value - min) / max;
     if (!nv) {
       nv = 0;
     }
+
+    const svalue = numberFixedString(nv * 100, { decimalDigits: 1, padStart: 7, postix: "%" });
+
+    const barWidth = Math.min(Math.max(5, Math.min(columns, width) - svalue.length - 3 - label.length), 200);
 
     for (let i = 0; i < barWidth; ++i) {
       const kv = i / (barWidth - 1);
       s += this._rgbColorFromValue(kv)(kv <= nv ? "▰" : "𑁉");
     }
 
-    s += `${this.colors.blueBright("]")}`;
-    s += this._rgbColorFromValue(nv)(numberFixedString(nv * 100, { decimalDigits: 1, padStart: 7, postix: "%" }));
+    s += `${this.colors.blueBright("] ")}`;
+    s += this._rgbColorFromValue(nv)(svalue);
     this.writeln(s);
   }
 
