@@ -581,9 +581,3 @@ function _inspectedErrorLoggedSet_add(value: unknown): boolean {
   _inspectedErrorLoggedSet.add(value);
   return true;
 }
-
-devLog.error("err");
-devLog.info("info");
-devLog.warn("warn");
-devLog.debug("debug");
-devLog.verbose("verbose");
