@@ -390,7 +390,7 @@ export class DevLog extends DevLogStream {
 
       if (elapsed && (isTimed || elapsed > 5 || titlePaddingWidth)) {
         if (titlePaddingWidth) {
-          msg += `.${this.colors.blueBright(` ${millisecondsToString(elapsed, { fixed: "s" })}`)}`;
+          msg += `.${` ${millisecondsToString(elapsed, { fixed: "s" })}`}`;
         } else {
           msg += " in ";
           msg += millisecondsToString(elapsed);
