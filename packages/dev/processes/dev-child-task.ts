@@ -1,3 +1,4 @@
+/// <reference path="../types/modules.ts" />
 import type child_process from "node:child_process";
 import type {
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
@@ -7,6 +8,7 @@ import type {
   ChildProcessPromise,
 } from "./child-process-wrapper";
 import { ChildProcessWrapper } from "./child-process-wrapper";
+import _which from "which";
 
 export namespace devChildTask {
   export type SpawnOptions = childProcesses_SpawnOptions;
@@ -20,6 +22,15 @@ export namespace devChildTask {
   export type ChildProcess = child_process.ChildProcess;
 
   export type ChildProcessStartedHandler = (process: ChildProcess) => void;
+
+  export namespace which {
+    export type OptionsAll = _which.OptionsAll;
+    export type OptionsFirst = _which.OptionsFirst;
+    export type OptionsNoThrow = _which.OptionsNoThrow;
+    export type OptionsThrow = _which.OptionsThrow;
+    export type AsyncOptions = _which.AsyncOptions;
+    export type Options = _which.Options;
+  }
 }
 
 export const devChildTask = {
@@ -30,6 +41,9 @@ export const devChildTask = {
   runModuleBin,
   npmRun,
   npmCommand,
+
+  /** Finds all instances of a specified executable in the PATH environment variable */
+  which: _which,
 };
 
 /** Spawn a new process, redirect stdio and await for completion. */

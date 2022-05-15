@@ -1,4 +1,5 @@
 /// <reference types="node" />
+/// <reference path="./modules.ts" />
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type UnsafeAny = any;
