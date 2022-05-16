@@ -3,15 +3,17 @@ import { numberFixedString } from "./number-fixed";
 const { floor, ceil, min, log, abs } = Math;
 const { isFinite } = Number;
 
+export namespace utf8ByteLength {
+  export type Input = number | string | Buffer | Uint8Array | false | null | undefined;
+}
+
 /** Gets the length of an UTF8 string */
-export function utf8ByteLength(b: number | string | Buffer | Uint8Array | null | undefined): number {
-  return b === null || b === undefined
-    ? 0
-    : typeof b === "number"
-    ? b || 0
-    : typeof b === "string"
-    ? Buffer.byteLength(b, "utf8")
-    : b.length;
+export function utf8ByteLength(...args: utf8ByteLength.Input[]): number {
+  let total = 0;
+  for (const b of args) {
+    total += !b ? 0 : typeof b === "number" ? b || 0 : typeof b === "string" ? Buffer.byteLength(b, "utf8") : b.length;
+  }
+  return total;
 }
 
 /** Gets a size in bytes in an human readable form. */
