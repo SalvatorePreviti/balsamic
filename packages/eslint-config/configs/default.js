@@ -578,6 +578,7 @@ const eslintConfig = {
         "@typescript-eslint/no-misused-promises": 0,
         "@typescript-eslint/no-unused-vars": 0,
         "@typescript-eslint/await-thenable": 0,
+        "@typescript-eslint/no-duplicate-imports": 0,
         "@typescript-eslint/no-explicit-any": 0,
         "no-unmodified-loop-condition": 0,
         "node/no-unsupported-features/es-builtins": 0,

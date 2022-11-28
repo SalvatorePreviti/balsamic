@@ -32,12 +32,12 @@ declare global {
   }
 
   export interface ErrorOptions {
-    cause?: Error;
+    cause?: Error | unknown;
   }
 
   export interface Error {
     showStack?: boolean | "once" | undefined;
-    cause?: Error;
+    cause?: Error | unknown;
     [key: string]: unknown | undefined;
   }
 

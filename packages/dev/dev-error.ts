@@ -107,7 +107,7 @@ devError.addProperty = function addProperty<TError = Error>(
   value: unknown,
   enumerable?: boolean | undefined,
 ): TError {
-  if (!(name in error)) {
+  if (!(name in (error as {}))) {
     devError.setProperty(error, name, value, enumerable);
   }
   return error;
