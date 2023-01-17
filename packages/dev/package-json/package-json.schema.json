@@ -8,15 +8,25 @@
       "type": ["object", "string"],
       "required": ["name"],
       "properties": {
-        "name": { "type": "string" },
-        "url": { "type": "string", "format": "uri" },
-        "email": { "type": "string", "format": "email" }
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        }
       }
     },
     "dependency": {
       "description": "Dependencies are specified with a simple hash of package name to version range. The version range is a string which has one or more space-separated descriptors. Dependencies can also be identified with a tarball or git URL.",
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "scriptsInstallAfter": {
       "description": "Run AFTER the package is installed.",
@@ -94,8 +104,12 @@
     },
     "packageExportsEntry": {
       "oneOf": [
-        { "$ref": "#/definitions/packageExportsEntryPath" },
-        { "$ref": "#/definitions/packageExportsEntryObject" }
+        {
+          "$ref": "#/definitions/packageExportsEntryPath"
+        },
+        {
+          "$ref": "#/definitions/packageExportsEntryObject"
+        }
       ]
     },
     "packageExportsFallback": {
@@ -106,7 +120,14 @@
       }
     },
     "packageExportsEntryOrFallback": {
-      "oneOf": [{ "$ref": "#/definitions/packageExportsEntry" }, { "$ref": "#/definitions/packageExportsFallback" }]
+      "oneOf": [
+        {
+          "$ref": "#/definitions/packageExportsEntry"
+        },
+        {
+          "$ref": "#/definitions/packageExportsFallback"
+        }
+      ]
     },
     "fundingUrl": {
       "type": "string",
@@ -117,7 +138,9 @@
       "type": "object",
       "description": "Used to inform about ways to help fund development of the package.",
       "properties": {
-        "url": { "$ref": "#/definitions/fundingUrl" },
+        "url": {
+          "$ref": "#/definitions/fundingUrl"
+        },
         "type": {
           "type": "string",
           "description": "The type of funding or the platform through which funding can be provided, e.g. patreon, opencollective, tidelift or github."
@@ -129,7 +152,10 @@
   },
   "type": "object",
   "patternProperties": {
-    "^_": { "description": "Any property starting with _ is valid.", "tsType": "any" }
+    "^_": {
+      "description": "Any property starting with _ is valid.",
+      "tsType": "any"
+    }
   },
   "properties": {
     "name": {
@@ -150,14 +176,23 @@
     "keywords": {
       "description": "This helps people discover your package as it's listed in 'npm search'.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
-    "homepage": { "description": "The url to the project homepage.", "type": "string" },
+    "homepage": {
+      "description": "The url to the project homepage.",
+      "type": "string"
+    },
     "bugs": {
       "description": "The url to your project's issue tracker and / or the email address to which issues should be reported. These are helpful for people who encounter issues with your package.",
       "type": ["object", "string"],
       "properties": {
-        "url": { "type": "string", "description": "The url to your project's issue tracker.", "format": "uri" },
+        "url": {
+          "type": "string",
+          "description": "The url to your project's issue tracker.",
+          "format": "uri"
+        },
         "email": {
           "type": "string",
           "description": "The email address to which issues should be reported.",
@@ -174,7 +209,15 @@
       "type": "array",
       "items": {
         "type": "object",
-        "properties": { "type": { "type": "string" }, "url": { "type": "string", "format": "uri" } }
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
       }
     },
     "author": {
@@ -183,17 +226,23 @@
     "contributors": {
       "description": "A list of people who contributed to this package.",
       "type": "array",
-      "items": { "$ref": "#/definitions/person" }
+      "items": {
+        "$ref": "#/definitions/person"
+      }
     },
     "maintainers": {
       "description": "A list of people who maintains this package.",
       "type": "array",
-      "items": { "$ref": "#/definitions/person" }
+      "items": {
+        "$ref": "#/definitions/person"
+      }
     },
     "files": {
       "description": "The 'files' field is an array of files to include in your project. If you name a folder in the array, then it will also include the files inside that folder.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "main": {
       "description": "The main field is a module ID that is the primary entry point to your program.",
@@ -232,7 +281,12 @@
         }
       ]
     },
-    "bin": { "type": ["string", "object"], "additionalProperties": { "type": "string" } },
+    "bin": {
+      "type": ["string", "object"],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "type": {
       "description": "When set to \"module\", the type field allows a package to specify all .js files within are ES modules. If the \"type\" field is omitted or set to \"commonjs\", all .js files are treated as CommonJS.",
       "type": "string",
@@ -257,19 +311,27 @@
           "*": {
             "description": "Maps all file paths to the file paths specified in the array.",
             "type": "array",
-            "items": { "type": "string", "pattern": "^[^*]*(?:\\*[^*]*)?$" }
+            "items": {
+              "type": "string",
+              "pattern": "^[^*]*(?:\\*[^*]*)?$"
+            }
           }
         },
         "patternProperties": {
           "^[^*]+$": {
             "description": "Maps the file path matching the property key to the file paths specified in the array.",
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "^[^*]*\\*[^*]*$": {
             "description": "Maps file paths matching the pattern specified in property key to file paths specified in the array.",
             "type": "array",
-            "items": { "type": "string", "pattern": "^[^*]*(?:\\*[^*]*)?$" }
+            "items": {
+              "type": "string",
+              "pattern": "^[^*]*(?:\\*[^*]*)?$"
+            }
           }
         },
         "additionalProperties": false
@@ -278,7 +340,9 @@
     "man": {
       "type": ["array", "string"],
       "description": "Specify either a single file or an array of filenames to put in place for the man program to find.",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "directories": {
       "type": "object",
@@ -312,18 +376,37 @@
       "description": "Specify the place where your code lives. This is helpful for people who want to contribute.",
       "type": ["object", "string"],
       "properties": {
-        "type": { "type": "string" },
-        "url": { "type": "string" },
-        "directory": { "type": "string" }
+        "type": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "directory": {
+          "type": "string"
+        }
       }
     },
     "funding": {
       "oneOf": [
-        { "$ref": "#/definitions/fundingUrl" },
-        { "$ref": "#/definitions/fundingWay" },
+        {
+          "$ref": "#/definitions/fundingUrl"
+        },
+        {
+          "$ref": "#/definitions/fundingWay"
+        },
         {
           "type": "array",
-          "items": { "oneOf": [{ "$ref": "#/definitions/fundingUrl" }, { "$ref": "#/definitions/fundingWay" }] },
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/fundingUrl"
+              },
+              {
+                "$ref": "#/definitions/fundingWay"
+              }
+            ]
+          },
           "minItems": 1,
           "uniqueItems": true
         }
@@ -361,29 +444,79 @@
           "type": "string",
           "description": "Publishes a package to the registry so that it can be installed by name. See https://docs.npmjs.com/cli/v8/commands/npm-publish"
         },
-        "postpublish": { "$ref": "#/definitions/scriptsPublishAfter" },
-        "preinstall": { "type": "string", "description": "Run BEFORE the package is installed." },
-        "install": { "$ref": "#/definitions/scriptsInstallAfter" },
-        "postinstall": { "$ref": "#/definitions/scriptsInstallAfter" },
-        "preuninstall": { "$ref": "#/definitions/scriptsUninstallBefore" },
-        "uninstall": { "$ref": "#/definitions/scriptsUninstallBefore" },
-        "postuninstall": { "type": "string", "description": "Run AFTER the package is uninstalled." },
-        "preversion": { "$ref": "#/definitions/scriptsVersionBefore" },
-        "version": { "$ref": "#/definitions/scriptsVersionBefore" },
-        "postversion": { "type": "string", "description": "Run AFTER bump the package version." },
-        "pretest": { "$ref": "#/definitions/scriptsTest" },
-        "test": { "$ref": "#/definitions/scriptsTest" },
-        "posttest": { "$ref": "#/definitions/scriptsTest" },
-        "prestop": { "$ref": "#/definitions/scriptsStop" },
-        "stop": { "$ref": "#/definitions/scriptsStop" },
-        "poststop": { "$ref": "#/definitions/scriptsStop" },
-        "prestart": { "$ref": "#/definitions/scriptsStart" },
-        "start": { "$ref": "#/definitions/scriptsStart" },
-        "poststart": { "$ref": "#/definitions/scriptsStart" },
-        "prerestart": { "$ref": "#/definitions/scriptsRestart" },
-        "restart": { "$ref": "#/definitions/scriptsRestart" },
-        "postrestart": { "$ref": "#/definitions/scriptsRestart" },
-        "serve": { "type": "string", "description": "Start dev server to serve application files" }
+        "postpublish": {
+          "$ref": "#/definitions/scriptsPublishAfter"
+        },
+        "preinstall": {
+          "type": "string",
+          "description": "Run BEFORE the package is installed."
+        },
+        "install": {
+          "$ref": "#/definitions/scriptsInstallAfter"
+        },
+        "postinstall": {
+          "$ref": "#/definitions/scriptsInstallAfter"
+        },
+        "preuninstall": {
+          "$ref": "#/definitions/scriptsUninstallBefore"
+        },
+        "uninstall": {
+          "$ref": "#/definitions/scriptsUninstallBefore"
+        },
+        "postuninstall": {
+          "type": "string",
+          "description": "Run AFTER the package is uninstalled."
+        },
+        "preversion": {
+          "$ref": "#/definitions/scriptsVersionBefore"
+        },
+        "version": {
+          "$ref": "#/definitions/scriptsVersionBefore"
+        },
+        "postversion": {
+          "type": "string",
+          "description": "Run AFTER bump the package version."
+        },
+        "pretest": {
+          "$ref": "#/definitions/scriptsTest"
+        },
+        "test": {
+          "$ref": "#/definitions/scriptsTest"
+        },
+        "posttest": {
+          "$ref": "#/definitions/scriptsTest"
+        },
+        "prestop": {
+          "$ref": "#/definitions/scriptsStop"
+        },
+        "stop": {
+          "$ref": "#/definitions/scriptsStop"
+        },
+        "poststop": {
+          "$ref": "#/definitions/scriptsStop"
+        },
+        "prestart": {
+          "$ref": "#/definitions/scriptsStart"
+        },
+        "start": {
+          "$ref": "#/definitions/scriptsStart"
+        },
+        "poststart": {
+          "$ref": "#/definitions/scriptsStart"
+        },
+        "prerestart": {
+          "$ref": "#/definitions/scriptsRestart"
+        },
+        "restart": {
+          "$ref": "#/definitions/scriptsRestart"
+        },
+        "postrestart": {
+          "$ref": "#/definitions/scriptsRestart"
+        },
+        "serve": {
+          "type": "string",
+          "description": "Start dev server to serve application files"
+        }
       },
       "additionalProperties": {
         "type": "string",
@@ -396,10 +529,18 @@
       "type": "object",
       "additionalProperties": true
     },
-    "dependencies": { "$ref": "#/definitions/dependency" },
-    "devDependencies": { "$ref": "#/definitions/dependency" },
-    "optionalDependencies": { "$ref": "#/definitions/dependency" },
-    "peerDependencies": { "$ref": "#/definitions/dependency" },
+    "dependencies": {
+      "$ref": "#/definitions/dependency"
+    },
+    "devDependencies": {
+      "$ref": "#/definitions/dependency"
+    },
+    "optionalDependencies": {
+      "$ref": "#/definitions/dependency"
+    },
+    "peerDependencies": {
+      "$ref": "#/definitions/dependency"
+    },
     "peerDependenciesMeta": {
       "description": "When a user installs your package, warnings are emitted if packages specified in \"peerDependencies\" are not already installed. The \"peerDependenciesMeta\" field serves to provide more information on how your peer dependencies are utilized. Most commonly, it allows peer dependencies to be marked as optional. Metadata for this field is specified with a simple hash of the package name to a metadata object.",
       "type": "object",
@@ -416,11 +557,31 @@
     },
     "bundledDependencies": {
       "description": "Array of package names that will be bundled when publishing the package.",
-      "oneOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "boolean" }]
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "boolean"
+        }
+      ]
     },
     "bundleDependencies": {
       "description": "DEPRECATED: This field is honored, but \"bundledDependencies\" is the correct field name.",
-      "oneOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "boolean" }]
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "boolean"
+        }
+      ]
     },
     "resolutions": {
       "description": "Resolutions is used to support selective version resolutions, which lets you define custom package versions or ranges inside your dependencies. See: https://classic.yarnpkg.com/en/docs/selective-version-resolutions",
@@ -433,19 +594,31 @@
     },
     "engines": {
       "type": "object",
-      "properties": { "node": { "type": "string" } },
-      "additionalProperties": { "type": "string" }
+      "properties": {
+        "node": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
     },
-    "engineStrict": { "type": "boolean" },
+    "engineStrict": {
+      "type": "boolean"
+    },
     "os": {
       "description": "Specify which operating systems your module will run on.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "cpu": {
       "description": "Specify that your code only runs on certain cpu architectures.",
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "preferGlobal": {
       "type": "boolean",
@@ -453,25 +626,46 @@
     },
     "private": {
       "description": "If set to true, then npm will refuse to publish it.",
-      "oneOf": [{ "type": "boolean" }, { "enum": ["false", "true"] }]
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": ["false", "true"]
+        }
+      ]
     },
     "publishConfig": {
       "type": "object",
       "properties": {
-        "access": { "type": "string", "enum": ["public", "restricted"] },
-        "tag": { "type": "string" },
-        "registry": { "type": "string", "format": "uri" }
+        "access": {
+          "type": "string",
+          "enum": ["public", "restricted"]
+        },
+        "tag": {
+          "type": "string"
+        },
+        "registry": {
+          "type": "string",
+          "format": "uri"
+        }
       },
       "additionalProperties": true
     },
     "dist": {
       "type": "object",
       "properties": {
-        "shasum": { "type": "string" },
-        "tarball": { "type": "string" }
+        "shasum": {
+          "type": "string"
+        },
+        "tarball": {
+          "type": "string"
+        }
       }
     },
-    "readme": { "type": "string" },
+    "readme": {
+      "type": "string"
+    },
     "module": {
       "description": "An ECMAScript module ID that is the primary entry point to your program.",
       "type": "string"
@@ -480,10 +674,16 @@
       "description": "A module ID with untranspiled code that is the primary entry point to your program.",
       "type": ["string", "object"],
       "properties": {
-        "main": { "type": "string" },
-        "browser": { "type": "string" }
+        "main": {
+          "type": "string"
+        },
+        "browser": {
+          "type": "string"
+        }
       },
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "workspaces": {
       "description": "Allows packages within a directory to depend on one another using direct linking of local files. Additionally, dependencies within a workspace are hoisted to the workspace root when possible to reduce duplication. Note: It's also a good idea to set \"private\" to true when using this feature.",
@@ -491,7 +691,9 @@
         {
           "type": "array",
           "description": "Workspace package paths. Glob patterns are supported.",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         {
           "type": "object",
@@ -499,32 +701,44 @@
             "packages": {
               "type": "array",
               "description": "Workspace package paths. Glob patterns are supported.",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "nohoist": {
               "type": "array",
               "description": "Packages to block from hoisting to the workspace root. Currently only supported in Yarn only.",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
       ]
     },
-    "jspm": { "$ref": "#" }
+    "jspm": {
+      "$ref": "#"
+    }
   },
   "anyOf": [
     {
       "type": "object",
-      "not": { "required": ["bundledDependencies", "bundleDependencies"] }
+      "not": {
+        "required": ["bundledDependencies", "bundleDependencies"]
+      }
     },
     {
       "type": "object",
-      "not": { "required": ["bundleDependencies"] },
+      "not": {
+        "required": ["bundleDependencies"]
+      },
       "required": ["bundledDependencies"]
     },
     {
       "type": "object",
-      "not": { "required": ["bundledDependencies"] },
+      "not": {
+        "required": ["bundledDependencies"]
+      },
       "required": ["bundleDependencies"]
     }
   ]

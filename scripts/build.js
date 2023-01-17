@@ -24,7 +24,7 @@ module.exports = async function build() {
   const newPackageJson = { ...balsamicDev.toJSON(), private: false };
   delete newPackageJson.scripts;
 
-  await fsasync.writeFile("dist/dev/package.json", JSON.stringify(newPackageJson));
+  await fsasync.writeFile("dist/dev/package.json", JSON.stringify(newPackageJson, null, 2));
 
   await devChildTask.runModuleBin("typescript", "tsc", ["-p", "tsconfig.build.json"], {
     cwd: "dist/dev",

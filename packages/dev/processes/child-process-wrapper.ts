@@ -13,6 +13,7 @@ import { NodeResolver } from "../modules/node-resolver";
 import { ServicesRunner } from "../promises/services-runner";
 import treeKill from "tree-kill";
 import { millisecondsToString } from "../elapsed-time";
+import type { PackageManager } from "../package-json/package-json-type";
 
 const { defineProperty } = Reflect;
 
@@ -29,6 +30,10 @@ export interface SpawnOptions
     child_process.SpawnOptions {
   /** The value which will be passed as stdin to the spawned process. Supplying this value will override stdin, stdio[0] */
   input?: string | Buffer | Uint8Array | DataView | undefined;
+}
+
+export interface NpmSpawnOptions extends SpawnOptions {
+  packageManager?: PackageManager;
 }
 
 export interface ForkOptions
@@ -721,7 +726,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
     return new ChildProcessWrapper(
       () => {
-        const resolved = NodeResolver.default.resolvePackageBin(moduleId, executableId, opts.cwd);
+        const resolved = NodeResolver.workspaceRoot.resolvePackageBin(moduleId, executableId, opts.cwd);
         if (!resolved) {
           throw new Error(`runModuleBin: Could not find ${moduleId}:${executableId}`);
         }
@@ -738,19 +743,25 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Executes npm run <command> [args] */
-  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
-    options = { title: `npm run ${command}`, ...options };
+  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: NpmSpawnOptions | undefined) {
+    const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
+    options = { title: `${packageManager} run ${command}`, ...options, packageManager };
     return ChildProcessWrapper.spawn(
-      process.platform === "win32" ? "npm.cmd" : "npm",
+      packageManager + (process.platform === "win32" ? ".cmd" : ""),
       ["run", command, ...args],
       options,
     );
   }
 
   /** Executes npm <command> [args] */
-  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: SpawnOptions | undefined) {
-    options = { title: `npm ${command}`, ...options };
-    return ChildProcessWrapper.spawn(process.platform === "win32" ? "npm.cmd" : "npm", [command, ...args], options);
+  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: NpmSpawnOptions | undefined) {
+    const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
+    options = { title: `${packageManager} ${command}`, ...options, packageManager };
+    return ChildProcessWrapper.spawn(
+      packageManager + (process.platform === "win32" ? ".cmd" : ""),
+      [command, ...args],
+      options,
+    );
   }
 
   /** Kills all child processes of the given process id or ChildProcess instance. */

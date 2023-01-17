@@ -61,7 +61,7 @@ export interface PackagesFolderResult {
 export function getPackagesFolders(
   input: string | Readonly<PackagesFolderInput> | Iterable<PackagesFolderInput | string | null | undefined>,
   options: GetPackagesFoldersOptions = {},
-  resolver: NodeResolver = NodeResolver.default,
+  resolver: NodeResolver = NodeResolver.workspaceRoot,
 ): PackagesFolderResult {
   interface QueueEntry {
     parent: NodePackageJson;

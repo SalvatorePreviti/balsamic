@@ -50,4 +50,6 @@ export * from "./modules";
 
 export * from "./net/net";
 
+export * from "./fs";
+
 export * from "./main";

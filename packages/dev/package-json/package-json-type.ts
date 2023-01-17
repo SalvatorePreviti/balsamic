@@ -5,6 +5,13 @@ import { plainObjects } from "../utils/plain-objects";
 const { isArray } = Array;
 const { keys: objectKeys } = Object;
 
+/** Known and supported package managers */
+export enum PackageManager {
+  npm = "npm",
+  yarn = "yarn",
+  pnpm = "pnpm",
+}
+
 /** Type for [npm's `package.json` file](https://docs.npmjs.com/creating-a-package-json-file). */
 export interface PackageJson {
   [key: string]: unknown;
@@ -155,6 +162,9 @@ export interface PackageJson {
 
   /** Selective version resolutions. Allows the definition of custom package versions inside dependencies without manual edits in the `yarn.lock` file. */
   resolutions?: Record<string, string> | undefined;
+
+  /** The supported package manager. Can be npm, yarn, pnpm */
+  packageManager?: PackageManager | undefined;
 }
 
 export namespace PackageJson {

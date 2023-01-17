@@ -1,11 +1,13 @@
 import Module from "module";
 import path from "path";
 import { fileURLToPath } from "url";
-import fs from "fs";
+import fs from "node:fs";
+import { PackageManager } from "../package-json/package-json-type";
 import type { PackageJson } from "../package-json/package-json-type";
 import { toUTF8 } from "../utils/utils";
 import { PackageJsonParsed } from "../package-json/package-json-parsed";
 import type { UnsafeAny } from "../types";
+import { fsUtils } from "../fs";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;
@@ -47,7 +49,7 @@ export abstract class NodeFsEntry {
 
   public get stats(): fs.Stats | null {
     const stats = this._stats;
-    return stats === undefined ? (this._stats = fs_tryStatSync(this.path)) : stats;
+    return stats === undefined ? (this._stats = fsUtils.try_statSync(this.path)) : stats;
   }
 
   protected constructor(fileOrDirectoryPath: string, basename: string, stats: fs.Stats | null | undefined) {
@@ -370,15 +372,15 @@ export class NodePackageJson {
 }
 
 export class NodeResolver {
-  public static default: NodeResolver = new NodeResolver();
+  public static workspaceRoot: WorkspaceNodeResolver;
 
   private _entries = new Map<string, NodeDirectory | NodeFile | null>();
   private _projectPath: string;
   private _requireCache: Record<string, NodeModule> | null = (Module as UnsafeAny)._cache || null;
   private _projectDirectory: NodeDirectory | null | undefined = undefined;
 
-  public constructor(cwd: string = process.cwd()) {
-    this._projectPath = path.resolve(cwd);
+  public constructor(cwd: string) {
+    this._projectPath = path.resolve(cwd || process.cwd());
   }
 
   public get requireCache(): Record<string, NodeModule> | null {
@@ -487,13 +489,13 @@ export class NodeResolver {
     const basename = path.basename(input);
     const inputPath = parent ? (basename ? path.join(parent.path, basename) : parent.path) : input;
 
-    const stats = fs_tryStatSync(inputPath);
+    const stats = fsUtils.try_statSync(inputPath);
     if (!stats) {
       this._entries.set(inputPath, null);
       return null;
     }
 
-    const realPath = fs_tryRealpathSync(inputPath) || inputPath;
+    const realPath = fsUtils.try_realpathSync(inputPath) || inputPath;
     if (!realPath) {
       this._entries.set(inputPath, null);
       return null;
@@ -513,17 +515,41 @@ export class NodeResolver {
   }
 }
 
-function fs_tryRealpathSync(unrealpath: string): string | null {
-  try {
-    return fs.realpathSync.native(unrealpath);
-  } catch (_) {
-    return null;
+export class WorkspaceNodeResolver extends NodeResolver {
+  private _packageManager: PackageManager | undefined;
+
+  public get packageManager(): PackageManager {
+    let result = this._packageManager;
+    if (result === undefined) {
+      const packageJson = this.projectPackageJson;
+      if (packageJson) {
+        const packageJsonPackageManager = packageJson.manifest.packageManager;
+        if (packageJsonPackageManager && Object.values(PackageManager).includes(packageJsonPackageManager)) {
+          result = packageJsonPackageManager;
+        }
+      }
+      if (!result) {
+        const projectPath = this.projectPath;
+        if (fsUtils.try_accessSync(path.join(projectPath, "package-lock.json"))) {
+          result = PackageManager.npm;
+        } else if (fsUtils.try_accessSync(path.join(projectPath, "yarn.lock"))) {
+          result = PackageManager.yarn;
+        } else if (fsUtils.try_accessSync(path.join(projectPath, "pnpm-lock.yaml"))) {
+          result = PackageManager.pnpm;
+        } else if (fsUtils.try_accessSync(path.join(projectPath, "shrinkwrap.yaml"))) {
+          result = PackageManager.pnpm;
+        } else {
+          result = PackageManager.npm;
+        }
+      }
+      this._packageManager = result;
+    }
+    return result;
+  }
+
+  public set packageManager(value: PackageManager | undefined) {
+    this._packageManager = value;
   }
 }
 
-function fs_tryStatSync(realpath: string): fs.Stats | null {
-  try {
-    return fs.statSync(realpath, { bigint: false, throwIfNoEntry: false }) || null;
-  } catch {}
-  return null;
-}
+NodeResolver.workspaceRoot = new WorkspaceNodeResolver(require("app-root-path").path || process.cwd());

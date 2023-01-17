@@ -2,6 +2,19 @@ import { devError } from "../dev-error";
 import type { UnsafeAny } from "../types";
 import { abortSignals } from "./abort-signals";
 
+export function isThenable<T>(value: unknown): value is PromiseLike<T> {
+  return typeof value === "object" && value !== null && (typeof value as UnsafeAny).then === "function";
+}
+
+export function isPromise<T>(value: unknown): value is Promise<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (typeof value as UnsafeAny).then === "function" &&
+    (typeof value as UnsafeAny).catch === "function"
+  );
+}
+
 /** Runs lists of functions or promises in sequence */
 export async function runSequential(...functionsOrPromises: unknown[]): Promise<void> {
   for (let p of functionsOrPromises) {
@@ -16,7 +29,7 @@ export async function runSequential(...functionsOrPromises: unknown[]): Promise<
       continue;
     }
     if (typeof (p as UnsafeAny).then === "function") {
-      p = await p;
+      p = await (p as UnsafeAny);
     }
     if (typeof p === "object" && p !== null && Symbol.iterator in (p as UnsafeAny)) {
       await runSequential(...(p as UnsafeAny));
