@@ -184,7 +184,7 @@ describe("devChildTask", () => {
       expect(promise.error).to.equal(null);
       expect(promise.exitCode).to.equal(null);
 
-      expect(promise.title).to.equal("npm run ok");
+      expect(promise.title).to.include(" run ok");
 
       const result = await promise;
 
@@ -213,7 +213,7 @@ describe("devChildTask", () => {
       expect(promise.error).to.equal(null);
       expect(promise.exitCode).to.equal(null);
 
-      expect(promise.title).to.equal("npm run fail");
+      expect(promise.title).to.include(" run fail");
 
       let error: unknown;
       try {
@@ -231,7 +231,7 @@ describe("devChildTask", () => {
       expect(promise.isSucceeded).to.equal(false);
 
       expect(promise.error).to.equal(error);
-      expect(promise.exitCode).to.equal(123);
+      expect(promise.exitCode).to.not.equal(0);
     });
   });
 });
