@@ -29,7 +29,7 @@ let _tsNodeInitialized = false;
 export enum Main {}
 
 export namespace Main {
-  export function initTsNode(options: { typecheck?: boolean | "typecheck" | "transpile-only" | undefined }) {
+  export function initTsNode(options: { typecheck?: boolean | "typecheck" | "transpile-only" | undefined }): void {
     if (!_tsNodeInitialized) {
       _tsNodeInitialized = true;
       if (options && options.typecheck && options.typecheck !== "transpile-only") {
@@ -44,7 +44,7 @@ export namespace Main {
   }
 
   /** Prints process information */
-  export function printProcessBanner() {
+  export function printProcessBanner(): void {
     const processTitle = devEnv.processTitle;
     if (processTitle) {
       devLog.log(`${devLog.colors.blueBright("\n⬢")} ${devLog.colors.rgb(100, 200, 255)(processTitle)}\n`);
@@ -65,7 +65,7 @@ export namespace Main {
     };
   }
 
-  initProcessTime.remove = function initProcessTime_remove() {
+  initProcessTime.remove = function initProcessTime_remove(): void {
     if (_logProcessTimeInitialized > 0 && --_logProcessTimeInitialized === 0) {
       process.once("exit", _processTimeExit);
     }
@@ -97,7 +97,7 @@ export namespace Main {
     };
   }
 
-  initErrorHandling.remove = function initErrorHandling_remove() {
+  initErrorHandling.remove = function initErrorHandling_remove(): void {
     if (_devErrorHandlingInitialized > 0 && --_devErrorHandlingInitialized === 0) {
       process.off("unhandledRejection", _handleUnhandledRejection);
       process.off("uncaughtException", _handleUncaughtException);
@@ -141,7 +141,7 @@ export namespace Main {
     return processExitTimeout.remove;
   }
 
-  processExitTimeout.remove = function processExitTimeout_remove() {
+  processExitTimeout.remove = function processExitTimeout_remove(): void {
     if (_exitTerminatingTimer) {
       clearTimeout(_exitTerminatingTimer);
       _exitTerminatingTimer = null;
@@ -173,7 +173,7 @@ export namespace Main {
   }
 
   /** Emits an unhandled error and logs it properly */
-  export function emitUncaughtException(cause: unknown) {
+  export function emitUncaughtException(cause: unknown): void {
     const error = devError(cause, Main.emitUncaughtException);
     try {
       if (process.listenerCount("uncaughtException") === 0) {
@@ -212,20 +212,20 @@ export namespace Main {
     }
   }
 
-  ignoreProcessWarning.add = function ignoreProcessWarning_add(name: string | string[]) {
+  ignoreProcessWarning.add = function ignoreProcessWarning_add(name: string | string[]): void {
     ignoreProcessWarning(name, true);
   };
 
-  ignoreProcessWarning.delete = function ignoreProcessWarning_delete(name: string | string[]) {
+  ignoreProcessWarning.delete = function ignoreProcessWarning_delete(name: string | string[]): void {
     ignoreProcessWarning(name, false);
   };
 
   /** True if a warning was ignored using devError.ignoreProcessWarning function */
-  ignoreProcessWarning.has = function ignoreProcessWarning_has(name: string) {
+  ignoreProcessWarning.has = function ignoreProcessWarning_has(name: string): boolean {
     return _ignoredWarnings !== null && _ignoredWarnings.has(name);
   };
 
-  ignoreProcessWarning.clear = function ignoreProcessWarning_clear() {
+  ignoreProcessWarning.clear = function ignoreProcessWarning_clear(): void {
     if (_ignoredWarnings) {
       _ignoredWarnings.clear();
     }
@@ -263,7 +263,7 @@ export namespace Main {
   };
 
   /** Gets the number of references held */
-  ref.count = function ref_count() {
+  ref.count = function ref_count(): number {
     return _mainProcessRefCounter;
   };
 
@@ -415,7 +415,7 @@ export function devRunMain<T = unknown>(
   let terminated = false;
   const unrefAsync = Main.ref();
 
-  const onTerminated = async (ret: T | Error) => {
+  const onTerminated = async (ret: T | Error): Promise<Error | T> => {
     ret = ret instanceof Error ? devRunMainError(ret) : ret;
     if (terminated) {
       return ret;
@@ -452,7 +452,7 @@ export function isMainModule(
     | false
     | null
     | undefined,
-) {
+): boolean {
   if (!module) {
     return false;
   }
@@ -497,7 +497,7 @@ function _unhandledErrorsLoggedOnce(value: unknown): boolean {
   return true;
 }
 
-function _mainProcessRefDoUpdate() {
+function _mainProcessRefDoUpdate(): void {
   _mainProcessRefUpdate = false;
   if (_mainProcessRefCounter > 0 && _mainProcessRefInterval === null) {
     _mainProcessRefInterval = setInterval(noop, 0x7fffffff);
@@ -506,15 +506,15 @@ function _mainProcessRefDoUpdate() {
   }
 }
 
-function _handleUncaughtException(error: unknown) {
+function _handleUncaughtException(error: unknown): void {
   return Main.handleUncaughtException(error);
 }
 
-function _handleUnhandledRejection(error: unknown) {
+function _handleUnhandledRejection(error: unknown): void {
   return Main.handleUnhandledRejection(error);
 }
 
-function _processTimeExit() {
+function _processTimeExit(): void {
   try {
     const elapsed = millisecondsToString(process.uptime() * 1000);
     const exitCode = process.exitCode;
@@ -572,7 +572,7 @@ function _initIgnoredWarnings(): Set<string> {
   return new Set();
 }
 
-function _processExitTimeoutReached() {
+function _processExitTimeoutReached(): void {
   const code = process.exitCode || _exitTimeoutExitCode || 2;
   try {
     devLog.error();
@@ -585,7 +585,7 @@ function _processExitTimeoutReached() {
   }
 }
 
-function _processExitTimeOutStarted() {
+function _processExitTimeOutStarted(): void {
   _exitTerminatingTimer = null;
   try {
     const title = devEnv.processTitle;

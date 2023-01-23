@@ -33,7 +33,7 @@ export class ElapsedTime {
   }
 
   /** True if running */
-  public get isRunning() {
+  public get isRunning(): boolean {
     return this._elapsed === undefined;
   }
 
@@ -78,7 +78,7 @@ export class ElapsedTime {
 
   public static readonly millisecondsToString = millisecondsToString;
 
-  public static secondsToString(seconds: number) {
+  public static secondsToString(seconds: number): string {
     return ElapsedTime.millisecondsToString(seconds * 1000);
   }
 }
@@ -86,7 +86,7 @@ export class ElapsedTime {
 export function millisecondsToString(
   milliseconds: number | string | [number, number],
   options?: { fixed?: "s" | false | undefined },
-) {
+): string {
   if (isArray(milliseconds)) {
     milliseconds = (milliseconds[0] * 1e9 + (milliseconds[1] || 0)) * 1e-6;
   }

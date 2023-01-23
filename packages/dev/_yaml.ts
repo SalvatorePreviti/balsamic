@@ -23,7 +23,7 @@ export type YamlParseOptions = ParseOptions & DocumentOptions & SchemaOptions & 
 
 export type YamlStringifyOptions = DocumentOptions & SchemaOptions & ParseOptions & CreateNodeOptions & ToStringOptions;
 
-function stripBOM(text: string) {
+function stripBOM(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 

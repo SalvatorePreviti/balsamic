@@ -324,7 +324,7 @@ function addAbortHandler(
         )
       ) {
         const abortable = handler;
-        func = function handleAbortSignal(this: AbortSignal) {
+        func = function handleAbortSignal(this: AbortSignal): void {
           abortSignals.abort(abortable, abortSignals.getAbortReason(this));
         };
         _abortHandlersRemap.set(handler, func);
@@ -378,7 +378,7 @@ function addAsyncAbortHandler(
 
   let ahandler = _abortHandlersRemap.get(handler);
   if (!ahandler) {
-    ahandler = function asyncAbortHandler(this: AbortSignal, event: Event) {
+    ahandler = function asyncAbortHandler(this: AbortSignal, event: Event): unknown {
       const result = (handler as Function).call(this, event);
       if (typeof result === "object" && result !== null && typeof (result as Promise<unknown>).then === "function") {
         abortSignals.signalAddPendingPromise(result);
@@ -413,7 +413,7 @@ function signalAddPendingPromise(
 
   let pendingPromises = _pendingPromisesBySignalMap.get(signal);
 
-  const removePendingPromise = () => {
+  const removePendingPromise = (): void => {
     if (pendingPromises) {
       const index = pendingPromises.indexOf(promise);
       if (index >= 0) {
@@ -491,7 +491,7 @@ let _terminating: string | null = null;
 let _registrationsCount = 0;
 let _overriddenProcessExit: typeof process.exit | null = null;
 
-function signalHandler(signal: NodeJS.Signals) {
+function signalHandler(signal: NodeJS.Signals): void {
   if (!signal) {
     signal = "SIGTERM";
   }
@@ -559,7 +559,7 @@ function signalHandler(signal: NodeJS.Signals) {
   }
 }
 
-function uncaughtExceptionHandler(error: Error) {
+function uncaughtExceptionHandler(error: Error): void {
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
@@ -576,7 +576,7 @@ function uncaughtExceptionHandler(error: Error) {
   }
 }
 
-function unhandledRejectionHandler(error: Error) {
+function unhandledRejectionHandler(error: Error): void {
   while (_registeredAbortControllers.length > 0) {
     const abortController = _registeredAbortControllers.pop();
     if (abortController) {
@@ -593,7 +593,7 @@ function unhandledRejectionHandler(error: Error) {
   }
 }
 
-function _unregisterHandlers(forced: boolean = false) {
+function _unregisterHandlers(forced: boolean = false): void {
   if (forced && _registrationsCount) {
     _registrationsCount = 1;
   }
@@ -625,7 +625,7 @@ function _unregisterHandlers(forced: boolean = false) {
   }
 }
 
-function _registerHandlers() {
+function _registerHandlers(): void {
   if (_terminating) {
     return;
   }
@@ -650,7 +650,7 @@ function _registerHandlers() {
   }
 }
 
-function processAbort(code: number | undefined = process.exitCode) {
+function processAbort(code: number | undefined = process.exitCode): void {
   const error = code === 0 ? new AbortError.AbortOk("process.exit(0)") : new AbortError(`process.exit(${code}')`);
 
   if (!_signalsRaised.has("process_exit")) {
@@ -672,7 +672,12 @@ function processAbort(code: number | undefined = process.exitCode) {
 /**
  * Replaces standard SIGINT, SIGTERM, SIGBREAK, SIGHUP and uncaughtException handlers with abortController.abort
  */
-function registerProcessTermination(abortController: AbortController) {
+function registerProcessTermination(abortController: AbortController): {
+  signal: AbortSignal;
+  readonly registered: boolean;
+  unregister(): boolean;
+  abort(reason?: unknown | undefined): boolean;
+} {
   const abortSignal = abortController.signal;
 
   if (!abortSignal.aborted) {
@@ -688,10 +693,10 @@ function registerProcessTermination(abortController: AbortController) {
 
   const result = {
     signal: abortController.signal,
-    get registered() {
+    get registered(): boolean {
       return registered;
     },
-    unregister() {
+    unregister(): boolean {
       if (!registered) {
         return false;
       }
@@ -699,7 +704,7 @@ function registerProcessTermination(abortController: AbortController) {
       _unregisterHandlers();
       return true;
     },
-    abort(reason?: unknown | undefined) {
+    abort(reason?: unknown | undefined): boolean {
       return abortSignals.abort(abortController, reason);
     },
   };

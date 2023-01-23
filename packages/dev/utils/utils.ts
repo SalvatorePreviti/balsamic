@@ -20,7 +20,7 @@ export function utf8ByteLength(...args: utf8ByteLength.Input[]): number {
 export function prettySize(
   bytes: number | string | Buffer | Uint8Array | null | undefined,
   options?: { appendBytes?: boolean | undefined } | undefined,
-) {
+): string {
   if (bytes === null || bytes === undefined) {
     bytes = 0;
   }
@@ -47,7 +47,7 @@ export function prettySize(
 }
 
 /** Makes an utf8 string. Removes UTF8 BOM header if present. */
-export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | boolean) {
+export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | boolean): string {
   if (text === null || text === undefined) {
     return "";
   }
@@ -67,4 +67,4 @@ export function toUTF8(text: string | Buffer | Uint8Array | null | undefined | b
 
 export type noop = () => void;
 
-export const noop = () => {};
+export const noop = (): void => {};

@@ -60,7 +60,7 @@ export const isRootPath = (path: string): boolean => resolve(path) === "/";
 export const fixSlashes = (path: string): string => path.replace(WIN32_SEP_REGEX, "/");
 
 /** Returns true if the given path appears to be a relative path. */
-export const isRelative = (path: string) => !isAbsolute(path);
+export const isRelative = (path: string): boolean => !isAbsolute(path);
 
 /** Returns true if the given string or character code is the posix path separator '/' */
 export const isSep = (character: string | number | unknown): character is "/" | 47 =>

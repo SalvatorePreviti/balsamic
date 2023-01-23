@@ -27,14 +27,14 @@ export class Deferred<T = void> {
     fn?: ((this: Deferred<T>, resolve: (value: T) => void, reject: (error: unknown) => void) => void) | undefined,
   ) {
     this.promise = new Promise<T>((_resolve, _reject) => {
-      const resolve = (value: UnsafeAny) => {
+      const resolve = (value: UnsafeAny): void => {
         if (this.status === "pending") {
           this.status = "succeeded";
           this.result = value;
           _resolve(value);
         }
       };
-      const reject = (error: unknown) => {
+      const reject = (error: unknown): void => {
         if (this.status === "pending") {
           this.status = "rejected";
           _reject((this.error = devError(error, reject)));
@@ -47,22 +47,22 @@ export class Deferred<T = void> {
   }
 
   /** True if running */
-  public get isRunning() {
+  public get isRunning(): boolean {
     return this.status === "pending" || this.status === "starting";
   }
 
   /** True if completed, with or without errors */
-  public get isSettled() {
+  public get isSettled(): boolean {
     return this.status === "succeeded" || this.status === "rejected";
   }
 
   /** True if completed without errors */
-  public get isSucceeded() {
+  public get isSucceeded(): boolean {
     return this.status === "succeeded";
   }
 
   /** True if failed */
-  public get isRejected() {
+  public get isRejected(): boolean {
     return this.status === "rejected";
   }
 

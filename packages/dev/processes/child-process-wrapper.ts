@@ -191,7 +191,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     promise.childProcessWrapper = this;
     this._terminationPromise = promise;
 
-    const updateErrorProperties = (e: Error) => {
+    const updateErrorProperties = (e: Error): void => {
       const { exitCode, elapsed, title } = this;
       const time = millisecondsToString(elapsed);
       if (e === initialError) {
@@ -212,7 +212,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       devError.setProperty(e, "process_exitCode", exitCode);
     };
 
-    const setError = (e?: Error | undefined) => {
+    const setError = (e?: Error | undefined): void => {
       if (this._error) {
         return;
       }
@@ -234,7 +234,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
     const _captureStdout =
       captureOutputText && stdout
-        ? (data: string) => {
+        ? (data: string): void => {
             this.stdoutText += data;
           }
         : null;
@@ -243,12 +243,12 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       captureOutputText === "combined"
         ? _captureStdout
         : captureOutputText && stderr
-        ? (data: string) => {
+        ? (data: string): void => {
             this.stderrText += data;
           }
         : null;
 
-    const onClose = () => {
+    const onClose = (): void => {
       removeAbortRegistration();
 
       if (exited) {
@@ -310,7 +310,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
     const self = this;
 
-    function onError(e: Error) {
+    function onError(e: Error): void {
       removeAbortRegistration();
       if (!exited) {
         setError(e);
@@ -345,7 +345,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
         if (abortSignals.isAborted(abortSignal)) {
           onError(new AbortError());
         } else {
-          const abort = () => {
+          const abort = (): void => {
             onError(new AbortError());
           };
           removeAbortRegistration = abortSignals.addAbortHandler(abortSignal, abort);
@@ -363,7 +363,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     }
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
+  public async [ServicesRunner.serviceRunnerServiceSymbol](): Promise<void> {
     await this.promise();
   }
 
@@ -388,9 +388,9 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   public promise(): ChildProcessPromise<this> {
     let promise = this._promise;
     if (promise === null) {
-      const childProcessPromise = (resolve: (self: this) => void, reject: (e: unknown) => void) => {
+      const childProcessPromise = (resolve: (self: this) => void, reject: (e: unknown) => void): void => {
         let completed = false;
-        const terminated = (instance: this | Error) => {
+        const terminated = (instance: this | Error): void => {
           if (!completed) {
             completed = true;
             if (instance instanceof Error || !instance) {
@@ -441,22 +441,22 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** True if running */
-  public get isRunning() {
+  public get isRunning(): boolean {
     return this._timed.isRunning;
   }
 
   /** True if completed, with or without errors */
-  public get isSettled() {
+  public get isSettled(): boolean {
     return this._timed.isSettled;
   }
 
   /** True if completed without errors */
-  public get isSucceeded() {
+  public get isSucceeded(): boolean {
     return this._timed.isSucceeded;
   }
 
   /** True if failed */
-  public get isRejected() {
+  public get isRejected(): boolean {
     return this._timed.isRejected;
   }
 
@@ -585,7 +585,16 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     this._childProcess.unref();
   }
 
-  public toJSON() {
+  public toJSON(): {
+    class: string;
+    title: string;
+    exitCode: number | NodeJS.Signals | null;
+    time: string;
+    error: string | null;
+    status: Deferred.Status;
+    processTerminated: boolean;
+    killed: boolean;
+  } {
     return {
       class: this.constructor?.name || ChildProcessWrapper.name,
       title: this.title,
@@ -607,7 +616,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       return [];
     }
     const result: string[] = [];
-    const append = (array: readonly SpawnArg[], level: number) => {
+    const append = (array: readonly SpawnArg[], level: number): void => {
       for (const arg of array) {
         if (arg !== null && arg !== undefined && arg !== false) {
           if (isArray(arg)) {
@@ -629,10 +638,18 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     inputArgs: readonly SpawnArg[] | undefined,
     command: string,
     options: TOptions | null | undefined,
-  ) {
+  ): {
+    command: string;
+    args: string[];
+    opts: typeof ChildProcessWrapper.defaultSpawnOptions & TOptions;
+    signal: AbortSignal | undefined;
+  } {
     const args = ChildProcessWrapper.normalizeArgs(inputArgs);
     const cmd = [command, ...args].join(" ");
-    const opts = { ...ChildProcessWrapper.defaultSpawnOptions, ...options };
+    const opts = {
+      ...ChildProcessWrapper.defaultSpawnOptions,
+      ...options,
+    } as typeof ChildProcessWrapper.defaultSpawnOptions & TOptions;
 
     if (opts.stdio === undefined) {
       if (opts.captureOutputText) {
@@ -678,7 +695,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     command: string,
     inputArgs?: readonly SpawnArg[] | undefined,
     options?: SpawnOptions | null | undefined,
-  ) {
+  ): ChildProcessWrapper {
     const { args, opts, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, command, options);
     return new ChildProcessWrapper(
       () => {
@@ -695,7 +712,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Forks the node process that runs the given module, redirect stdio and await for completion. */
-  public static fork(moduleId: string, inputArgs?: readonly SpawnArg[] | undefined, options?: ForkOptions | null) {
+  public static fork(
+    moduleId: string,
+    inputArgs?: readonly SpawnArg[] | undefined,
+    options?: ForkOptions | null,
+  ): ChildProcessWrapper {
     const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
     return new ChildProcessWrapper(
       () => {
@@ -717,7 +738,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     executableId: string,
     inputArgs: readonly SpawnArg[] = [],
     options?: ForkOptions | undefined,
-  ) {
+  ): ChildProcessWrapper {
     options = { ...options };
     if (typeof options.title !== "string") {
       options = { ...options, title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId };
@@ -743,7 +764,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Executes npm run <command> [args] */
-  public static npmRun(command: string, args: readonly SpawnArg[] = [], options?: NpmSpawnOptions | undefined) {
+  public static npmRun(
+    command: string,
+    args: readonly SpawnArg[] = [],
+    options?: NpmSpawnOptions | undefined,
+  ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
     options = { title: `${packageManager} run ${command}`, ...options, packageManager };
     return ChildProcessWrapper.spawn(
@@ -754,7 +779,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   }
 
   /** Executes npm <command> [args] */
-  public static npmCommand(command: string, args: readonly SpawnArg[] = [], options?: NpmSpawnOptions | undefined) {
+  public static npmCommand(
+    command: string,
+    args: readonly SpawnArg[] = [],
+    options?: NpmSpawnOptions | undefined,
+  ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
     options = { title: `${packageManager} ${command}`, ...options, packageManager };
     return ChildProcessWrapper.spawn(
@@ -890,11 +919,11 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     this.childProcessWrapper.title = value;
   }
 
-  public promise() {
+  public promise(): ChildProcessPromise<ChildProcessWrapper> {
     return this.childProcessWrapper.promise();
   }
 
-  public terminationPromise() {
+  public terminationPromise(): ChildProcessPromise<ChildProcessWrapper> {
     return this.childProcessWrapper.terminationPromise();
   }
 
@@ -966,7 +995,16 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     return this.childProcessWrapper.unref();
   }
 
-  public toJSON() {
+  public toJSON(): {
+    class: string;
+    title: string;
+    exitCode: number | NodeJS.Signals | null;
+    time: string;
+    error: string | null;
+    status: Deferred.Status;
+    processTerminated: boolean;
+    killed: boolean;
+  } {
     return {
       ...this.childProcessWrapper.toJSON(),
       class: this.constructor?.name || ChildProcessPromise.name,
@@ -1017,7 +1055,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
     return result;
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol]() {
+  public async [ServicesRunner.serviceRunnerServiceSymbol](): Promise<void> {
     await this;
   }
 }
@@ -1025,7 +1063,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
 function _sanitizeOptions(
   options: ChildProcessWrapper.Options,
   defaultOptions: Omit<ChildProcessWrapper.Options, "title" | "caller">,
-) {
+): ChildProcessWrapper.Options {
   if (options.showStack === undefined && defaultOptions.showStack !== undefined) {
     options.showStack = defaultOptions.showStack;
   }

@@ -1,4 +1,4 @@
-import type { TermColor } from "../colors";
+import type { Chalk, TermColor } from "../colors";
 import { stripColors } from "../colors";
 import { devLog } from "./dev-log";
 import type { DevLogStream } from "./dev-log-stream";
@@ -23,7 +23,7 @@ export class TermBox {
   public output: DevLogStream;
   private _rows: (string | symbol)[] = [];
 
-  public get colors() {
+  public get colors(): Chalk {
     return this.output.colors;
   }
 
@@ -32,17 +32,17 @@ export class TermBox {
     this.output = options.output || devLog;
   }
 
-  public writeln(text: string | undefined = "") {
+  public writeln(text: string | undefined = ""): this {
     this._rows.push(...`${text}`.split("\n"));
     return this;
   }
 
-  public hr() {
+  public hr(): this {
     this._rows.push(hrSym);
     return this;
   }
 
-  public hr2() {
+  public hr2(): this {
     this._rows.push(hr2Sym);
     return this;
   }

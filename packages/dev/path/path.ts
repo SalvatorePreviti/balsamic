@@ -157,7 +157,7 @@ export const {
 export function makePathRelative(
   filePath: string | null | undefined,
   cwdOrOptions?: { cwd?: string; startDot?: boolean } | string | undefined | null,
-) {
+): string {
   if (!filePath) {
     return "./";
   }

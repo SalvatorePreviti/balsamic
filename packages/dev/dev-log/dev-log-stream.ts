@@ -61,7 +61,7 @@ export class DevLogStream {
     this._isTerm = this.isTerm;
   }
 
-  public get isTerm() {
+  public get isTerm(): boolean {
     return this._isTerm ?? (this.colors.level >= 2 && !isCI() && this.stream.isTTY);
   }
 
@@ -69,12 +69,12 @@ export class DevLogStream {
     this._isTerm = value;
   }
 
-  public getColor(color: TermColor | null | undefined) {
+  public getColor(color: TermColor | null | undefined): _colors.Chalk {
     return this.colors.level > 0 ? _getColor(color) : _colors_disabled;
   }
 
   /** Clears the screen */
-  public clearScreen(dir: "down" | "full" | boolean | undefined) {
+  public clearScreen(dir: "down" | "full" | boolean | undefined): void {
     if (this.isTerm) {
       if (dir === "down") {
         this.stream.clearScreenDown();
@@ -87,7 +87,7 @@ export class DevLogStream {
   }
 
   /** Clears the current line in direction identified by `direction`. */
-  public clearLine(direction: -1 | 0 | 1) {
+  public clearLine(direction: -1 | 0 | 1): void {
     if (this.isTerm) {
       this.stream.clearLine(direction);
     }
@@ -222,7 +222,7 @@ export class DevLogStream {
     max?: number | undefined;
     width?: number | undefined;
     label?: string | false | undefined;
-  }) {
+  }): void {
     label = label ? `${label} ` : "";
     const columns = this.isTerm ? this.stream.columns : 0;
     let s = label ? this.getColor("info")(label) : "";
@@ -248,7 +248,7 @@ export class DevLogStream {
     this.writeln(s);
   }
 
-  public greetings(title: string = "GREETINGS PROFESSOR FALKEN.") {
+  public greetings(title: string = "GREETINGS PROFESSOR FALKEN."): void {
     this.hr(this.colors.rgb(115, 100, 255));
     this.writeln(this.colors.rgb(80, 220, 255).bold(title));
     this.hr(this.colors.rgb(115, 100, 255));
@@ -267,7 +267,7 @@ export class DevLogStream {
     this.write(`${text}\n`);
   }
 
-  private _rgbColorFromValue(value: number) {
+  private _rgbColorFromValue(value: number): _colors.Chalk {
     const g = Math.max(0, Math.min(190, 245 - Math.floor(value * 255) + 40));
     const r = Math.max(0, Math.min(255, Math.round(value * 255 + 110)));
     return this.colors.rgb(r, g, 35);

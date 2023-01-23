@@ -2,7 +2,7 @@ const { isArray } = Array;
 const { keys: objectKeys } = Object;
 const { defineProperty, getPrototypeOf, getOwnPropertyDescriptor } = Reflect;
 
-export function hasOwnProp(object: unknown, name: string) {
+export function hasOwnProp(object: unknown, name: string): boolean {
   return typeof object === "object" && object !== null && Object.prototype.hasOwnProperty.call(object, name);
 }
 
@@ -18,7 +18,7 @@ export function bindProtoFunctions(
     enumerable?: boolean | undefined;
     ignoreSet?: Set<string> | undefined;
   } = {},
-) {
+): void {
   const keys = new Set<string>();
 
   for (let p = getPrototypeOf(instance); p && p !== Object.prototype; p = getPrototypeOf(p)) {
@@ -95,7 +95,7 @@ export function sortObjectKeys<T>(input: T, options?: sortObjectKeys.Options): T
   return _sortObjectKeys(new Map<unknown, unknown>(), input, !!options?.sortArrays) as T;
 }
 
-function _sortObjectKeys(processed: Map<unknown, unknown>, o: unknown, sortArrays: boolean) {
+function _sortObjectKeys(processed: Map<unknown, unknown>, o: unknown, sortArrays: boolean): unknown {
   if (typeof o !== "object" || o === null) {
     return o;
   }
@@ -119,7 +119,7 @@ function _sortObjectKeys(processed: Map<unknown, unknown>, o: unknown, sortArray
   return result;
 }
 
-function _deepClone(processed: Map<unknown, unknown>, o: unknown) {
+function _deepClone(processed: Map<unknown, unknown>, o: unknown): unknown {
   if (typeof o !== "object" || o === null) {
     return o;
   }

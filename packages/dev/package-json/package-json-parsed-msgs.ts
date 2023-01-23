@@ -93,7 +93,7 @@ export class PackageJsonParseMessages {
     if (err.field || err.message) {
       const errField = err.field;
       const errMsg = err.message;
-      const hasErr = (e: PackageJsonParseMessage) => e.field === errField && e.message === errMsg;
+      const hasErr = (e: PackageJsonParseMessage): boolean => e.field === errField && e.message === errMsg;
       const found = this.errors.find(hasErr) || this.warnings.find(hasErr) || this.informations.find(hasErr);
       if (found) {
         if (found.severity === err.severity) {
@@ -128,7 +128,7 @@ export class PackageJsonParseMessages {
     }
   }
 
-  public clear() {
+  public clear(): void {
     this.errors.length = 0;
     this.warnings.length = 0;
     this.informations.length = 0;

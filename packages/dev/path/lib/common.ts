@@ -46,7 +46,7 @@ export interface NodePackageName {
 
 export const _simpleJoin = (
   parts: ((string | number | false | null | undefined)[] | string | number | false | null | undefined)[],
-) => {
+): string => {
   let result = "";
   for (let i = 0, len = parts.length; i < len; ++i) {
     const path = parts[i];
@@ -81,6 +81,6 @@ const WHITESPACE_ENCODINGS: Record<string, string> = {
   "\u0020": "%20",
 };
 
-const _encodeWhitespaceChar = (c: string) => WHITESPACE_ENCODINGS[c] || c;
+const _encodeWhitespaceChar = (c: string): string => WHITESPACE_ENCODINGS[c] || c;
 
 export const _encodeWhitespace = (s: string): string => s.replace(/[\s]/g, _encodeWhitespaceChar);

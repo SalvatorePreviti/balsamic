@@ -17,7 +17,7 @@ const private_env = Symbol("env");
 export let devEnv: DevEnv;
 
 /** Returns true if running inside continuous integration pipeline */
-export function isCI() {
+export function isCI(): boolean {
   return devEnv.isCI;
 }
 
@@ -136,7 +136,7 @@ export class DevEnv {
     return this[private_processTitle] !== undefined;
   }
 
-  public [util.inspect.custom]() {
+  public [util.inspect.custom](): string {
     return this.constructor.name;
   }
 
@@ -206,7 +206,7 @@ function _extrapolateProcessTitle(
     | { filename?: string | undefined; id?: string | undefined; path?: string | undefined }
     | null
     | undefined,
-) {
+): string | undefined {
   if (typeof value === "object" && value !== null) {
     let fname = value.filename;
     if (typeof fname !== "string" || !fname) {

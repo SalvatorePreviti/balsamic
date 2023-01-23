@@ -46,7 +46,7 @@ export async function runParallel(...functionsOrPromises: unknown[]): Promise<vo
   const promises: Promise<void>[] = [];
 
   let error: UnsafeAny;
-  const handlePromise = async (p: UnsafeAny) => {
+  const handlePromise = async (p: UnsafeAny): Promise<void> => {
     try {
       if (typeof p === "function") {
         const signal = abortSignals.getSignal();

@@ -95,7 +95,7 @@ export class PackageJsonParsed {
   ): string {
     const { colors = false, workspaces = true } = options;
     let result = "";
-    const append = (self: PackageJsonParsed) => {
+    const append = (self: PackageJsonParsed): void => {
       let msgs = self.validation.toFormattedString({ ...options, workspaces: false, indent: "  " });
       if (msgs.length > 0) {
         const name = (self.filePath && makePathRelative(self.filePath)) || this.content.name;
@@ -130,7 +130,7 @@ export class PackageJsonParsed {
     for (const workspace of workspaces) {
       workspaceNames.add(workspace.content.name);
     }
-    const addDependency = (pkg: PackageJsonParsed, field: string, name: string, version: string) => {
+    const addDependency = (pkg: PackageJsonParsed, field: string, name: string, version: string): void => {
       const found = deps.get(name);
       if (found === undefined) {
         deps.set(name, { pkg, version });
@@ -396,7 +396,7 @@ function _readPackageJsonFromFile(
   },
   packageJson: unknown,
   result: PackageJsonParsed,
-) {
+): unknown {
   let fileContent: string | undefined;
   try {
     filePath = path.resolve(filePath);
@@ -564,7 +564,7 @@ function _npmNormalizePackageJson(
   return { content: content as PackageJson.Sanitized, packageNameAndVersion, readme };
 }
 
-function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined) {
+function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined): PackageJsonParseMessage | undefined {
   if (typeof msg !== "string" || !msg) {
     return undefined;
   }
@@ -817,7 +817,7 @@ function _workspaceProcessMatch(
   seen: Map<string, Set<string>>,
   pkg: PackageJsonParsed,
   pattern: { pattern: string; negate: boolean },
-) {
+): void {
   // Implementation based on https://github.com/npm/map-workspaces
   const name = (pkg.content as PackageJson).name || pkg.filePath;
   if (name) {
@@ -834,13 +834,19 @@ function _workspaceProcessMatch(
   }
 }
 
+interface WorkspacePattern {
+  pattern: string;
+  negate: boolean;
+  index: number;
+}
+
 function _workspaceGetPatterns(
   workspaces: string[] | PackageJson.WorkspaceConfig | undefined,
   pnpmWorkspaces: unknown,
-) {
+): WorkspacePattern[] {
   // Implementation based on https://github.com/npm/map-workspaces
 
-  const results = [];
+  const results: WorkspacePattern[] = [];
   const patterns = workspaces
     ? isArray(workspaces)
       ? workspaces

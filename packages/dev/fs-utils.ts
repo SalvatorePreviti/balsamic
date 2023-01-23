@@ -77,21 +77,19 @@ export async function try_lstat(
 }
 
 /** Check if a path exists */
-export async function try_access(p: PathLike, mode?: number) {
+export async function try_access(p: PathLike, mode?: number): Promise<boolean> {
   try {
     await fs.promises.access(p, mode);
     return true;
-  } catch {
-    return false;
-  }
+  } catch {}
+  return false;
 }
 
 /** Check if a path exists */
-export function try_accessSync(p: PathLike, mode?: number) {
+export function try_accessSync(p: PathLike, mode?: number): boolean {
   try {
     fs.accessSync(p, mode);
     return true;
-  } catch {
-    return false;
-  }
+  } catch {}
+  return false;
 }

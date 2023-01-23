@@ -64,7 +64,7 @@ export class DevLog extends DevLogStream {
     let _spinInterval: IntervalType | null = null;
     let _spinCounter = 0;
 
-    const _spinnerDraw = () => {
+    const _spinnerDraw = (): void => {
       const entry = _spinStack![_spinStack!.length - 1];
       if (entry) {
         try {
@@ -215,9 +215,9 @@ export class DevLog extends DevLogStream {
   }
 
   /** Asks the user to input Yes or No */
-  public askConfirmation(confirmationMessage: string, defaultValue: boolean) {
+  public askConfirmation(confirmationMessage: string, defaultValue: boolean): Promise<boolean> {
     if (!process.stdin || !this.isTerm) {
-      return true;
+      return Promise.resolve(true);
     }
     return new Promise((resolve) => {
       const rl = readline.createInterface(process.stdin, this.stream as UnsafeAny);
@@ -316,7 +316,7 @@ export class DevLog extends DevLogStream {
     return showStack;
   }
 
-  public logOperationStart(title: string, options: DevLogTimedOptions = { printStarted: true }) {
+  public logOperationStart(title: string, options: DevLogTimedOptions = { printStarted: true }): void {
     let { timed: isTimed, printStarted } = options;
     if (isTimed === undefined) {
       isTimed = true;
@@ -338,7 +338,7 @@ export class DevLog extends DevLogStream {
     options: DevLogTimedOptions = { printStarted: true },
     elapsed?: number | undefined | null,
     successText?: string | undefined,
-  ) {
+  ): void {
     let { timed: isTimed, printStarted, spinner } = options;
     if (isTimed === undefined) {
       isTimed = !!elapsed;
@@ -383,7 +383,7 @@ export class DevLog extends DevLogStream {
     exception: unknown,
     options: DevLogTimedOptions = { logError: true },
     elapsed?: number | undefined,
-  ) {
+  ): void {
     let { timed: isTimed, logError } = options;
     if (logError === undefined) {
       logError = true;
@@ -530,7 +530,7 @@ export class DevLog extends DevLogStream {
     fn: (this: DevLogTimedContext, ctx: DevLogTimedContext) => R,
     options?: DevLogTimedOptions | undefined,
   ) {
-    return () => this.timed(title, fn, options);
+    return (): R => this.timed(title, fn, options);
   }
 
   public termBox(options?: TermBox.Options): TermBox {

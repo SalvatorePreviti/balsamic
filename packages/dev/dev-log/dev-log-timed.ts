@@ -37,17 +37,17 @@ export class DevLogTimed extends ElapsedTime {
   }
 
   /** True if completed, with or without errors */
-  public get isSettled() {
+  public get isSettled(): boolean {
     return this.status === "succeeded" || this.status === "rejected";
   }
 
   /** True if completed without errors */
-  public get isSucceeded() {
+  public get isSucceeded(): boolean {
     return this.status === "succeeded";
   }
 
   /** True if failed */
-  public get isRejected() {
+  public get isRejected(): boolean {
     return this.status === "rejected";
   }
 
@@ -132,17 +132,17 @@ export class DevLogTimedContext {
   }
 
   /** True if completed, with or without errors */
-  public get isSettled() {
+  public get isSettled(): boolean {
     return this[private_devLogTimed].isSettled;
   }
 
   /** True if completed without errors */
-  public get isSucceeded() {
+  public get isSucceeded(): boolean {
     return this[private_devLogTimed].isSucceeded;
   }
 
   /** True if failed */
-  public get isRejected() {
+  public get isRejected(): boolean {
     return this[private_devLogTimed].isRejected;
   }
 

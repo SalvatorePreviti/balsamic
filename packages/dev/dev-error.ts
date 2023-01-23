@@ -17,7 +17,7 @@ export function devError<TError, TFields extends {}>(
 ): (TError extends Error ? TError : Error) & TFields;
 
 /** Fixes an error, the return value is always an Error instance */
-export function devError(error?: unknown | undefined, a?: unknown | undefined, b?: unknown | undefined | null) {
+export function devError(error?: unknown | undefined, a?: unknown | undefined, b?: unknown | undefined | null): Error {
   try {
     if (!(error instanceof Error)) {
       if (typeof error === "object" && error !== null) {
@@ -63,7 +63,7 @@ export function devError(error?: unknown | undefined, a?: unknown | undefined, b
     hideProperty(error, "config");
   } catch {}
 
-  return error;
+  return error as Error;
 }
 
 defineProperty(devError, "prototype", { value: Error, configurable: true, writable: true });

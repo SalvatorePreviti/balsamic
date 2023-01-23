@@ -109,7 +109,7 @@ export abstract class NodeFsEntry {
     return this.nodeResolve(`${moduleId}/${executableId || moduleId}`);
   }
 
-  public toString() {
+  public toString(): string {
     return this.path;
   }
 }
@@ -433,7 +433,7 @@ export class NodeResolver {
     return result;
   }
 
-  public clear() {
+  public clear(): void {
     this._projectDirectory = undefined;
     this._projectPackageJson = undefined;
     this._entries.clear();
@@ -575,7 +575,7 @@ export class WorkspaceNodeResolver extends NodeResolver {
     this._packageManager = value;
   }
 
-  public override clear() {
+  public override clear(): void {
     this._packageManager = undefined;
     super.clear();
   }

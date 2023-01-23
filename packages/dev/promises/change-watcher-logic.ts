@@ -97,7 +97,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
           : new ServicesRunner(optionsBuildRunner)
         : new ServicesRunner();
 
-    this._runBuild = async () => {
+    this._runBuild = async (): Promise<void> => {
       if (this._fileChangeDebounceTimer) {
         clearTimeout(this._fileChangeDebounceTimer);
         this._fileChangeDebounceTimer = null;
@@ -108,7 +108,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
       }
 
       if (this._building) {
-        const debouncedBuild = () => {
+        const debouncedBuild = (): void => {
           this._buildingPromise = this._buildingPromise?.then(this._runBuild, this._runBuild) ?? this._runBuild();
         };
 
@@ -235,7 +235,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
   }
 
   /** Notifies something changed and buildFunction need to execute again. */
-  public notify(options?: { debounceTimer?: number | undefined } | undefined) {
+  public notify(options?: { debounceTimer?: number | undefined } | undefined): void {
     if (this._closePromise) {
       return;
     }
@@ -265,7 +265,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
       clearTimeout(this._fileChangeDebounceTimer);
     }
 
-    const debouncedBuild = () => {
+    const debouncedBuild = (): void => {
       this._buildingPromise = this._buildingPromise?.then(this._runBuild, this._runBuild) ?? this._runBuild();
     };
 
@@ -274,7 +274,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
 
   public close(): Promise<void> {
     if (!this._closePromise) {
-      const doStop = async () => {
+      const doStop = async (): Promise<void> => {
         this._removeInitialSignalHandler();
         this._removeInitialSignalHandler = noop;
         if (this._fileChangeDebounceTimer) {
@@ -300,7 +300,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
     return this._closePromise;
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner) {
+  public async [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner): Promise<void> {
     const removeAbortHandler = !this.closed && runner.addAbortHandler(this);
     try {
       await this.awaitFirstBuild();

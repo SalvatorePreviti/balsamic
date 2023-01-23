@@ -7,6 +7,12 @@
         "no-console": 0,
         "global-require": 0
       }
+    },
+    {
+      "files": ["packages/dev/**/*"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": "error"
+      }
     }
   ]
 }

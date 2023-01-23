@@ -162,7 +162,7 @@ export class ServicesRunner implements AbortController {
    * If the handler was not added, the function noop() will be returned.
    * You can check for equality with noop function to check if the handler was not added.
    */
-  public addAbortHandler(handler: abortSignals.AddAbortAsyncHandlerArg | null | undefined | false | void) {
+  public addAbortHandler(handler: abortSignals.AddAbortAsyncHandlerArg | null | undefined | false | void): () => void {
     return abortSignals.addAsyncAbortHandler(this.signal, handler);
   }
 
@@ -171,7 +171,7 @@ export class ServicesRunner implements AbortController {
    */
   public removeAbortHandler(
     handler: abortSignals.AddAbortAsyncHandlerArg | abortSignals.AddAbortHandlerArg | null | undefined | false | void,
-  ) {
+  ): void {
     return abortSignals.removeAbortHandler(this.signal, handler);
   }
 
@@ -209,14 +209,14 @@ export class ServicesRunner implements AbortController {
     }
     title = `${title}`;
 
-    const runService = async () => {
+    const runService = async (): Promise<Error | null> => {
       const abortOnServiceTermination = options?.abortOnServiceTermination ?? this.abortOnServiceTermination;
       let error = null;
 
       try {
         if (ServicesRunner.isServiceRunnerService(fnOrPromise)) {
           const svc = fnOrPromise;
-          fnOrPromise = () => svc[ServicesRunner.serviceRunnerServiceSymbol](this);
+          fnOrPromise = (): void | Promise<void> => svc[ServicesRunner.serviceRunnerServiceSymbol](this);
         }
 
         if (typeof fnOrPromise === "function") {
@@ -225,7 +225,7 @@ export class ServicesRunner implements AbortController {
           }
 
           const fn = fnOrPromise;
-          const _runService = async () => {
+          const _runService = async (): Promise<unknown> => {
             const result = await fn.call(this);
             return ServicesRunner.isServiceRunnerService(result)
               ? result[ServicesRunner.serviceRunnerServiceSymbol](this)
@@ -322,7 +322,7 @@ export class ServicesRunner implements AbortController {
         }
         let error: Error | null = null;
         try {
-          await promise;
+          await (promise as unknown);
         } catch (e) {
           error = devError(e);
         }
@@ -374,7 +374,7 @@ export class ServicesRunner implements AbortController {
     let promise: Promise<T> | undefined;
     let error: null | Error = null;
 
-    const run = async () => {
+    const run = async (): Promise<T> => {
       const abortOnError = options.abortOnError ?? true;
       const terminationRegistered =
         options.registerProcessTermination ?? abortSignals.processTerminationOptions.registerProcessTerminationDuringRun

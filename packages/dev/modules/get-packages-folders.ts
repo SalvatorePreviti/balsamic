@@ -78,7 +78,7 @@ export function getPackagesFolders(
   const filter = options.filter;
   const canIncludePackage = (pkg: NodePackageJson): boolean => !exclusion.has(pkg) && (!filter || filter(pkg));
 
-  const enqueueDependency = (parent: NodePackageJson, id: string) => {
+  const enqueueDependency = (parent: NodePackageJson, id: string): void => {
     const dir = parent.file.parentDirectory;
     const key = `${dir.path}\t${id}`;
     if (!queueEntries.has(key)) {
@@ -92,7 +92,7 @@ export function getPackagesFolders(
     }
   };
 
-  const enqueueDependencies = (parent: NodePackageJson, entries: Record<string, unknown> | undefined | false) => {
+  const enqueueDependencies = (parent: NodePackageJson, entries: Record<string, unknown> | undefined | false): void => {
     if (typeof entries === "object" && entries !== null && !Array.isArray(entries)) {
       for (const key of Object.keys(entries).sort()) {
         enqueueDependency(parent, key);
@@ -100,7 +100,7 @@ export function getPackagesFolders(
     }
   };
 
-  const enqueuePackage = (pkg: NodePackageJson, level: number) => {
+  const enqueuePackage = (pkg: NodePackageJson, level: number): void => {
     const oldLevel = packagesLevels.get(pkg);
     if (oldLevel === undefined) {
       packagesLevels.set(pkg, level);
@@ -115,7 +115,7 @@ export function getPackagesFolders(
     }
   };
 
-  const addInput = (inputItem: string | Readonly<PackagesFolderInput>) => {
+  const addInput = (inputItem: string | Readonly<PackagesFolderInput>): void => {
     if (typeof inputItem === "string") {
       inputItem = { path: inputItem };
     }

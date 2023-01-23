@@ -151,7 +151,7 @@ export function numberFixedTrunc(
   return parseFloat(value.toLocaleString("en", options).slice(0, -1)) + 0; // +0 is required to handle +0 and -0
 }
 
-function _toNumber(value: number | bigint | string | boolean | null | undefined) {
+function _toNumber(value: number | bigint | string | boolean | null | undefined): number {
   const n = +(value as number) + 0; // (+val+0) is required to handle NaN, +0 and -0.
   if (n === 0) {
     return 0;
