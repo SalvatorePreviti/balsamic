@@ -259,21 +259,12 @@ export class NodeDirectory extends NodeFsEntry {
   }
 }
 
-export class NodePackageJsonWorkspace {
-  public readonly root: NodePackageJson;
-  public children: NodePackageJson[];
-
-  public constructor(root: NodePackageJson) {
-    this.root = root;
-    this.children = [];
-  }
-}
-
 export class NodePackageJson {
   private _manifest: PackageJson | undefined = undefined;
   private _packageName: string | undefined = undefined;
   private _validationResult: PackageJsonParsed | undefined = undefined;
-  private _workspaceChildren: NodePackageJsonWorkspace | undefined = undefined;
+  private _workspaceChildren: NodePackageJson[] | undefined = undefined;
+  private _isWorkspaceChild: boolean = false;
 
   /** The NodeFile instance of this package.json file */
   public readonly file: NodeFile;
@@ -286,8 +277,13 @@ export class NodePackageJson {
     this.file = file;
   }
 
-  public get workspaceChildren(): NodePackageJsonWorkspace {
-    return this._workspaceChildren || (this._workspaceChildren = new NodePackageJsonWorkspace(this));
+  public get workspaceChildren(): NodePackageJson[] {
+    const result = this._workspaceChildren;
+    if (result) {
+      return result;
+    }
+    this.loadValidationResult();
+    return this._workspaceChildren!;
   }
 
   /** Gets the name of this package */
@@ -310,26 +306,30 @@ export class NodePackageJson {
   }
 
   public get validationResult(): PackageJsonParsed {
+    return this._validationResult || this.loadValidationResult();
+  }
+
+  protected loadValidationResult(): PackageJsonParsed {
     let result = this._validationResult;
     if (!result) {
+      const workspaceChildren: NodePackageJson[] = [];
       result = PackageJsonParsed.fromContent(this.manifest, {
         filePath: this.file.path,
         parseFromJSON: false,
         strict: true,
-        loadWorkspaces: false,
+        loadWorkspaces: !this._isWorkspaceChild,
         onLoadWorkspaceChildProjectSync: (filePath: string) => {
           const file = filePath.endsWith("package.json") && this.file.resolver.getFile(filePath);
           const childPkg = file && file.packageJson;
           if (childPkg && childPkg !== this) {
-            const v = childPkg.validationResult;
-            if (v.workspaces.length === 0) {
-              return v;
-            }
-            return PackageJsonParsed.fromContent(childPkg.manifest, { filePath, strict: true, loadWorkspaces: false });
+            childPkg._isWorkspaceChild = true;
+            workspaceChildren.push(childPkg);
+            return childPkg.validationResult;
           }
           return PackageJsonParsed.readSync(filePath, { strict: true, loadWorkspaces: false });
         },
       });
+      this._workspaceChildren = workspaceChildren;
       this._validationResult = result;
     }
     return result;
@@ -540,7 +540,7 @@ export class NodeResolver {
 export class WorkspaceNodeResolver extends NodeResolver {
   private _packageManager: PackageManager | undefined;
 
-  public get workspaceChildren(): NodePackageJsonWorkspace {
+  public get workspaceChildren(): NodePackageJson[] {
     return this.projectPackageJson.workspaceChildren;
   }
 
@@ -599,7 +599,7 @@ export class WorkspaceNodeResolver extends NodeResolver {
         return found;
       }
     }
-    for (const workspace of this.workspaceChildren.children) {
+    for (const workspace of this.workspaceChildren) {
       const found = workspace.directory.resolvePackageBin(moduleId, executableId);
       if (found) {
         return found;
@@ -623,7 +623,7 @@ export class WorkspaceNodeResolver extends NodeResolver {
         return found;
       }
     }
-    for (const workspace of this.workspaceChildren.children) {
+    for (const workspace of this.workspaceChildren) {
       const found = workspace.directory.nodeResolve(id);
       if (found) {
         return found;
@@ -647,7 +647,7 @@ export class WorkspaceNodeResolver extends NodeResolver {
         return found;
       }
     }
-    for (const workspace of this.workspaceChildren.children) {
+    for (const workspace of this.workspaceChildren) {
       const found = workspace.directory.resolvePackage(id);
       if (found) {
         return found;
