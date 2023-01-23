@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type {
   CreateNodeOptions,
   DocumentOptions,
@@ -13,6 +14,8 @@ import { parse } from "yaml";
 import fs from "fs";
 
 export * from "yaml";
+
+export { CreateNodeOptions, DocumentOptions, ParseOptions, SchemaOptions, ToJSOptions, ToStringOptions };
 
 export type Reviver = (key: unknown, value: unknown) => unknown;
 

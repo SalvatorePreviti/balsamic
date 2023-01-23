@@ -13,7 +13,7 @@ import { makePathRelative } from "../path";
 import type { PackageJsonParseMessageSeverity } from "./package-json-parsed-msgs";
 import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
 import { getColor } from "../colors";
-import { try_readFileSync as try_readYamlFileSync, try_readFile as try_readYamlFile } from "../yaml";
+import { try_readFileSync as try_readYamlFileSync, try_readFile as try_readYamlFile } from "../_yaml";
 import { deepClone } from "../plain-objects";
 
 const { isArray } = Array;

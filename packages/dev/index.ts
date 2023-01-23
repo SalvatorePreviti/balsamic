@@ -8,8 +8,6 @@ export * as ajv from "ajv";
 
 export { default as glob } from "fast-glob";
 
-export * as YAML from "./yaml";
-
 export * as plainObjects from "./plain-objects";
 
 export * from "./dev-env";
@@ -53,3 +51,5 @@ export * from "./net/net";
 export * from "./fs";
 
 export * from "./main";
+
+export * as YAML from "./_yaml";
