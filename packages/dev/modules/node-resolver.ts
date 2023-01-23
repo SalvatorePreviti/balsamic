@@ -8,6 +8,7 @@ import { toUTF8 } from "../utils/utils";
 import { PackageJsonParsed } from "../package-json/package-json-parsed";
 import type { UnsafeAny } from "../types";
 import { fsUtils } from "../fs";
+import { path as appRootPath } from "app-root-path";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;
@@ -277,6 +278,10 @@ export class NodePackageJson {
   /** The NodeFile instance of this package.json file */
   public readonly file: NodeFile;
 
+  public get directory(): NodeDirectory {
+    return this.file.parentDirectory;
+  }
+
   public constructor(file: NodeFile) {
     this.file = file;
   }
@@ -365,7 +370,7 @@ export class NodePackageJson {
           mod.paths = [path.dirname(filePath)];
           cache[filePath] = mod;
         }
-      } catch {}
+      } catch (_) {}
     }
     return typeof manifest === "object" && manifest !== null && !Array.isArray(manifest) ? manifest : {};
   }
@@ -378,6 +383,7 @@ export class NodeResolver {
   private _projectPath: string;
   private _requireCache: Record<string, NodeModule> | null = (Module as UnsafeAny)._cache || null;
   private _projectDirectory: NodeDirectory | null | undefined = undefined;
+  private _projectPackageJson: NodePackageJson | undefined = undefined;
 
   public constructor(cwd: string) {
     this._projectPath = path.resolve(cwd || process.cwd());
@@ -403,17 +409,33 @@ export class NodeResolver {
     this._projectPath = directory ? directory.path : value;
   }
 
-  public get projectPackageJson(): NodePackageJson | null {
-    const dir = this.projectDirectory;
-    return dir ? dir.packageJson : null;
+  public get projectDirectory(): NodeDirectory {
+    return (
+      this._projectDirectory ||
+      (this._projectDirectory =
+        this.getDirectory(this.projectPath) ||
+        new NodeDirectory(this, undefined, this.projectPath, path.basename(this.projectPath), undefined))
+    );
   }
 
-  public get projectDirectory(): NodeDirectory | null {
-    return this._projectDirectory || (this._projectDirectory = this.getDirectory(this.projectPath));
+  public get projectPackageJson(): NodePackageJson {
+    let result = this._projectPackageJson;
+    if (result) {
+      return result;
+    }
+    const dir = this.projectDirectory;
+    result =
+      dir.packageJson ||
+      new NodePackageJson(
+        new NodeFile(dir, path.resolve(dir.directoryPath, "package.json"), "package.json", undefined),
+      );
+    this._projectPackageJson = result;
+    return result;
   }
 
   public clear() {
     this._projectDirectory = undefined;
+    this._projectPackageJson = undefined;
     this._entries.clear();
   }
 
@@ -518,15 +540,17 @@ export class NodeResolver {
 export class WorkspaceNodeResolver extends NodeResolver {
   private _packageManager: PackageManager | undefined;
 
+  public get workspaceChildren(): NodePackageJsonWorkspace {
+    return this.projectPackageJson.workspaceChildren;
+  }
+
   public get packageManager(): PackageManager {
     let result = this._packageManager;
     if (result === undefined) {
       const packageJson = this.projectPackageJson;
-      if (packageJson) {
-        const packageJsonPackageManager = packageJson.manifest.packageManager;
-        if (packageJsonPackageManager && Object.values(PackageManager).includes(packageJsonPackageManager)) {
-          result = packageJsonPackageManager;
-        }
+      const packageJsonPackageManager = packageJson.manifest.packageManager;
+      if (packageJsonPackageManager && Object.values(PackageManager).includes(packageJsonPackageManager)) {
+        result = packageJsonPackageManager;
       }
       if (!result) {
         const projectPath = this.projectPath;
@@ -550,6 +574,87 @@ export class WorkspaceNodeResolver extends NodeResolver {
   public set packageManager(value: PackageManager | undefined) {
     this._packageManager = value;
   }
+
+  public override clear() {
+    this._packageManager = undefined;
+    super.clear();
+  }
+
+  /** Resolves the bin executable of a package. It includes workspace packages. */
+  public override resolvePackageBin(
+    moduleId: string,
+    executableId?: string | undefined,
+    cwd?: string | URL | null | undefined,
+  ): string | null {
+    const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory;
+    if (directory) {
+      const found = directory.resolvePackageBin(moduleId, executableId);
+      if (found) {
+        return found;
+      }
+    }
+    if (directory !== this.projectDirectory) {
+      const found = this.projectDirectory.resolvePackageBin(moduleId, executableId);
+      if (found) {
+        return found;
+      }
+    }
+    for (const workspace of this.workspaceChildren.children) {
+      const found = workspace.directory.resolvePackageBin(moduleId, executableId);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /** Resolve the path of commonJS module from the given directory. It includes workspace packages. */
+  public override resolveCommonJS(id: string, cwd?: string | URL | null | undefined): string | null {
+    const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory;
+    if (directory) {
+      const found = directory.nodeResolve(id);
+      if (found) {
+        return found;
+      }
+    }
+    if (directory !== this.projectDirectory) {
+      const found = this.projectDirectory.nodeResolve(id);
+      if (found) {
+        return found;
+      }
+    }
+    for (const workspace of this.workspaceChildren.children) {
+      const found = workspace.directory.nodeResolve(id);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /** Resolves a module package.json from this directory. Returns null if a package is not found. It includes workspace packages. */
+  public override resolvePackage(id: string, cwd?: string | URL | null | undefined): NodePackageJson | null {
+    const directory = cwd ? this.getDirectory(cwd) : this.projectDirectory;
+    if (directory) {
+      const found = directory.resolvePackage(id);
+      if (found) {
+        return found;
+      }
+    }
+    if (directory !== this.projectDirectory) {
+      const found = this.projectDirectory.resolvePackage(id);
+      if (found) {
+        return found;
+      }
+    }
+    for (const workspace of this.workspaceChildren.children) {
+      const found = workspace.directory.resolvePackage(id);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
 }
 
-NodeResolver.workspaceRoot = new WorkspaceNodeResolver(require("app-root-path").path || process.cwd());
+NodeResolver.workspaceRoot = new WorkspaceNodeResolver(appRootPath);

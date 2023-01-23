@@ -1,6 +1,6 @@
 import { builtinModules } from "node:module";
 import path from "node:path";
-import { plainObjects } from "../utils/plain-objects";
+import { plainObjects } from "../plain-objects";
 
 const { isArray } = Array;
 const { keys: objectKeys } = Object;

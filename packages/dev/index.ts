@@ -8,17 +8,17 @@ export * as ajv from "ajv";
 
 export { default as glob } from "fast-glob";
 
+export * as YAML from "./yaml";
+
+export * as plainObjects from "./plain-objects";
+
 export * from "./dev-env";
 
 export * from "./colors";
 
 export * from "./elapsed-time";
 
-export * from "./utils/utils";
-
-export * from "./utils/number-fixed";
-
-export * from "./utils/plain-objects";
+export * from "./utils";
 
 export * from "./promises/promises";
 

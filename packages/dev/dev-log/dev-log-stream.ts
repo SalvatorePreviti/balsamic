@@ -5,8 +5,8 @@ import type { DevEnv } from "../dev-env";
 import { devEnv, isCI } from "../dev-env";
 import { numberFixedString } from "../utils/number-fixed";
 import { devError } from "../dev-error";
-import { plainObjects } from "../utils/plain-objects";
 import { TERM_CHARS } from "./term-chars";
+import { bindProtoFunctions } from "../plain-objects";
 
 export class DevLogStream {
   public readonly stream: NodeJS.WriteStream;
@@ -24,7 +24,7 @@ export class DevLogStream {
   public constructor(stream: NodeJS.WriteStream, colors: Chalk | boolean) {
     this.stream = stream;
     this.colors = colors === true ? _colors : colors === false ? _colors_disabled : colors;
-    plainObjects.bindProtoFunctions(this, {
+    bindProtoFunctions(this, {
       allowPrivate: false,
       enumerable: true,
       ignoreSet: new Set(["inspect", "inspectArgs", "colors"]),

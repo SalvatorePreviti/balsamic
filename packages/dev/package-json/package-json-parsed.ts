@@ -10,10 +10,11 @@ import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
 import { makePathRelative } from "../path";
-import { plainObjects } from "../utils/plain-objects";
 import type { PackageJsonParseMessageSeverity } from "./package-json-parsed-msgs";
 import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
 import { getColor } from "../colors";
+import { try_readFileSync as try_readYamlFileSync, try_readFile as try_readYamlFile } from "../yaml";
+import { deepClone } from "../plain-objects";
 
 const { isArray } = Array;
 const { keys: objectKeys, entries: objectEntries } = Object;
@@ -279,7 +280,7 @@ export class PackageJsonParsed {
     } else {
       _packageJsonValidateSchema(packageJson, addError);
 
-      content = plainObjects.deepClone(packageJson) as PackageJson.Sanitized;
+      content = deepClone(packageJson) as PackageJson.Sanitized;
 
       if (content.version === undefined) {
         addError(new PackageJsonParseMessage("error", "No version", "version"));
@@ -645,14 +646,14 @@ async function _loadWorskpcesAsync(
 ): Promise<PackageJsonParsed[]> {
   // Implementation based on https://github.com/npm/map-workspaces
 
-  if (Buffer.isBuffer(packageJson) || typeof packageJson === "string") {
-    packageJson = JSON.parse(toUTF8(packageJson));
-  }
-
   packageJsonPath = path.resolve(packageJsonPath);
   const directory = path.dirname(packageJsonPath);
   if (INSIDE_NODE_MODULES_REGEX.test(directory)) {
     return [];
+  }
+
+  if (Buffer.isBuffer(packageJson) || typeof packageJson === "string") {
+    packageJson = JSON.parse(toUTF8(packageJson));
   }
 
   const seen = new Map<string, Set<string>>();
@@ -660,7 +661,10 @@ async function _loadWorskpcesAsync(
   const globOptions: glob.Options = { cwd: directory, absolute: true, ignore: ["**/node_modules/**", "**/.git/**"] };
   const globsResult = (
     await Promise.all(
-      _workspaceGetPatterns(packageJson.workspaces).map(async (pattern) => ({
+      _workspaceGetPatterns(
+        packageJson.workspaces,
+        await try_readYamlFile(path.resolve(directory, "pnpm-workspace.yaml")),
+      ).map(async (pattern) => ({
         pattern,
         matches: await glob(pattern.pattern, globOptions),
       })),
@@ -720,28 +724,32 @@ function _loadWorskpcesSync(
 ): PackageJsonParsed[] {
   // Implementation based on https://github.com/npm/map-workspaces
 
+  packageJsonPath = path.resolve(packageJsonPath);
+  const directory = path.dirname(packageJsonPath);
+  if (directory.includes(`${path.sep}node_modules${path.sep}`)) {
+    return [];
+  }
+
   if (Buffer.isBuffer(packageJson) || typeof packageJson === "string") {
     packageJson = JSON.parse(toUTF8(packageJson));
   }
 
-  packageJsonPath = path.resolve(packageJsonPath);
-  const cwd = path.dirname(packageJsonPath);
-  if (cwd.includes(`${path.sep}node_modules${path.sep}`)) {
-    return [];
-  }
-
   const seen = new Map<string, Set<string>>();
   const globOptions: glob.Options = {
-    cwd,
+    cwd: directory,
     absolute: true,
     onlyFiles: false,
-    ignore: ["**/node_modules/**", "**/.git/**"],
+    ignore: ["**/node_modules/**", "**/bower_components/**", "**/.git/**", "**/__test__/**", "**/__tests__/**"],
   };
 
   const loaded = new Map<string, PackageJsonParsed>();
   const pkgsByName = new Map<string, PackageJsonParsed>();
   const loadChildOptions = { ...options, loadWorkspaces: false };
-  for (const pattern of _workspaceGetPatterns(packageJson.workspaces)) {
+
+  for (const pattern of _workspaceGetPatterns(
+    packageJson.workspaces,
+    try_readYamlFileSync(path.resolve(directory, "pnpm-workspace.yaml")),
+  )) {
     const matches = glob.sync(pattern.pattern, globOptions);
     for (const match of matches) {
       if (packageJsonPath === match) {
@@ -826,7 +834,10 @@ function _workspaceProcessMatch(
   }
 }
 
-function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfig | undefined) {
+function _workspaceGetPatterns(
+  workspaces: string[] | PackageJson.WorkspaceConfig | undefined,
+  pnpmWorkspaces: unknown,
+) {
   // Implementation based on https://github.com/npm/map-workspaces
 
   const results = [];
@@ -838,21 +849,39 @@ function _workspaceGetPatterns(workspaces: string[] | PackageJson.WorkspaceConfi
       : []
     : [];
 
+  if (typeof pnpmWorkspaces === "object" && pnpmWorkspaces !== null && !Array.isArray(pnpmWorkspaces)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let pnpmWorkspacePackages = (pnpmWorkspaces as any).packages;
+    if (typeof pnpmWorkspacePackages === "string") {
+      pnpmWorkspacePackages = [pnpmWorkspacePackages];
+    }
+    if (Array.isArray(pnpmWorkspacePackages) && pnpmWorkspacePackages.length > 0) {
+      const existing = new Set(patterns);
+      for (const pattern of pnpmWorkspacePackages) {
+        if (typeof pattern === "string" && pattern.length > 0 && !existing.has(pattern)) {
+          patterns.push(pattern);
+        }
+      }
+    }
+  }
+
   let index = 0;
   for (let pattern of patterns) {
-    const excl = /^!+/.exec(pattern);
-    if (excl) {
-      pattern = pattern.slice(excl[0]?.length ?? 0);
+    if (typeof pattern === "string") {
+      const excl = /^!+/.exec(pattern);
+      if (excl) {
+        pattern = pattern.slice(excl[0]?.length ?? 0);
+      }
+
+      // an odd number of ! means a negated pattern.  !!foo ==> foo
+      const negate = !!(excl && excl[0]!.length % 2 === 1);
+
+      // strip off any / from the start of the pattern.  /foo => foo
+      pattern = pattern.replace(/^\/+/, "").replace(/\\/g, "/");
+      pattern = `${pattern.endsWith("/") ? pattern : `${pattern}/`}package.json`;
+
+      results.push({ pattern, negate, index: index++ });
     }
-
-    // an odd number of ! means a negated pattern.  !!foo ==> foo
-    const negate = !!(excl && excl[0]!.length % 2 === 1);
-
-    // strip off any / from the start of the pattern.  /foo => foo
-    pattern = pattern.replace(/^\/+/, "").replace(/\\/g, "/");
-    pattern = `${pattern.endsWith("/") ? pattern : `${pattern}/`}package.json`;
-
-    results.push({ pattern, negate, index: index++ });
   }
 
   return results;
