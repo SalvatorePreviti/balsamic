@@ -548,10 +548,22 @@ export class WorkspaceNodeResolver extends NodeResolver {
     let result = this._packageManager;
     if (result === undefined) {
       const packageJson = this.projectPackageJson;
+
       const packageJsonPackageManager = packageJson.manifest.packageManager;
-      if (packageJsonPackageManager && Object.values(PackageManager).includes(packageJsonPackageManager)) {
-        result = packageJsonPackageManager;
+      if (typeof packageJsonPackageManager === "string") {
+        const found = packageJsonPackageManager.split("@")[0];
+        if (found && Object.values(PackageManager).includes(found as PackageManager)) {
+          result = found as PackageManager;
+        }
       }
+
+      if (!result) {
+        const found = packageJson.manifest["workspace-package-manager"];
+        if (found && Object.values(PackageManager).includes(found)) {
+          result = found;
+        }
+      }
+
       if (!result) {
         const projectPath = this.projectPath;
         if (fsUtils.try_accessSync(path.join(projectPath, "package-lock.json"))) {

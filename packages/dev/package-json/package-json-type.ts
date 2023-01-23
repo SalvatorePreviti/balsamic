@@ -163,8 +163,11 @@ export interface PackageJson {
   /** Selective version resolutions. Allows the definition of custom package versions inside dependencies without manual edits in the `yarn.lock` file. */
   resolutions?: Record<string, string> | undefined;
 
+  /** The supported package manager. Can be npm, yarn, pnpm followed by @ and a version */
+  packageManager?: string | undefined;
+
   /** The supported package manager. Can be npm, yarn, pnpm */
-  packageManager?: PackageManager | undefined;
+  ["workspace-package-manager"]?: PackageManager | undefined;
 }
 
 export namespace PackageJson {

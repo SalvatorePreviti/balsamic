@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Allow loading typescript files.
 require("ts-node/register/transpile-only");
 require("tsconfig-paths/register");
