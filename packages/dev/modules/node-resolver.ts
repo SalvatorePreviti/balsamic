@@ -233,12 +233,31 @@ export class NodeDirectory extends NodeFsEntry {
       const dir = this.getDirectory(id);
       return dir && dir.packageJson;
     }
+
+    const resolvedPackageJson = this.nodeResolve(`${id}/package.json`);
+    if (resolvedPackageJson) {
+      const resolvedDir = this.getDirectory(path.dirname(resolvedPackageJson));
+      if (resolvedDir) {
+        const pkg = resolvedDir.packageJson;
+        if (pkg && (!pkg.packageName || pkg.packageName === id)) {
+          return pkg;
+        }
+      }
+    }
+
     let current: NodeDirectory = this;
     do {
       const endsWithNodeModules = NODE_MODULES_CASE_INSENSITIVE_REGEX.test(current.basename);
-      const dir = endsWithNodeModules
+
+      let dir = endsWithNodeModules
         ? this.getDirectory(path.join(current.path, id))
         : this.getDirectory(path.join(current.path, "node_modules", id));
+
+      if (!dir) {
+        dir = endsWithNodeModules
+          ? this.getDirectory(path.join(current.path, ".pnpm", "node_modules", id))
+          : this.getDirectory(path.join(current.path, "node_modules", ".pnpm", "node_modules", id));
+      }
 
       if (dir) {
         const pkg = dir.packageJson;
