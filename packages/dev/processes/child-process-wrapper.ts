@@ -3,8 +3,7 @@ import child_process from "child_process";
 import { devError } from "../dev-error";
 import { noop } from "../utils/utils";
 import type { InterfaceFromClass } from "../types";
-import type { DevLogTimedOptions } from "../dev-log";
-import { DevLogTimed } from "../dev-log";
+import { type DevLogTimedOptions, DevLogTimed, devLog } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
 import type { Deferred } from "../promises/deferred";
@@ -30,6 +29,7 @@ export interface SpawnOptions
     child_process.SpawnOptions {
   /** The value which will be passed as stdin to the spawned process. Supplying this value will override stdin, stdio[0] */
   input?: string | Buffer | Uint8Array | DataView | undefined;
+  debugArguments?: boolean | undefined;
 }
 
 export interface NpmSpawnOptions extends SpawnOptions {
@@ -697,6 +697,9 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     options?: SpawnOptions | null | undefined,
   ): ChildProcessWrapper {
     const { args, opts, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, command, options);
+    if (opts.debugArguments) {
+      devLog.debug(`spawn: ${command} `, args);
+    }
     return new ChildProcessWrapper(
       () => {
         const childProcess = child_process.spawn(command, args, opts);
@@ -771,11 +774,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
     options = { title: `${packageManager} run ${command}`, ...options, packageManager };
-    return ChildProcessWrapper.spawn(
-      packageManager + (process.platform === "win32" ? ".cmd" : ""),
-      ["run", command, ...args],
-      options,
-    );
+    return ChildProcessWrapper.npmCommand("run", [command, ...args], options);
   }
 
   /** Executes npm <command> [args] */
@@ -786,11 +785,14 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
     options = { title: `${packageManager} ${command}`, ...options, packageManager };
-    return ChildProcessWrapper.spawn(
-      packageManager + (process.platform === "win32" ? ".cmd" : ""),
-      [command, ...args],
-      options,
-    );
+    return ChildProcessWrapper.npm([command, ...args], options);
+  }
+
+  /** Executes npm [args] */
+  public static npm(args: readonly SpawnArg[] = [], options?: NpmSpawnOptions | undefined): ChildProcessWrapper {
+    const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
+    options = { title: packageManager, ...options, packageManager };
+    return ChildProcessWrapper.spawn(packageManager + (process.platform === "win32" ? ".cmd" : ""), args, options);
   }
 
   /** Kills all child processes of the given process id or ChildProcess instance. */

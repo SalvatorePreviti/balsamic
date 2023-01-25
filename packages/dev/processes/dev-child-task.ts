@@ -41,6 +41,7 @@ export const devChildTask = {
   runModuleBin,
   npmRun,
   npmCommand,
+  npm,
 
   /** Finds all instances of a specified executable in the PATH environment variable */
   which: _which,
@@ -90,4 +91,12 @@ function npmCommand(
   options?: devChildTask.SpawnOptions | undefined,
 ): ChildProcessPromise {
   return ChildProcessWrapper.npmCommand(command, args, options).promise();
+}
+
+/** Executes npm [args] */
+function npm(
+  args: readonly devChildTask.SpawnArg[] = [],
+  options?: devChildTask.SpawnOptions | undefined,
+): ChildProcessPromise {
+  return ChildProcessWrapper.npm(args, options).promise();
 }
