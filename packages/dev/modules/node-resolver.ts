@@ -387,6 +387,7 @@ export class NodePackageJson {
           mod.filename = filePath;
           mod.loaded = true;
           mod.paths = [path.dirname(filePath)];
+          mod.exports = manifest;
           cache[filePath] = mod;
         }
       } catch (_) {}
