@@ -245,6 +245,8 @@ function devrun(): void {
     process.env.CI = "true";
   }
 
+  require("../init-ts-node");
+
   const cwdRequire = Module.createRequire(path.resolve(process.cwd(), "_"));
 
   const tryResolve = (id: string): string | undefined => {
@@ -260,8 +262,6 @@ function devrun(): void {
   } catch {}
   script = path.resolve(script);
   script = tryResolve(script) || tryResolve(path.join(script, "main")) || script;
-
-  require("../init-ts-node");
 
   const mainModule = new MainModule(script);
   require.cache[mainModule.filename] = mainModule;

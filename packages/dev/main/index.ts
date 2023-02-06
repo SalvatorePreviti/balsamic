@@ -9,6 +9,7 @@ import { noop } from "../utils/utils";
 import type { IntervalType, TimeoutType, UnsafeAny } from "../types";
 import { millisecondsToString } from "../elapsed-time";
 import { setMaxListeners } from "node:events";
+import { isThenable } from "../promises/promises";
 
 let _logProcessTimeInitialized = 0;
 let _devErrorHandlingInitialized = 0;
@@ -429,26 +430,42 @@ export async function devRunMain<T = unknown>(
       if (options.functionName) {
         main = main[options.functionName];
         if (typeof main !== "function") {
-          throw new Error(`Function "${options.functionName}" not found`);
+          const def = main.default;
+          if (def && (typeof def === "function" || typeof def === "object")) {
+            self = def;
+            main = def.main;
+          }
+          if (typeof main !== "function") {
+            throw new Error(`Function "${options.functionName}" not found`);
+          }
         }
       } else if ("main" in main && typeof main.main === "function") {
         main = main.main;
       } else {
-        const keys = Object.keys(main).sort();
-        if (keys.length === 1 && keys[0] && typeof main[keys[0]] === "function") {
-          main = main[keys[0]];
+        const d = main.default;
+        if (d && typeof d === "function") {
+          main = d;
         } else {
-          for (const key of keys) {
-            if ((key && key.includes("main")) || (key.includes("Main") && typeof main[key] === "function")) {
-              main = main[key];
-              break;
+          const keys = Object.keys(main).sort();
+          if (keys.length === 1 && keys[0] && typeof main[keys[0]] === "function") {
+            main = main[keys[0]];
+          } else {
+            for (const key of keys) {
+              if ((key && key.includes("main")) || (key.includes("Main") && typeof main[key] === "function")) {
+                main = main[key];
+                break;
+              }
             }
           }
         }
       }
     }
 
-    result = typeof main === "function" ? (self ? main.call(self) : main()) : main;
+    if (typeof main !== "function" && !isThenable(main)) {
+      throw new Error(`Invalid main function`);
+    }
+
+    result = typeof main === "function" ? (self !== undefined ? main.call(self) : main()) : main;
   } catch (error) {
     result = devRunMainError(error);
   } finally {
