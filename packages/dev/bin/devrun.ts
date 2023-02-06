@@ -169,11 +169,10 @@ function parseArguments(): ParsedArguments {
 class MainModule extends Module {
   load!: (filename: string) => void;
 
-  constructor(filename: string, cwdRequire: typeof require) {
+  constructor(filename: string) {
     super(filename, module);
     this.filename = filename;
     this.paths = (Module as UnsafeAny)._nodeModulePaths(process.cwd());
-    this.require = cwdRequire;
 
     let exportsError: unknown = this;
     let exportsLoaded = false;
@@ -262,14 +261,14 @@ function devrun(): void {
   script = path.resolve(script);
   script = tryResolve(script) || tryResolve(path.join(script, "main")) || script;
 
-  const mainModule = new MainModule(script, cwdRequire);
+  require("../init-ts-node");
+
+  const mainModule = new MainModule(script);
   require.cache[mainModule.filename] = mainModule;
   mainModule.loaded = true;
   process.mainModule = mainModule;
 
   process.argv = [process.argv[0]!, mainModule.filename, ...options.scriptArgs];
-
-  require("../init-ts-node");
 
   const balsamicDevMain: typeof import("../main") = require("../main");
   void balsamicDevMain.devRunMain(mainModule, {
