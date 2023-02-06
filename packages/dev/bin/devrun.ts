@@ -269,6 +269,8 @@ function devrun(): void {
 
   process.argv = [process.argv[0]!, mainModule.filename, ...options.scriptArgs];
 
+  require("../init-ts-node");
+
   const balsamicDevMain: typeof import("../main") = require("../main");
   void balsamicDevMain.devRunMain(mainModule, {
     onBeforeStart() {

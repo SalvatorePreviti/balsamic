@@ -4,20 +4,24 @@ const path = require("path");
 initTsNode();
 
 function initTsNode() {
-  const cwdRequire = Module.createRequire(path.resolve(process.cwd(), "_"));
-  const tryRequire = (id) => {
-    try {
-      cwdRequire(id);
-    } catch (e) {
-      if (e.code === "MODULE_NOT_FOUND") {
-        try {
-          require(id);
-        } catch {}
-      }
-    }
-  };
-
   if (!global[Symbol.for("_tsNodeInitialized")]) {
+    const cwdRequire = Module.createRequire(path.resolve(process.cwd(), "_"));
+    const tryRequire = (id) => {
+      try {
+        cwdRequire(id);
+      } catch (e) {
+        if (e.code === "MODULE_NOT_FOUND") {
+          try {
+            Module.createRequire(process.argv[1] || require.main.filename)(id);
+          } catch {
+            try {
+              require(id);
+            } catch {}
+          }
+        }
+      }
+    };
+
     global[Symbol.for("_tsNodeInitialized")] = true;
     tryRequire("ts-node/register/transpile-only");
     tryRequire("tsconfig-paths/register");
