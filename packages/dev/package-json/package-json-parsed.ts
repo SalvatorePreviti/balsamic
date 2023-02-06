@@ -2,10 +2,8 @@
 
 import path from "node:path";
 import fs from "node:fs";
-import glob from "fast-glob";
-import type { ValidateFunction, ErrorObject } from "ajv";
-import Ajv from "ajv";
-import normalizePackageData from "normalize-package-data";
+import type { ajv } from "../_packages";
+import { glob, Ajv } from "../_packages";
 import { toUTF8 } from "../utils/utils";
 import { devError } from "../dev-error";
 import { PackageJson } from "./package-json-type";
@@ -13,7 +11,7 @@ import { makePathRelative } from "../path";
 import type { PackageJsonParseMessageSeverity } from "./package-json-parsed-msgs";
 import { PackageJsonParseMessage, PackageJsonParseMessages } from "./package-json-parsed-msgs";
 import { getColor } from "../colors";
-import { try_readFileSync as try_readYamlFileSync, try_readFile as try_readYamlFile } from "../_yaml";
+import { try_readFileSync as try_readYamlFileSync, try_readFile as try_readYamlFile } from "../YAML";
 import { deepClone } from "../plain-objects";
 
 const { isArray } = Array;
@@ -386,7 +384,7 @@ export namespace PackageJsonParsed {
   }
 }
 
-let _packageJsonAjvValidator: ValidateFunction<PackageJson.Sanitized> | null = null;
+let _packageJsonAjvValidator: ajv.ValidateFunction<PackageJson.Sanitized> | null = null;
 
 function _readPackageJsonFromFile(
   filePath: string,
@@ -511,6 +509,8 @@ function _validateDependenciesDefinitions(
   }
 }
 
+let _normalizePackageData: typeof import("normalize-package-data") | undefined;
+
 function _npmNormalizePackageJson(
   content: PackageJson,
   strict: boolean,
@@ -523,7 +523,10 @@ function _npmNormalizePackageJson(
     const normalizedContent = JSON.parse(JSON.stringify(content)) as PackageJson.Sanitized;
     normalizedContent.private = false;
     const oldReadme = normalizedContent.readme;
-    normalizePackageData(normalizedContent, (m) => addError(_packageJsonValidatorErrorFromNormalizer(m)), strict);
+    if (!_normalizePackageData) {
+      _normalizePackageData = require("normalize-package-data");
+    }
+    _normalizePackageData!(normalizedContent, (m) => addError(_packageJsonValidatorErrorFromNormalizer(m)), strict);
     if (oldReadme !== undefined) {
       normalizedContent.readme = oldReadme;
     } else {
@@ -599,7 +602,7 @@ function _packageJsonValidatorErrorFromNormalizer(msg: string | undefined): Pack
 }
 
 function _packageJsonValidationErrorFromAjvError(
-  error: ErrorObject,
+  error: ajv.ErrorObject,
   content: unknown,
 ): PackageJsonParseMessage | undefined {
   let message = error.message || "Invalid package.json";
@@ -622,7 +625,7 @@ function _packageJsonValidationErrorFromAjvError(
   return new PackageJsonParseMessage("error", message, prop);
 }
 
-function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
+function _createAjvValidator(): ajv.ValidateFunction<PackageJson.Sanitized> {
   const packageJsonSchema = require("./package-json.schema.json");
   return new Ajv({
     validateSchema: false,
@@ -636,7 +639,7 @@ function _createAjvValidator(): ValidateFunction<PackageJson.Sanitized> {
     logger: false,
     useDefaults: true,
     coerceTypes: false,
-  }).compile(packageJsonSchema) as ValidateFunction<PackageJson.Sanitized>;
+  }).compile(packageJsonSchema) as ajv.ValidateFunction<PackageJson.Sanitized>;
 }
 
 async function _loadWorskpcesAsync(

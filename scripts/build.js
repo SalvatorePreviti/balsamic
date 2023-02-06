@@ -25,6 +25,7 @@ module.exports = async function build() {
 
   // Remove init-ts-node.js from dist/dev.
   await fsasync.rm("dist/dev/init-ts-node.js", { force: true, maxRetries: 5 });
+  await fsasync.rm("dist/dev/_packages.js", { force: true, maxRetries: 5 });
 
   const newPackageJson = { ...balsamicDev.toJSON(), private: false };
   delete newPackageJson.scripts;
@@ -47,6 +48,9 @@ module.exports = async function build() {
     "dist/dev/init-ts-node.js",
     fsasync.constants.COPYFILE_FICLONE,
   );
+
+  // Copy init-ts-node.js to dist/dev.
+  await fsasync.copyFile("packages/dev/_packages.js", "dist/dev/_packages.js", fsasync.constants.COPYFILE_FICLONE);
 
   // chmod +x dist/dev/bin/devrun.js
   await fsasync.chmod("dist/dev/bin/devrun.js", 0o755);

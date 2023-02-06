@@ -10,9 +10,10 @@ import type { Deferred } from "../promises/deferred";
 import type { Abortable } from "events";
 import { NodeResolver } from "../modules/node-resolver";
 import { ServicesRunner } from "../promises/services-runner";
-import treeKill from "tree-kill";
 import { millisecondsToString } from "../elapsed-time";
 import type { PackageManager } from "../package-json/package-json-type";
+
+let _treeKill: typeof import("tree-kill") | undefined;
 
 const { defineProperty } = Reflect;
 
@@ -810,7 +811,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
           return resolve(false);
         }
       }
-      return treeKill(pid, signal, (error) => {
+      if (!_treeKill) {
+        _treeKill = require("tree-kill");
+      }
+      return _treeKill!(pid, signal, (error: unknown) => {
         if (error) {
           reject(error);
         } else {

@@ -7,7 +7,10 @@ import type {
   ChildProcessPromise,
 } from "./child-process-wrapper";
 import { ChildProcessWrapper } from "./child-process-wrapper";
-import _which from "which";
+
+import type Which from "which";
+
+let _which: typeof import("which") | undefined;
 
 export namespace devChildTask {
   export type SpawnOptions = childProcesses_SpawnOptions;
@@ -23,12 +26,12 @@ export namespace devChildTask {
   export type ChildProcessStartedHandler = (process: ChildProcess) => void;
 
   export namespace which {
-    export type OptionsAll = _which.OptionsAll;
-    export type OptionsFirst = _which.OptionsFirst;
-    export type OptionsNoThrow = _which.OptionsNoThrow;
-    export type OptionsThrow = _which.OptionsThrow;
-    export type AsyncOptions = _which.AsyncOptions;
-    export type Options = _which.Options;
+    export type OptionsAll = Which.OptionsAll;
+    export type OptionsFirst = Which.OptionsFirst;
+    export type OptionsNoThrow = Which.OptionsNoThrow;
+    export type OptionsThrow = Which.OptionsThrow;
+    export type AsyncOptions = Which.AsyncOptions;
+    export type Options = Which.Options;
   }
 }
 
@@ -43,8 +46,22 @@ export const devChildTask = {
   npm,
 
   /** Finds all instances of a specified executable in the PATH environment variable */
-  which: _which,
+  which: _which!,
 };
+
+Object.defineProperty(devChildTask, "which", {
+  get() {
+    if (!_which) {
+      _which = require("which");
+    }
+    return _which;
+  },
+  set(value) {
+    _which = value;
+  },
+  configurable: true,
+  enumerable: true,
+});
 
 /** Spawn a new process, redirect stdio and await for completion. */
 function spawn(

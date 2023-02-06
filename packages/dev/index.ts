@@ -4,9 +4,7 @@ export * from "./types";
 
 export { path } from "./path";
 
-export * as ajv from "ajv";
-
-export { default as glob } from "fast-glob";
+export * from "./_packages";
 
 export * as plainObjects from "./plain-objects";
 
@@ -51,5 +49,3 @@ export * from "./net/net";
 export * from "./fs";
 
 export * from "./main";
-
-export * as YAML from "./_yaml";
