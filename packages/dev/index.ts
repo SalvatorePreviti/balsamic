@@ -1,4 +1,4 @@
-/// <reference path="./types/index.ts" />
+import "./types";
 
 export * from "./types";
 

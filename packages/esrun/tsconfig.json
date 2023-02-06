@@ -30,7 +30,7 @@
     "noStrictGenericChecks": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "preserveConstEnums": false,
+    "preserveConstEnums": true,
     "preserveWatchOutput": true,
     "pretty": true,
     "resolveJsonModule": true,

@@ -2,7 +2,7 @@ import util from "util";
 import child_process from "child_process";
 import { devError } from "../dev-error";
 import { noop } from "../utils/utils";
-import type { InterfaceFromClass } from "../types";
+import type { InterfaceFromClass, UnsafeAny } from "../types";
 import { type DevLogTimedOptions, DevLogTimed, devLog } from "../dev-log";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
@@ -824,10 +824,9 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 const private_childProcessWrapper = Symbol.for("childProcessWrapper");
 const private_error = Symbol.for("error");
 
-export class ChildProcessPromise<T = ChildProcessWrapper>
-  extends Promise<T>
-  implements InterfaceFromClass<ChildProcessWrapper>
-{
+export interface ChildProcessPromise<T = ChildProcessWrapper> extends Promise<T> {}
+
+export class ChildProcessPromise<T> extends Promise<T> implements InterfaceFromClass<ChildProcessWrapper> {
   private [private_childProcessWrapper]: ChildProcessWrapper | undefined;
   private [private_error]?: Error | undefined;
 
@@ -1014,8 +1013,8 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public override then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    onrejected?: ((reason: Error) => TResult2 | PromiseLike<TResult2>) | null | undefined,
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onrejected?: ((reason: UnsafeAny) => TResult2 | PromiseLike<TResult2>) | undefined | null,
   ): ChildProcessPromise<TResult1 | TResult2> {
     const result = super.then(onfulfilled, onrejected) as ChildProcessPromise<TResult1 | TResult2>;
     result.childProcessWrapper = this.childProcessWrapper;
@@ -1023,7 +1022,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public override catch<TResult = never>(
-    onrejected?: ((reason: Error) => TResult | PromiseLike<TResult>) | null | undefined,
+    onrejected?: ((reason: UnsafeAny) => TResult | PromiseLike<TResult>) | undefined | null,
   ): ChildProcessPromise<T | TResult> {
     const result = super.catch(onrejected) as ChildProcessPromise<T | TResult>;
     result.childProcessWrapper = this.childProcessWrapper;
@@ -1058,7 +1057,7 @@ export class ChildProcessPromise<T = ChildProcessWrapper>
   }
 
   public async [ServicesRunner.serviceRunnerServiceSymbol](): Promise<void> {
-    await this;
+    await (this as Promise<T>);
   }
 }
 

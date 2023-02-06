@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/dev",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "dev and scripting utilities for NodeJS",
   "types": "index.d.ts",
   "sideEffects": true,
@@ -20,7 +20,9 @@
     "url": "https://github.com/SalvatorePreviti/balsamic/issues"
   },
   "homepage": "https://github.com/SalvatorePreviti/balsamic/tree/main/packages/dev#readme",
-  "bin": {},
+  "bin": {
+    "devrun": "bin/devrun.js"
+  },
   "engines": {
     "node": ">=16.0.0"
   },
@@ -36,6 +38,6 @@
     "which": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.11.18"
+    "@types/node": "^18.11.19"
   }
 }

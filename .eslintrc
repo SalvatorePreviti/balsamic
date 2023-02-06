@@ -9,9 +9,20 @@
       }
     },
     {
-      "files": ["packages/dev/**/*"],
+      "files": ["packages/dev/**/*.ts"],
       "rules": {
         "@typescript-eslint/explicit-function-return-type": "error"
+      }
+    },
+    {
+      "files": ["packages/dev/**/*.js"],
+      "parserOptions": {
+        "project": null
+      },
+      "rules": {
+        "@typescript-eslint/await-thenable": 0,
+        "@typescript-eslint/no-floating-promises": 0,
+        "@typescript-eslint/no-unnecessary-type-assertion": 0
       }
     }
   ]

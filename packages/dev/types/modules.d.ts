@@ -1,11 +1,57 @@
-// Type definitions for which 2.0
-// Project: https://github.com/isaacs/node-which
-// Definitions by: vvakame <https://github.com/vvakame>
-//                 cspotcode <https://github.com/cspotcode>
-//                 Piotr Błażejewicz <https://github.com/peterblazejewicz>
-// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+declare module "normalize-package-data" {
+  export = normalize;
+
+  declare function normalize(data: normalize.Input, warn?: normalize.WarnFn, strict?: boolean): void;
+  declare function normalize(data: normalize.Input, strict?: boolean): void;
+
+  declare namespace normalize {
+    type WarnFn = (msg: string) => void;
+    interface Input {
+      [k: string]: any;
+    }
+
+    interface Person {
+      name?: string | undefined;
+      email?: string | undefined;
+      url?: string | undefined;
+    }
+
+    interface Package {
+      [k: string]: any;
+      name: string;
+      version: string;
+      files?: string[] | undefined;
+      bin?: { [k: string]: string } | undefined;
+      man?: string[] | undefined;
+      keywords?: string[] | undefined;
+      author?: Person | undefined;
+      maintainers?: Person[] | undefined;
+      contributors?: Person[] | undefined;
+      bundleDependencies?: { [name: string]: string } | undefined;
+      dependencies?: { [name: string]: string } | undefined;
+      devDependencies?: { [name: string]: string } | undefined;
+      optionalDependencies?: { [name: string]: string } | undefined;
+      description?: string | undefined;
+      engines?: { [type: string]: string } | undefined;
+      license?: string | undefined;
+      repository?: { type: string; url: string } | undefined;
+      bugs?: { url: string; email?: string | undefined } | { url?: string | undefined; email: string } | undefined;
+      homepage?: string | undefined;
+      scripts?: { [k: string]: string } | undefined;
+      readme: string;
+      _id: string;
+    }
+  }
+}
 
 declare module "which" {
+  // Type definitions for which 2.0
+  // Project: https://github.com/isaacs/node-which
+  // Definitions by: vvakame <https://github.com/vvakame>
+  //                 cspotcode <https://github.com/cspotcode>
+  //                 Piotr Błażejewicz <https://github.com/peterblazejewicz>
+  // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+
   /** Finds all instances of a specified executable in the PATH environment variable */
   function which(
     cmd: string,

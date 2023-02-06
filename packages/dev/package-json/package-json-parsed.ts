@@ -1,4 +1,4 @@
-/// <reference path="./normalize-package-data.d.ts" />
+/// <reference path="../types/modules.d.ts" />
 
 import path from "node:path";
 import fs from "node:fs";

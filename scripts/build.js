@@ -23,6 +23,9 @@ module.exports = async function build() {
   await fsasync.rm("dist/dev", { maxRetries: 5, recursive: true, force: true });
   await fsasync.cp(balsamicDev.packageDirectoryPath, "dist/dev", { recursive: true });
 
+  // Remove init-ts-node.js from dist/dev.
+  await fsasync.rm("dist/dev/init-ts-node.js", { force: true, maxRetries: 5 });
+
   const newPackageJson = { ...balsamicDev.toJSON(), private: false };
   delete newPackageJson.scripts;
 
@@ -37,6 +40,16 @@ module.exports = async function build() {
   await Promise.all(
     (await glob("dist/dev/tsconfig*.json")).map((item) => fsasync.rm(item, { force: true, maxRetries: 5 })),
   );
+
+  // Copy init-ts-node.js to dist/dev.
+  await fsasync.copyFile(
+    "packages/dev/init-ts-node.js",
+    "dist/dev/init-ts-node.js",
+    fsasync.constants.COPYFILE_FICLONE,
+  );
+
+  // chmod +x dist/dev/bin/devrun.js
+  await fsasync.chmod("dist/dev/bin/devrun.js", 0o755);
 };
 
 if (isMainModule(module)) {

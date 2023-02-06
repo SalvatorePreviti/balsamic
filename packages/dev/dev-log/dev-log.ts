@@ -219,7 +219,7 @@ export class DevLog extends DevLogStream {
     if (!process.stdin || !this.isTerm) {
       return Promise.resolve(true);
     }
-    return new Promise((resolve) => {
+    return new Promise<boolean>((resolve) => {
       const rl = readline.createInterface(process.stdin, this.stream as UnsafeAny);
       const question = `${this.colors.greenBright("?")} ${this.colors.whiteBright(
         confirmationMessage,

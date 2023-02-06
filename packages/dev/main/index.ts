@@ -24,7 +24,9 @@ let _exitTimeoutExitCode = 2;
 
 let _ignoredWarnings: Set<string> | null = null;
 let _unhandledErrorsLogged: WeakSet<{}> | null = null;
+
 let _tsNodeInitialized = false;
+const _tsNodeInitializedSym = Symbol.for("@balsamic/dev/init-ts-node");
 
 export enum Main {}
 
@@ -32,14 +34,17 @@ export namespace Main {
   export function initTsNode(options: { typecheck?: boolean | "typecheck" | "transpile-only" | undefined }): void {
     if (!_tsNodeInitialized) {
       _tsNodeInitialized = true;
-      if (options && options.typecheck && options.typecheck !== "transpile-only") {
-        require("ts-node/register");
-      } else {
-        require("ts-node/register/transpile-only");
+      if (!(global as UnsafeAny)[_tsNodeInitializedSym]) {
+        (global as UnsafeAny)[_tsNodeInitializedSym] = true;
+        if (options && options.typecheck && options.typecheck !== "transpile-only") {
+          require("ts-node/register");
+        } else {
+          require("ts-node/register/transpile-only");
+        }
+        try {
+          require("tsconfig-paths/register");
+        } catch {}
       }
-      try {
-        require("tsconfig-paths/register");
-      } catch {}
     }
   }
 
@@ -289,7 +294,7 @@ export interface DevRunMainOptions<T = unknown> {
    * If non zero, invokes process.exit(2) after the specific time if the application does not terminate.
    * Useful to make a script terminate also if there are pending asynchronous operations.
    */
-  processExitTimeout?: number | boolean | undefined | null;
+  processExitTimeout?: Main.processExitTimeout.Options | number | boolean | undefined | null;
 
   printProcessBanner?: boolean | undefined;
 
@@ -301,13 +306,18 @@ export interface DevRunMainOptions<T = unknown> {
   ignoreProcessWarnings?: string[] | undefined | null;
 
   /** When set, it does require('node:events').setMaxListener(nodeEventsMaxListeners), to avoid "Too many listener" warning */
-  nodeEventsMaxListeners?: number;
+  nodeEventsMaxListeners?: number | undefined;
+
+  onBeforeStart?: () => void | Promise<void>;
 
   /** Function to be executed at the end */
   onTerminated?: ((result: Error | T) => void | Promise<void>) | null | undefined | false;
 
   /** If not false, setup ts-node and tsconfig-paths */
   initTsNode?: boolean | "typecheck" | "transpile-only" | undefined;
+
+  /** The function to run in the module */
+  functionName?: string | undefined;
 }
 
 /** Top level run of functions and promises */
@@ -335,7 +345,7 @@ export function devRunMain<T extends null | false | undefined>(
   options?: DevRunMainOptions<T> | undefined,
 ): Promise<T>;
 
-export function devRunMain<T = unknown>(
+export async function devRunMain<T = unknown>(
   main: UnsafeAny,
   processTitle?: UnsafeAny | undefined,
   options?: DevRunMainOptions<T> | undefined,
@@ -399,13 +409,46 @@ export function devRunMain<T = unknown>(
       Main.initTsNode({ typecheck: options.initTsNode === "typecheck" });
     }
 
+    if (options.onBeforeStart) {
+      await options.onBeforeStart();
+    }
+
+    let self = global;
+
     if (main !== null && typeof main === "object") {
       if ("exports" in main) {
         main = main.exports;
+        self = main;
       }
     }
 
-    result = typeof main === "function" ? main() : main;
+    if (
+      (typeof main === "function" && main.prototype && main.prototype.constructor === main) ||
+      (typeof main === "object" && main !== null)
+    ) {
+      if (options.functionName) {
+        main = main[options.functionName];
+        if (typeof main !== "function") {
+          throw new Error(`Function "${options.functionName}" not found`);
+        }
+      } else if ("main" in main && typeof main.main === "function") {
+        main = main.main;
+      } else {
+        const keys = Object.keys(main).sort();
+        if (keys.length === 1 && keys[0] && typeof main[keys[0]] === "function") {
+          main = main[keys[0]];
+        } else {
+          for (const key of keys) {
+            if ((key && key.includes("main")) || (key.includes("Main") && typeof main[key] === "function")) {
+              main = main[key];
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    result = typeof main === "function" ? (self ? main.call(self) : main()) : main;
   } catch (error) {
     result = devRunMainError(error);
   } finally {
@@ -423,9 +466,13 @@ export function devRunMain<T = unknown>(
     terminated = true;
     if (options!.processExitTimeout) {
       try {
-        Main.processExitTimeout({
-          milliseconds: options!.processExitTimeout === true ? undefined : options!.processExitTimeout,
-        });
+        if (typeof options!.processExitTimeout === "object") {
+          Main.processExitTimeout(options!.processExitTimeout);
+        } else {
+          Main.processExitTimeout({
+            milliseconds: options!.processExitTimeout === true ? undefined : options!.processExitTimeout,
+          });
+        }
       } catch {}
     }
     if (typeof options!.onTerminated === "function") {

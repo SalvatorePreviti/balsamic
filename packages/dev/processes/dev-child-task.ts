@@ -1,4 +1,3 @@
-/// <reference path="../types/modules.ts" />
 import type child_process from "node:child_process";
 import type {
   SpawnOrForkOptions as childProcess_SpawnOrForkOptions,
