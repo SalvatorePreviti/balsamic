@@ -48,20 +48,46 @@ export const MILLISECONDS_IN_MONTHS = 1 / MONTHS_IN_MILLISECONDS;
 /** Number of years in a millisecond (3.168808781402895e-11) */
 export const MILLISECONDS_IN_YEARS = 1 / YEARS_IN_MILLISECONDS;
 
-export namespace toMilliseconds {
-  export type Options = {
-    years?: number;
-    months?: number;
-    weeks?: number;
-    days?: number;
-    hours?: number;
-    minutes?: number;
-    seconds?: number;
-    milliseconds?: number;
-  };
+export const millisecondsToSeconds = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_SECONDS;
+
+export const millisecondsToMinutes = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_MINUTES;
+
+export const millisecondsToHours = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_HOURS;
+
+export const millisecondsToDays = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_DAYS;
+
+export const millisecondsToWeeks = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_WEEKS;
+
+export const millisecondsToMonths = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_MONTHS;
+
+export const millisecondsToYears = (milliseconds: number): number => milliseconds * MILLISECONDS_IN_YEARS;
+
+export const secondsToMilliseconds = (seconds: number): number => seconds * SECONDS_IN_MILLISECONDS;
+
+export const minutesToMilliseconds = (minutes: number): number => minutes * MINUTES_IN_MILLISECONDS;
+
+export const hoursToMilliseconds = (hours: number): number => hours * HOURS_IN_MILLISECONDS;
+
+export const daysToMilliseconds = (days: number): number => days * DAYS_IN_MILLISECONDS;
+
+export const weeksToMilliseconds = (weeks: number): number => weeks * WEEKS_IN_MILLISECONDS;
+
+export const monthsToMilliseconds = (months: number): number => months * MONTHS_IN_MILLISECONDS;
+
+export const yearsToMilliseconds = (years: number): number => years * YEARS_IN_MILLISECONDS;
+
+export interface MakeElapsedOptions {
+  years?: number | string | false | null | undefined;
+  months?: number | string | false | null | undefined;
+  weeks?: number | string | false | null | undefined;
+  days?: number | string | false | null | undefined;
+  hours?: number | string | false | null | undefined;
+  minutes?: number | string | false | null | undefined;
+  seconds?: number | string | false | null | undefined;
+  milliseconds?: number | string | false | null | undefined;
 }
 
-export function toMilliseconds({
+export const makeMilliseconds = ({
   years,
   months,
   weeks,
@@ -70,86 +96,45 @@ export function toMilliseconds({
   minutes,
   seconds,
   milliseconds,
-}: toMilliseconds.Options): number {
+}: MakeElapsedOptions): number => {
   let total = 0;
-  if (years !== undefined) {
-    total += millisecondsToYears(years);
+  if (years) {
+    total += (years as number) * YEARS_IN_MILLISECONDS || 0;
   }
-  if (months !== undefined) {
-    total += millisecondsToMonths(months);
+  if (months) {
+    total += (months as number) * MONTHS_IN_MILLISECONDS || 0;
   }
-  if (weeks !== undefined) {
-    total += millisecondsToWeeks(weeks);
+  if (weeks) {
+    total += (weeks as number) * WEEKS_IN_MILLISECONDS || 0;
   }
-  if (days !== undefined) {
-    total += millisecondsToDays(days);
+  if (days) {
+    total += (days as number) * DAYS_IN_MILLISECONDS || 0;
   }
-  if (hours !== undefined) {
-    total += millisecondsToHours(hours);
+  if (hours) {
+    total += (hours as number) * HOURS_IN_MILLISECONDS || 0;
   }
-  if (minutes !== undefined) {
-    total += millisecondsToMinutes(minutes);
+  if (minutes) {
+    total += (minutes as number) * MINUTES_IN_MILLISECONDS || 0;
   }
-  if (seconds !== undefined) {
-    total += millisecondsToSeconds(seconds);
+  if (seconds) {
+    total += (seconds as number) * SECONDS_IN_MILLISECONDS || 0;
   }
-  if (milliseconds !== undefined) {
-    total += milliseconds;
-  }
-  return total;
-}
+  return total + ((milliseconds as number) * 1 || 0);
+};
 
-export function millisecondsToSeconds(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_SECONDS;
-}
+export const makeSeconds = (input: MakeElapsedOptions): number => millisecondsToSeconds(makeMilliseconds(input));
 
-export function millisecondsToMinutes(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_MINUTES;
-}
+export const makeMinutes = (input: MakeElapsedOptions): number => millisecondsToMinutes(makeMilliseconds(input));
 
-export function millisecondsToHours(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_HOURS;
-}
+export const makeHours = (input: MakeElapsedOptions): number => millisecondsToHours(makeMilliseconds(input));
 
-export function millisecondsToDays(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_DAYS;
-}
+export const makeDays = (input: MakeElapsedOptions): number => millisecondsToDays(makeMilliseconds(input));
 
-export function millisecondsToWeeks(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_WEEKS;
-}
+export const makeWeeks = (input: MakeElapsedOptions): number => millisecondsToWeeks(makeMilliseconds(input));
 
-export function millisecondsToMonths(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_MONTHS;
-}
+export const makeMonths = (input: MakeElapsedOptions): number => millisecondsToMonths(makeMilliseconds(input));
 
-export function millisecondsToYears(milliseconds: number): number {
-  return milliseconds * MILLISECONDS_IN_YEARS;
-}
-
-export function secondsToMilliseconds(seconds: number): number {
-  return seconds * SECONDS_IN_MILLISECONDS;
-}
-
-export function minutesToMilliseconds(minutes: number): number {
-  return minutes * MINUTES_IN_MILLISECONDS;
-}
-
-export function hoursToMilliseconds(hours: number): number {
-  return hours * HOURS_IN_MILLISECONDS;
-}
-
-export function daysToMilliseconds(days: number): number {
-  return days * DAYS_IN_MILLISECONDS;
-}
-
-export function weeksToMilliseconds(weeks: number): number {
-  return weeks * WEEKS_IN_MILLISECONDS;
-}
-
-export function monthsToMilliseconds(months: number): number {
-  return months * MONTHS_IN_MILLISECONDS;
-}
+export const makeYears = (input: MakeElapsedOptions): number => millisecondsToYears(makeMilliseconds(input));
 
 export class ElapsedTime {
   public startTime: number;
