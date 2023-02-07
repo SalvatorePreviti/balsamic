@@ -164,43 +164,43 @@ export class ElapsedTime {
   }
 
   /** Gets the number of elapsed milliseconds */
-  public get elapsedMilliseconds(): number {
+  public get milliseconds(): number {
     return this.elapsed;
   }
 
   /** Gets the number of elapsed seconds */
-  public get elapsedSeconds(): number {
-    return this.elapsedMilliseconds / 1000;
+  public get seconds(): number {
+    return this.elapsed * MILLISECONDS_IN_SECONDS;
   }
 
   /** Gets the number of elapsed minutes */
-  public get elapsedMinutes(): number {
-    return this.elapsedSeconds / 60;
+  public get minutes(): number {
+    return this.seconds * MILLISECONDS_IN_MINUTES;
   }
 
   /** Gets the number of elapsed hours */
-  public get elapsedHours(): number {
-    return this.elapsedMinutes / 60;
+  public get hours(): number {
+    return this.minutes * MILLISECONDS_IN_HOURS;
   }
 
   /** Gets the number of elapsed days */
-  public get elapsedDays(): number {
-    return this.elapsedHours / 24;
+  public get days(): number {
+    return this.hours * MILLISECONDS_IN_DAYS;
   }
 
   /** Gets the number of elapsed weeks */
-  public get elapsedWeeks(): number {
-    return this.elapsedDays / 7;
+  public get weeks(): number {
+    return this.days * MILLISECONDS_IN_WEEKS;
   }
 
   /** Gets the number of elapsed months */
-  public get elapsedMonths(): number {
-    return this.elapsedDays / 30.4375;
+  public get months(): number {
+    return this.days * MILLISECONDS_IN_MONTHS;
   }
 
   /** Gets the number of elapsed years */
-  public get elapsedYears(): number {
-    return this.elapsedDays / 365.25;
+  public get years(): number {
+    return this.days * MILLISECONDS_IN_YEARS;
   }
 
   /** True if running */
