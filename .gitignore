@@ -2,9 +2,8 @@ dist/
 __test/
 
 # excluded files for security
-.npmrc
 .env
-.env.test
+.env.*
 *.pem
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -14,7 +13,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 bower_components
 node_modules
 jspm_packages
-/.pnp
+.pnp
 .pnp.js
 
 # Build outputs
