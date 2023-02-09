@@ -93,10 +93,6 @@ class MainModule extends Module {
 }
 
 export function devrun(options: ParsedArguments): void {
-  if (Error.stackTraceLimit < DEFAULT_STACK_TRACE_LIMIT) {
-    Error.stackTraceLimit = DEFAULT_STACK_TRACE_LIMIT;
-  }
-
   if (options.noColor) {
     process.env.FORCE_COLOR = "0";
     process.env.NO_COLOR = "true";

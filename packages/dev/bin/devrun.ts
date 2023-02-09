@@ -170,3 +170,5 @@ const options = parseArguments();
 require("../init-ts-node");
 
 require("../main/devrun-implementation").devrun(options);
+
+export default undefined;
