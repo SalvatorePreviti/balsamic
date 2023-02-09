@@ -1,11 +1,12 @@
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
-import type { InspectOptions as _InspectOptions } from "node:util";
 import util from "node:util";
 import { fileURLToPath } from "node:url";
-import { makePathRelative } from "./path";
+import type { InspectOptions as _InspectOptions } from "node:util";
 import type { WriteStream } from "node:tty";
+
+import { makePathRelative } from "./path/lib/make-path-relative";
 
 const private_isCI = Symbol("isCI");
 const private_colorsLevel = Symbol("colorsLevel");

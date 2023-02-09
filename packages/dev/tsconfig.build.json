@@ -11,7 +11,8 @@
     "declarationMap": false,
     "declaration": true,
     "types": ["node"],
-    "composite": true
+    "composite": true,
+    "importHelpers": false
   },
   "include": ["."],
   "exclude": [

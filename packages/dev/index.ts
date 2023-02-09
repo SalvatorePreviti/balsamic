@@ -1,5 +1,7 @@
 import "./types";
 
+import "./dev-env";
+
 export * from "./types";
 
 export { path } from "./path";

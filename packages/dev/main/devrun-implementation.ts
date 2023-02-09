@@ -3,6 +3,7 @@ import path from "path";
 import type { UnsafeAny } from "../types";
 import { fileURLToPath, pathToFileURL } from "url";
 import { devError } from "../dev-error";
+import { devRunMain } from "../main";
 
 export interface ParsedArguments {
   require: string[];
@@ -125,8 +126,8 @@ export function devrun(options: ParsedArguments): void {
 
   process.argv = [process.argv[0]!, mainModule.filename, ...options.scriptArgs];
 
-  const balsamicDevMain: typeof import("../main") = require("../main");
-  void balsamicDevMain.devRunMain(mainModule, {
+  const _devRunMain = devRunMain;
+  void _devRunMain(mainModule, {
     onBeforeStart() {
       for (const id of options.require) {
         cwdRequire(id);

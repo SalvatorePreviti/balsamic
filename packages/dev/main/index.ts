@@ -319,6 +319,9 @@ export interface DevRunMainOptions<T = unknown> {
 
   /** The function to run in the module */
   functionName?: string | undefined;
+
+  /** The arguments to pass to the function */
+  functionArguments?: readonly unknown[];
 }
 
 /** Top level run of functions and promises */
@@ -414,12 +417,14 @@ export async function devRunMain<T = unknown>(
       await options.onBeforeStart();
     }
 
-    let self = global;
+    let self: unknown;
+    let selfName: string | undefined;
 
     if (main !== null && typeof main === "object") {
       if ("exports" in main) {
-        main = main.exports;
         self = main;
+        selfName = "exports";
+        main = main.exports;
       }
     }
 
@@ -428,11 +433,14 @@ export async function devRunMain<T = unknown>(
       (typeof main === "object" && main !== null)
     ) {
       if (options.functionName) {
+        self = main;
+        selfName = options.functionName;
         main = main[options.functionName];
         if (typeof main !== "function") {
           const def = main.default;
           if (def && (typeof def === "function" || typeof def === "object")) {
             self = def;
+            selfName = "main";
             main = def.main;
           }
           if (typeof main !== "function") {
@@ -440,18 +448,26 @@ export async function devRunMain<T = unknown>(
           }
         }
       } else if ("main" in main && typeof main.main === "function") {
+        self = main;
+        selfName = "main";
         main = main.main;
       } else {
         const d = main.default;
         if (d && typeof d === "function") {
+          self = main;
+          selfName = "default";
           main = d;
         } else {
           const keys = Object.keys(main).sort();
           if (keys.length === 1 && keys[0] && typeof main[keys[0]] === "function") {
+            self = main;
+            selfName = keys[0];
             main = main[keys[0]];
           } else {
             for (const key of keys) {
               if ((key && key.includes("main")) || (key.includes("Main") && typeof main[key] === "function")) {
+                self = main;
+                selfName = key;
                 main = main[key];
                 break;
               }
@@ -461,11 +477,29 @@ export async function devRunMain<T = unknown>(
       }
     }
 
-    if (typeof main !== "function" && !isThenable(main)) {
+    if (isThenable(main)) {
+      main = await main;
+      self = undefined;
+      selfName = undefined;
+    } else if (typeof main !== "function") {
       throw new Error(`Invalid main function`);
     }
 
-    result = typeof main === "function" ? (self !== undefined ? main.call(self) : main()) : main;
+    if (typeof main === "function") {
+      if (self) {
+        if (selfName !== undefined) {
+          if (options.functionArguments && options.functionArguments.length > 0) {
+            result = (self as UnsafeAny)[selfName](...options.functionArguments);
+          } else {
+            result = (self as UnsafeAny)[selfName]();
+          }
+        }
+      } else if (options.functionArguments && options.functionArguments.length > 0) {
+        result = main(...options.functionArguments);
+      } else {
+        result = main();
+      }
+    }
   } catch (error) {
     result = devRunMainError(error);
   } finally {
