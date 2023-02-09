@@ -8,6 +8,7 @@ import { AbortError } from "./abort-error";
 import { abortSignals } from "./abort-signals";
 import { Deferred } from "./deferred";
 import { ServicesRunner } from "./services-runner";
+import { serviceRunnerServiceSymbol } from "./service-runner-types";
 
 export namespace ChangeWatcherLogic {
   export interface Options {
@@ -300,7 +301,7 @@ export class ChangeWatcherLogic implements ServicesRunner.Service {
     return this._closePromise;
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol](runner: ServicesRunner): Promise<void> {
+  public async [serviceRunnerServiceSymbol](runner: ServicesRunner): Promise<void> {
     const removeAbortHandler = !this.closed && runner.addAbortHandler(this);
     try {
       await this.awaitFirstBuild();

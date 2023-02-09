@@ -7,6 +7,7 @@ import type { InspectOptions as _InspectOptions } from "node:util";
 import type { WriteStream } from "node:tty";
 
 import { makePathRelative } from "./path/lib/make-path-relative";
+import { _initialCwd } from "./main/_initial-cwd";
 
 const private_isCI = Symbol("isCI");
 const private_colorsLevel = Symbol("colorsLevel");
@@ -23,7 +24,7 @@ export function isCI(): boolean {
 }
 
 export class DevEnv {
-  public initialCwd: string = process.cwd();
+  public initialCwd: string = _initialCwd;
 
   private [private_env]: NodeJS.ProcessEnv | undefined = undefined;
   private [private_isCI]: boolean | undefined = undefined;

@@ -124,7 +124,8 @@ export function devrun(options: ParsedArguments): void {
   mainModule.loaded = true;
   process.mainModule = mainModule;
 
-  process.argv = [process.argv[0]!, mainModule.filename, ...options.scriptArgs];
+  process.argv[1] = mainModule.filename;
+  process.argv.splice(2, process.argv.length - 2, ...options.scriptArgs);
 
   const _devRunMain = devRunMain;
   void _devRunMain(mainModule, {

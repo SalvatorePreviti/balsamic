@@ -1,12 +1,12 @@
 import "./types";
 
-import "./dev-env";
+import "./main/_initial-cwd";
 
 export * from "./types";
 
-export { path } from "./path";
-
 export * from "./_packages";
+
+export * as path from "./path";
 
 export * as plainObjects from "./plain-objects";
 
@@ -36,8 +36,6 @@ export * from "./dev-log";
 
 export * from "./processes/child-process-wrapper";
 
-export * from "./processes/dev-child-task";
-
 export * from "./package-json/package-json-type";
 
 export * from "./package-json/package-json-parsed-msgs";
@@ -51,3 +49,5 @@ export * from "./net/net";
 export * from "./fs";
 
 export * from "./main";
+
+export * from "./processes/dev-child-task";

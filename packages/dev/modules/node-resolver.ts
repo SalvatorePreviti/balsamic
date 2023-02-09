@@ -1,14 +1,15 @@
 import Module from "module";
 import path from "path";
 import { fileURLToPath } from "url";
+import { path as appRootPath } from "app-root-path";
 import fs from "node:fs";
-import { PackageManager } from "../package-json/package-json-type";
+
 import type { PackageJson } from "../package-json/package-json-type";
+import type { UnsafeAny } from "../types";
+import { PackageManager } from "../package-json/package-json-type";
 import { toUTF8 } from "../utils/utils";
 import { PackageJsonParsed } from "../package-json/package-json-parsed";
-import type { UnsafeAny } from "../types";
 import { fsUtils } from "../fs";
-import { path as appRootPath } from "app-root-path";
 
 const ABSOLUTE_OR_RELATIVE_PATH_REGEX = /^(?:\.\.?(?:\/|$)|\/|([A-Za-z]:)?[/\\])/;
 const NODE_MODULES_CASE_INSENSITIVE_REGEX = /^node_modules$/i;

@@ -1,17 +1,20 @@
 import util from "util";
 import child_process from "child_process";
-import { devError } from "../dev-error";
-import { noop } from "../utils/utils";
+
+import type { Abortable } from "events";
 import type { InterfaceFromClass, UnsafeAny } from "../types";
+import type { Deferred } from "../promises/deferred";
+import type { PackageManager } from "../package-json/package-json-type";
+import type { ServicesRunner } from "../promises/services-runner";
 import { type DevLogTimedOptions, DevLogTimed, devLog } from "../dev-log";
+
+import { noop } from "../utils/utils";
+import { devError } from "../dev-error";
 import { AbortError } from "../promises/abort-error";
 import { abortSignals } from "../promises/abort-signals";
-import type { Deferred } from "../promises/deferred";
-import type { Abortable } from "events";
 import { NodeResolver } from "../modules/node-resolver";
-import { ServicesRunner } from "../promises/services-runner";
 import { millisecondsToString } from "../elapsed-time";
-import type { PackageManager } from "../package-json/package-json-type";
+import { serviceRunnerServiceSymbol } from "../promises/service-runner-types";
 
 let _treeKill: typeof import("tree-kill") | undefined;
 
@@ -364,7 +367,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     }
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol](): Promise<void> {
+  public async [serviceRunnerServiceSymbol](): Promise<void> {
     await this.promise();
   }
 
@@ -1060,7 +1063,7 @@ export class ChildProcessPromise<T> extends Promise<T> implements InterfaceFromC
     return result;
   }
 
-  public async [ServicesRunner.serviceRunnerServiceSymbol](): Promise<void> {
+  public async [serviceRunnerServiceSymbol](): Promise<void> {
     await (this as Promise<T>);
   }
 }

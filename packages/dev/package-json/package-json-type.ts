@@ -1,6 +1,6 @@
 import { builtinModules } from "node:module";
 import path from "node:path";
-import { plainObjects } from "..";
+import { sortObjectKeys } from "../plain-objects";
 
 const { isArray } = Array;
 const { keys: objectKeys } = Object;
@@ -533,7 +533,7 @@ export namespace PackageJson {
             v.sort();
           }
         } else {
-          const sorted = plainObjects.sortObjectKeys(v as Record<string, unknown>);
+          const sorted = sortObjectKeys(v as Record<string, unknown>);
           if (objectKeys(sorted).length === 0) {
             delete result[key];
           } else {
