@@ -1,10 +1,5 @@
 #!/usr/bin/env node
 
-import { Module } from "module";
-import path from "path";
-import type { UnsafeAny } from "../types";
-import { fileURLToPath, pathToFileURL } from "url";
-
 const DEFAULT_STACK_TRACE_LIMIT = 20;
 
 function printHelp(): void {
@@ -166,125 +161,12 @@ function parseArguments(): ParsedArguments {
   return options;
 }
 
-class MainModule extends Module {
-  load!: (filename: string) => void;
-
-  constructor(filename: string) {
-    super(filename, module);
-    this.filename = filename;
-    this.paths = (Module as UnsafeAny)._nodeModulePaths(process.cwd());
-
-    let exportsError: unknown = this;
-    let exportsLoaded = false;
-    let exports = this.exports;
-
-    const oldLoad = this.load;
-    this.load = (): void => {
-      this.loaded = true;
-    };
-
-    Object.defineProperty(this, "exports", {
-      get: () => {
-        if (exportsLoaded) {
-          if (exportsError !== this) {
-            throw exportsError;
-          }
-          return exports;
-        }
-        let hadCache = false;
-        const wasLoaded = this.loaded;
-        try {
-          exportsLoaded = true;
-          this.loaded = false;
-          hadCache = require.cache[filename] === this;
-          if (hadCache) {
-            delete require.cache[filename];
-          }
-          oldLoad.call(this, filename);
-        } catch (e) {
-          exportsLoaded = false;
-          exportsError = e;
-          throw e;
-        } finally {
-          if (wasLoaded) {
-            this.loaded = true;
-          }
-          if (hadCache) {
-            require.cache[filename] = this;
-          }
-        }
-        return exports;
-      },
-      set: (value) => {
-        if (value !== undefined && value !== exports) {
-          exports = value;
-
-          exportsLoaded = true;
-          exportsError = undefined;
-        }
-      },
-      configurable: true,
-      enumerable: true,
-    });
-  }
+if (Error.stackTraceLimit < DEFAULT_STACK_TRACE_LIMIT) {
+  Error.stackTraceLimit = DEFAULT_STACK_TRACE_LIMIT;
 }
 
-function devrun(): void {
-  if (Error.stackTraceLimit < DEFAULT_STACK_TRACE_LIMIT) {
-    Error.stackTraceLimit = DEFAULT_STACK_TRACE_LIMIT;
-  }
+const options = parseArguments();
 
-  const options = parseArguments();
+require("../init-ts-node");
 
-  if (options.noColor) {
-    process.env.FORCE_COLOR = "0";
-    process.env.NO_COLOR = "true";
-  }
-
-  if (options.ci) {
-    process.env.CI = "true";
-  }
-
-  require("../init-ts-node");
-
-  const cwdRequire = Module.createRequire(path.resolve(process.cwd(), "_"));
-
-  const tryResolve = (id: string): string | undefined => {
-    try {
-      return cwdRequire.resolve(id);
-    } catch {}
-    return undefined;
-  };
-
-  let script = options.script;
-  try {
-    script = fileURLToPath(pathToFileURL(script).href);
-  } catch {}
-  script = path.resolve(script);
-  script = tryResolve(script) || tryResolve(path.join(script, "main")) || script;
-
-  const mainModule = new MainModule(script);
-  require.cache[mainModule.filename] = mainModule;
-  mainModule.loaded = true;
-  process.mainModule = mainModule;
-
-  process.argv = [process.argv[0]!, mainModule.filename, ...options.scriptArgs];
-
-  const balsamicDevMain: typeof import("../main") = require("../main");
-  void balsamicDevMain.devRunMain(mainModule, {
-    onBeforeStart() {
-      for (const id of options.require) {
-        cwdRequire(id);
-      }
-    },
-    processExitTimeout: options.processExitTimeout,
-    initTsNode: false,
-    nodeEventsMaxListeners: options.nodeEventsMaxListeners,
-    printProcessBanner: options.timed,
-    initErrorHandling: true,
-    title: options.title,
-    functionName: options.function,
-  });
-}
-
-devrun();
+require("../main/devrun-implementation").devrun(options);
