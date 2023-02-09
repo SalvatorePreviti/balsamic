@@ -159,7 +159,7 @@ async function transpileLazyExportStar(jsSourceFilePath: string) {
           const sreq = JSON.stringify(req);
           lines[
             i
-          ] = `{let r=module;Reflect.defineProperty(exports, ${sprop}, {configurable:true,enumerable:true,get(){return r===module?r=__importStar(require(${sreq})):x;},set(v){r=v;}});}`;
+          ] = `{let r=module;Reflect.defineProperty(exports, ${sprop}, {configurable:true,enumerable:true,get(){return r===module?r=__importStar(require(${sreq})):r;},set(v){r=v;}});}`;
         }
         continue;
       }
