@@ -1,6 +1,5 @@
 import { Module } from "module";
 import path from "path";
-import type { UnsafeAny } from "../types";
 import { fileURLToPath, pathToFileURL } from "url";
 import { devError } from "../dev-error";
 import { devRunMain } from "../main";
@@ -25,13 +24,22 @@ class MainModule extends Module {
   constructor(filename: string) {
     super(filename, module);
     this.filename = filename;
-    this.paths = (Module as UnsafeAny)._nodeModulePaths(process.cwd());
+
+    try {
+      this.paths = (Module as unknown as { _nodeModulePaths: (path: string) => string[] })._nodeModulePaths(
+        process.cwd(),
+      );
+    } catch {}
 
     let exportsError: unknown = MainModule;
     let exportsLoaded = false;
     let exports = this.exports;
 
-    const oldLoad = this.load;
+    const oldLoad =
+      this.load ||
+      (Object.getPrototypeOf(this) as { load?(filename: string): void }).load ||
+      (Module.prototype as { load?(filename: string): void }).load;
+
     this.load = (): void => {
       this.loaded = true;
     };
@@ -63,7 +71,7 @@ class MainModule extends Module {
           exportsError = new SyntaxError(`Error while loading module ${filename}`);
         }
         try {
-          (exportsError as UnsafeAny)._module = filename;
+          (exportsError as { _module?: unknown })._module = filename;
         } catch {}
         throw exportsError;
       } finally {

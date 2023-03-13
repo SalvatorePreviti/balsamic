@@ -481,8 +481,6 @@ export async function devRunMain<T = unknown>(
       main = await main;
       self = undefined;
       selfName = undefined;
-    } else if (typeof main !== "function") {
-      throw new Error(`Invalid main function`);
     }
 
     if (typeof main === "function") {
