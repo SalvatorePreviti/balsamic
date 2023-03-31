@@ -23,7 +23,6 @@ const defaultTypescriptCompilerOptions = {
   experimentalDecorators: true,
   forceConsistentCasingInFileNames: true,
   importHelpers: false,
-  importsNotUsedAsValues: "remove",
   jsx: "react",
   lib: ["dom", "dom.iterable", "esnext", "webworker"],
   module: "esnext",

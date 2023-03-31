@@ -38,6 +38,6 @@
     "which": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.15.1"
+    "@types/node": "^18.15.11"
   }
 }

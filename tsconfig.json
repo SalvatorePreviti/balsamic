@@ -5,7 +5,6 @@
     "baseUrl": ".",
     "module": "CommonJS",
     "resolveJsonModule": true,
-    "importsNotUsedAsValues": "error",
     "exactOptionalPropertyTypes": true,
     "lib": ["ESNext"],
     "target": "es2021"

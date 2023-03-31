@@ -4,7 +4,6 @@
     "baseUrl": ".",
     "outDir": "dist",
     "noEmit": false,
-    "importsNotUsedAsValues": "remove",
     "module": "CommonJS",
     "exactOptionalPropertyTypes": true,
     "lib": ["ESNext"],

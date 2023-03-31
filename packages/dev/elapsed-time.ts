@@ -1,6 +1,6 @@
 import util from "node:util";
-import { performance } from "node:perf_hooks";
 import { numberFixedString } from "./utils/number-fixed";
+import type { UnsafeAny } from "./types";
 
 const { isArray } = Array;
 const { isFinite } = Number;
@@ -74,9 +74,10 @@ export const makeMilliseconds = (
   );
 };
 
+const _elapsedSym = Symbol("elapsed");
+
 export class ElapsedTime {
   public startTime: number;
-  private _elapsed: number | undefined = undefined;
 
   public static timeUnits = [
     { unit: "y", amount: 60 * 60 * 24 * 365.25 },
@@ -87,8 +88,15 @@ export class ElapsedTime {
     { unit: "ms", amount: 1 / 1000 },
   ];
 
-  public constructor(startTime = performance.now()) {
+  /**
+   * Returns the current time in milliseconds from application startup.
+   * Is the same as performance.now() node.
+   */
+  public static now: () => number = performance.now.bind(performance);
+
+  public constructor(startTime = ElapsedTime.now()) {
     this.startTime = startTime;
+    (this as UnsafeAny)[_elapsedSym] = -1;
   }
 
   public static start(): ElapsedTime {
@@ -97,8 +105,8 @@ export class ElapsedTime {
 
   /** Gets the number of elapsed milliseconds */
   public get elapsed(): number {
-    const elapsed = this._elapsed;
-    return elapsed !== undefined ? elapsed : performance.now() - this.startTime;
+    const v = (this as UnsafeAny)[_elapsedSym];
+    return v === -1 ? ElapsedTime.now() - this.startTime : v;
   }
 
   /** Gets the number of elapsed seconds */
@@ -123,22 +131,24 @@ export class ElapsedTime {
 
   /** True if running */
   public get isRunning(): boolean {
-    return this._elapsed === undefined;
+    return (this as UnsafeAny)[_elapsedSym] === -1;
   }
 
   public stop(): void {
-    if (this._elapsed === undefined) {
-      this._elapsed = this.elapsed;
-    }
+    (this as UnsafeAny)[_elapsedSym] = this.elapsed;
   }
 
   public continue(): void {
-    this._elapsed = undefined;
+    const v = (this as UnsafeAny)[_elapsedSym];
+    if (v !== -1) {
+      (this as UnsafeAny)[_elapsedSym] = -1;
+      this.startTime = ElapsedTime.now() - v;
+    }
   }
 
   public restart(): void {
-    this._elapsed = undefined;
-    this.startTime = performance.now();
+    (this as UnsafeAny)[_elapsedSym] = -1;
+    this.startTime = ElapsedTime.now();
   }
 
   public valueOf(): number {

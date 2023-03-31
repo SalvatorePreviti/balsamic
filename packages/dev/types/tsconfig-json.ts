@@ -54,8 +54,6 @@ export interface TsconfigJson {
 export namespace TsconfigJson {
   export interface CompilerOptions {
     /** No longer supported. In early versions, manually set the text encoding for reading files. */
-    charset?: string | undefined;
-    /** Enable constraints that allow a TypeScript project to be used with project references. */
     composite?: boolean | undefined;
     /** Generate .d.ts files from TypeScript and JavaScript files in your project. */
     declaration?: boolean | undefined;
@@ -221,8 +219,6 @@ export namespace TsconfigJson {
     maxNodeModuleJsDepth?: number | undefined;
     /** Allow importing helper functions from tslib once per project, instead of including them per-file. */
     importHelpers?: boolean | undefined;
-    /** Specify emit/checking behavior for imports that are only used for types. */
-    importsNotUsedAsValues?: string | undefined;
     /** Ensure 'use strict' is always emitted. */
     alwaysStrict?: boolean | undefined;
     /** Enable all strict type checking options. */
@@ -400,7 +396,6 @@ export namespace TsconfigJson {
         "module",
         "moduleResolution",
         "newLine",
-        "importsNotUsedAsValues",
         "outFile",
         "outDir",
         "rootDir",

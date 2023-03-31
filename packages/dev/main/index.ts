@@ -486,10 +486,22 @@ export async function devRunMain<T = unknown>(
     if (typeof main === "function") {
       if (self) {
         if (selfName !== undefined) {
-          if (options.functionArguments && options.functionArguments.length > 0) {
-            result = (self as UnsafeAny)[selfName](...options.functionArguments);
-          } else {
-            result = (self as UnsafeAny)[selfName]();
+          try {
+            if (options.functionArguments && options.functionArguments.length > 0) {
+              result = (self as UnsafeAny)[selfName](...options.functionArguments);
+            } else {
+              result = (self as UnsafeAny)[selfName]();
+            }
+          } catch (e) {
+            if (
+              e instanceof TypeError &&
+              typeof e.message === "string" &&
+              e.message.includes("cannot be invoked without 'new'")
+            ) {
+              // Ignore error
+            } else {
+              throw e;
+            }
           }
         }
       } else if (options.functionArguments && options.functionArguments.length > 0) {
