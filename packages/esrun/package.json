@@ -35,7 +35,7 @@
     "v8-compile-cache": "^2.3.0"
   },
   "peerDependencies": {
-    "esbuild": ">=0.17.14",
-    "typescript": ">=5.0.3"
+    "esbuild": ">=0.17.19",
+    "typescript": ">=5.1.3"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic"
@@ -20,19 +20,19 @@
     "balsamic-eslint": "scripts/main.js"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=12.20.0"
   },
   "main": "index.js",
   "dependencies": {
     "chalk": "^4.1.2"
   },
   "peerDependencies": {
-    "@types/node": ">=18.15.11",
-    "@typescript-eslint/eslint-plugin": ">=5.57.0",
-    "@typescript-eslint/parser": ">=5.57.0",
-    "eslint": ">=8.37.0",
+    "@types/node": ">=20.2.5",
+    "@typescript-eslint/eslint-plugin": ">=5.59.9",
+    "@typescript-eslint/parser": ">=5.59.9",
+    "eslint": ">=8.42.0",
     "eslint-plugin-node": ">=11.1.0",
     "eslint-plugin-json": ">=3.1.0",
-    "typescript": ">=5.0.3"
+    "typescript": ">=5.1.3"
   }
 }
