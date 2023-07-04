@@ -16,6 +16,9 @@ async function loadProject(tsconfigFile: string): Promise<ts.ParsedCommandLine> 
   const result = ts.parseConfigFileTextToJson(configFileName, configFileText);
   const configObject = result.config;
   const configParseResult = ts.parseJsonConfigFileContent(configObject, ts.sys, path.dirname(configFileName));
+  configParseResult.options.noEmit = true;
+  configParseResult.options.incremental = false;
+  configParseResult.options.tsBuildInfoFile = undefined as UnsafeAny;
   return configParseResult;
 }
 
@@ -200,35 +203,37 @@ export async function typecheckProjects(
     });
   };
 
-  const cpusCount = Math.max(1, require("os").cpus().length);
+  const chunksCount = Math.max(1, require("os").cpus().length);
 
   // Split the projects in chunks
   const chunks: TsProject[][] = [];
-  for (let i = 0; i < cpusCount; ++i) {
+  for (let i = 0; i < chunksCount; ++i) {
     chunks.push([]);
   }
   for (let i = 0; i < projects.projects.length; ++i) {
-    chunks[i % cpusCount]!.push(projects.projects[i]!);
+    chunks[i % chunksCount]!.push(projects.projects[i]!);
   }
 
   devLog.notice(`Typechecking ${projects.totalFiles} files in ${projects.projects.length} projects`);
 
   const inputs: Input[] = [];
   for (const chunk of chunks) {
-    inputs.push({
-      appRootPath,
-      projects: chunk.map((project) => {
-        return {
-          tsconfigPath: project.tsconfigPath,
-          options: project.tsconfig.options,
-          files: Array.from(project.files),
-        };
-      }),
-    });
+    if (chunk.length > 0) {
+      inputs.push({
+        appRootPath,
+        projects: chunk.map((project) => {
+          return {
+            tsconfigPath: project.tsconfigPath,
+            options: project.tsconfig.options,
+            files: Array.from(project.files),
+          };
+        }),
+      });
+    }
   }
 
   // Run the typecheck in parallel
-  const promises = [];
+  const promises: Promise<void>[] = [];
 
   for (const projectInput of inputs) {
     promises.push(typecheckProject(projectInput));

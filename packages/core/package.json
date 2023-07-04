@@ -1,14 +1,14 @@
 {
-  "name": "@balsamic/dev",
-  "version": "0.5.23",
-  "description": "dev and scripting utilities for NodeJS",
+  "name": "@balsamic/core",
+  "version": "0.0.1",
+  "description": "core library for Node and Browser",
   "types": "index.d.ts",
-  "sideEffects": true,
+  "sideEffects": false,
   "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git",
-    "directory": "packages/dev"
+    "directory": "packages/core"
   },
   "keywords": [
     "balsamic",
