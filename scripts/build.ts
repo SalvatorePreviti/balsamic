@@ -25,6 +25,7 @@ export async function main() {
   // Remove init-ts-node.js from dist/dev.
   await fsasync.rm("dist/dev/init-ts-node.js", { force: true, maxRetries: 5 });
   await fsasync.rm("dist/dev/_packages.js", { force: true, maxRetries: 5 });
+  await fsasync.rm("dist/dev/lib/_ts-worker-thread-require.js", { force: true, maxRetries: 5 });
 
   const newPackageJson = { ...balsamicDev.toJSON(), private: false };
   delete newPackageJson.scripts;
@@ -41,22 +42,33 @@ export async function main() {
     (await glob("dist/dev/tsconfig*.json")).map((item) => fsasync.rm(item, { force: true, maxRetries: 5 })),
   );
 
-  // Copy init-ts-node.js to dist/dev.
   await fsasync.copyFile(
     "packages/dev/init-ts-node.js",
     "dist/dev/init-ts-node.js",
     fsasync.constants.COPYFILE_FICLONE,
   );
 
-  // Copy init-ts-node.js to dist/dev.
   await fsasync.copyFile("packages/dev/_packages.js", "dist/dev/_packages.js", fsasync.constants.COPYFILE_FICLONE);
+
+  await fsasync.copyFile(
+    "packages/dev/lib/_ts-worker-thread-require.js",
+    "dist/dev/lib/_ts-worker-thread-require.js",
+    fsasync.constants.COPYFILE_FICLONE,
+  );
 
   for (const item of await glob("dist/dev/**/*.js")) {
     await transpileLazyExportStar(item);
   }
 
-  // chmod +x dist/dev/bin/devrun.js
-  await fsasync.chmod("dist/dev/bin/devrun.js", 0o755);
+  const chmodPromises: Promise<void>[] = [];
+  const filesToChmodPlusX = await fsasync.readdir("dist/dev/bin", { withFileTypes: true });
+  for (const item of filesToChmodPlusX) {
+    if (item.isFile() && (item.name.endsWith(".js") || item.name.endsWith(".cjs") || item.name.endsWith(".mjs"))) {
+      // chmod +x
+      chmodPromises.push(fsasync.chmod(path.join("dist/dev/bin", item.name), 0o755));
+    }
+  }
+  await Promise.all(chmodPromises);
 }
 
 async function transpileLazyExportStar(jsSourceFilePath: string) {

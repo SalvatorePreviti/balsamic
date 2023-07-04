@@ -2,19 +2,16 @@ import { devEnv } from "./dev-env";
 
 import colors from "chalk";
 
-const n = devEnv.colorsLevel;
-if (n > colors.level) {
-  colors.level = n;
-}
+colors.level = devEnv.colorsLevel;
 
 /** An instance of colors that is always disabled. */
-declare const colors_disabled: colors.Chalk;
+export declare const colors_disabled: colors.Chalk;
 
-export { colors, colors_disabled };
+export { colors };
 
 let _colors_disabled: colors.Chalk | undefined;
 
-Reflect.defineProperty(exports, "colors_disabled", {
+Object.defineProperty(exports, "colors_disabled", {
   get: () => _colors_disabled || (_colors_disabled = new colors.Instance({ level: 0 })),
   configurable: true,
   enumerable: true,

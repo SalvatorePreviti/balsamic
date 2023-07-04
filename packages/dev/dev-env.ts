@@ -72,7 +72,7 @@ export class DevEnv {
   public get colorsLevel(): 0 | 1 | 2 | 3 {
     let result = this[private_colorsLevel];
     if (result === undefined) {
-      result = _loadHasColors(process.stdout);
+      result = _loadHasColors(this, process.stdout);
       this[private_colorsLevel] = result;
     }
     return result;
@@ -92,7 +92,7 @@ export class DevEnv {
   public get stderrColorsLevel(): 0 | 1 | 2 | 3 {
     let result = this[private_stderrColorsLevel];
     if (result === undefined) {
-      result = _loadHasColors(process.stderr);
+      result = _loadHasColors(this, process.stderr);
       this[private_stderrColorsLevel] = result;
     }
     return result;
@@ -233,21 +233,72 @@ function _extrapolateProcessTitle(
   return value;
 }
 
-function _loadHasColors(stream: WriteStream): 0 | 1 | 2 | 3 {
-  if (process.argv.includes("--no-color") || process.argv.includes("--no-colors")) {
-    return 0;
-  }
+function _loadHasColors(instance: DevEnv, stream: WriteStream): 0 | 1 | 2 | 3 {
+  let result: 0 | 1 | 2 | 3 = 0;
 
-  if (process.env.NO_COLOR || process.env.FORCE_COLOR === "0") {
-    return 0;
-  }
+  const argv = process.argv;
+  const env = process.env;
 
-  if (stream && typeof stream.hasColors === "function") {
-    const level = stream.hasColors(2 ** 24) ? 3 : stream.hasColors(2 ** 8) ? 2 : stream.hasColors() ? 1 : 0;
-    if (level) {
-      return level;
+  const hasNoColorArg = argv.includes("--no-color") || argv.includes("--no-colors");
+  const hasNoColorEnv = !!env.NO_COLOR && env.NO_COLOR !== "false";
+
+  if (!hasNoColorArg && !hasNoColorEnv) {
+    switch (env.FORCE_COLOR) {
+      case "0":
+      case "false":
+      case "False":
+      case "FALSE":
+      case "no":
+      case "No":
+      case "NO":
+      case "n":
+      case "N":
+        return 0;
+      case "1":
+      case "4":
+      case "16":
+      case "true":
+      case "True":
+      case "TRUE":
+      case "yes":
+      case "Yes":
+      case "YES":
+      case "Y":
+      case "y":
+        result = 1;
+        break;
+      case "2":
+      case "8":
+      case "256":
+        result = 2;
+        break;
+      case "3":
+      case "24":
+      case "16M":
+        result = 3;
+        break;
+
+      default:
+        break;
+    }
+
+    if (stream && typeof stream.hasColors === "function") {
+      const hasColors24 = stream.hasColors(2 ** 24);
+      const hasColors8 = stream.hasColors(2 ** 8);
+      const hasColors = stream.hasColors();
+      const level = hasColors24 ? 3 : hasColors8 ? 2 : hasColors ? 1 : 0;
+
+      if (level && level >= result) {
+        result = level;
+      }
+    } else if (!result && isCI()) {
+      result = 1;
     }
   }
 
-  return isCI() ? 1 : 0;
+  if (instance === devEnv) {
+    env.FORCE_COLOR = result.toString();
+  }
+
+  return result;
 }

@@ -4,9 +4,9 @@ import { colors as _colors, colors_disabled as _colors_disabled, getColor as _ge
 import type { DevEnv } from "../dev-env";
 import { devEnv, isCI } from "../dev-env";
 import { numberFixedString } from "../utils/number-fixed";
-import { devError } from "../dev-error";
 import { TERM_CHARS } from "./term-chars";
 import { bindProtoFunctions } from "../plain-objects";
+import { devError } from "../dev-error";
 
 export class DevLogStream {
   public readonly stream: NodeJS.WriteStream;

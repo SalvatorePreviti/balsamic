@@ -49,7 +49,6 @@ const defaultTypescriptCompilerOptions = {
   strictNullChecks: true,
   strictPropertyInitialization: false,
   stripInternal: true,
-  suppressExcessPropertyErrors: true,
   suppressImplicitAnyIndexErrors: false,
   target: "ESNext",
   useDefineForClassFields: false,

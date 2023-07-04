@@ -147,8 +147,6 @@ export namespace TsconfigJson {
     sourceMap?: boolean | undefined;
     /** Specify the root path for debuggers to find the reference source code. */
     sourceRoot?: string | undefined;
-    /** Disable reporting of excess property errors during the creation of object literals. */
-    suppressExcessPropertyErrors?: boolean | undefined;
     /** Suppress `noImplicitAny` errors when indexing objects that lack index signatures. */
     suppressImplicitAnyIndexErrors?: boolean | undefined;
     /** Disable emitting declarations that have `@internal` in their JSDoc comments. */
@@ -441,7 +439,6 @@ export namespace TsconfigJson {
         "removeComments",
         "isolatedModules",
         "sourceMap",
-        "suppressExcessPropertyErrors",
         "suppressImplicitAnyIndexErrors",
         "stripInternal",
         "useUnknownInCatchVariables",
