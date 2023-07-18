@@ -98,6 +98,7 @@ export class Deferred<T = void> {
 
     const removeHandler = abortSignals.addAbortHandler(abortSignal, this);
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.promise.finally(removeHandler);
 
     return this;

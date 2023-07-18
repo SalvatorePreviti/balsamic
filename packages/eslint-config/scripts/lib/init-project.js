@@ -125,15 +125,15 @@ function initGitHooks(project, gitDirectory) {
   createProjectFile(path.join(huskyPath, ".gitignore"), "_\n");
   const scripts = project.scripts || (project.scripts = {});
 
-  const precommitScript = "lint-staged && pretty-quick --staged";
+  const precommitScript = "lint-staged";
 
   if (!project["int-staged"]) {
     project["lint-staged"] = {
       "*.{js,jsx,ts,tsx,mts,cts,cjs,mjs,json}": [
         "eslint --no-error-on-unmatched-pattern --fix",
-        "prettier --write --loglevel=warn",
+        "prettier --write --log-level=warn",
       ],
-      "*.{yml,yaml,md,htm,html,css,scss,less}": ["prettier --write --loglevel=warn"],
+      "*.{yml,yaml,md,htm,html,css,scss,less}": ["prettier --write --log-level=warn"],
     };
   }
 
@@ -232,7 +232,6 @@ function addDependencies(project, { hasGitHooks }) {
   if (hasGitHooks) {
     addDevDependency("husky", extraDependencies.husky);
     addDevDependency("lint-staged", extraDependencies["lint-staged"]);
-    addDevDependency("pretty-quick", extraDependencies["pretty-quick"]);
   }
 
   if (existingDeps.react) {

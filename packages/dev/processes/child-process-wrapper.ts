@@ -536,13 +536,13 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
   public addPendingPromise(promise: Promise<unknown>): void {
     if (this.isRunning) {
-      promise.finally(() => {
-        const index = this._pendingPromises.indexOf(promise);
+      const myPromise = promise.finally(() => {
+        const index = this._pendingPromises.indexOf(myPromise);
         if (index >= 0) {
           this._pendingPromises.splice(index, 1);
         }
       });
-      this._pendingPromises.push(promise);
+      this._pendingPromises.push(myPromise);
     }
   }
 
@@ -748,7 +748,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
   ): ChildProcessWrapper {
     options = { ...options };
     if (typeof options.title !== "string") {
-      options = { ...options, title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId };
+      options = {
+        ...options,
+        title: moduleId !== executableId ? `${moduleId}:${executableId}` : moduleId,
+      };
     }
     const { opts, args, signal } = ChildProcessWrapper.extractSpawnOptions(inputArgs, moduleId, options);
 
@@ -777,7 +780,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     options?: NpmSpawnOptions | undefined,
   ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
-    options = { title: `${packageManager} run ${command}`, ...options, packageManager };
+    options = {
+      title: `${packageManager} run ${command}`,
+      ...options,
+      packageManager,
+    };
     return ChildProcessWrapper.npmCommand("run", [command, ...args], options);
   }
 
@@ -788,7 +795,11 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     options?: NpmSpawnOptions | undefined,
   ): ChildProcessWrapper {
     const packageManager = (options && options.packageManager) || NodeResolver.workspaceRoot.packageManager;
-    options = { title: `${packageManager} ${command}`, ...options, packageManager };
+    options = {
+      title: `${packageManager} ${command}`,
+      ...options,
+      packageManager,
+    };
     return ChildProcessWrapper.npm([command, ...args], options);
   }
 
@@ -831,9 +842,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 const private_childProcessWrapper = Symbol.for("childProcessWrapper");
 const private_error = Symbol.for("error");
 
-export interface ChildProcessPromise<T = ChildProcessWrapper> extends Promise<T> {}
-
-export class ChildProcessPromise<T> extends Promise<T> implements InterfaceFromClass<ChildProcessWrapper> {
+export class ChildProcessPromise<T = ChildProcessWrapper>
+  extends Promise<T>
+  implements InterfaceFromClass<ChildProcessWrapper>
+{
   private [private_childProcessWrapper]: ChildProcessWrapper | undefined;
   private [private_error]?: Error | undefined;
 
