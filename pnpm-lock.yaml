@@ -129,8 +129,8 @@ importers:
         version: 2.3.1
     devDependencies:
       "@types/node":
-        specifier: ^20.3.3
-        version: 20.3.3
+        specifier: ^20.4.2
+        version: 20.4.2
 
   packages/eslint-config:
     dependencies:
@@ -955,11 +955,6 @@ packages:
   /@types/mocha@10.0.1:
     resolution:
       { integrity: sha512-/fvYntiO1GeICvqbQ3doGDIP97vWmvFt83GKguJ6prmQM2iXZfFcq6YE8KteFyRtX2/h5Hf91BYvPodJKFYv5Q== }
-    dev: true
-
-  /@types/node@20.3.3:
-    resolution:
-      { integrity: sha512-wheIYdr4NYML61AjC8MKj/2jrR/kDQri/CIpVoZwldwhnIrD/j9jIU5bJ8yBKuB2VhpFV7Ab6G2XkBjv9r9Zzw== }
     dev: true
 
   /@types/node@20.4.2:
