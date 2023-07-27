@@ -73,7 +73,7 @@ async function initProject() {
 
   addDependencies(project, { hasGitHooks });
 
-  if (!fs.existsSync("tsn")) {
+  if (!fs.existsSync("./tsn")) {
     initTsn();
   }
 
