@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/tsn",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "typescript tooling",
   "type": "commonjs",
   "sideEffects": true,
@@ -42,6 +42,8 @@
     },
     "./index.mjs": "./index.mjs",
     "./package.json": "./package.json",
+    "./tsconfig.json": "./tsconfig.json",
+    "./tsconfig-loose.json": "./tsconfig-loose.json",
     "./tscheck": "./tscheck/index.js",
     "./tscheck.js": "./tscheck/index.js"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic"
@@ -27,7 +27,7 @@
     "chalk": "^4.1.2"
   },
   "peerDependencies": {
-    "@balsamic/tsn": ">=0.0.1",
+    "@balsamic/tsn": ">=0.0.2",
     "@types/node": ">=20.4.5",
     "@typescript-eslint/eslint-plugin": ">=6.2.0",
     "@typescript-eslint/parser": ">=6.2.0",
