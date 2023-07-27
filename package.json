@@ -26,9 +26,9 @@
   "scripts": {
     "test": "mocha -r @balsamic/tsn --recursive ./test/**/*.test.ts",
     "lint": "eslint . --fix && prettier --write --log-level=warn .",
+    "typecheck": "tscheck",
     "precommit": "lint-staged",
     "postinstall": "husky install .husky",
-    "typecheck": "tscheck",
     "build": "devrun scripts/build.ts",
     "clean": "rm -fr dist",
     "publish:@balsamic/dev": "npm run lint && npm run build && cd dist/dev && npm publish"

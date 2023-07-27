@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic"
@@ -28,8 +28,6 @@
   },
   "peerDependencies": {
     "@balsamic/tsn": ">=0.0.1",
-    "ts-node": ">=10.9.1",
-    "tsconfig-paths": ">=4.2.0",
     "@types/node": ">=20.4.5",
     "@typescript-eslint/eslint-plugin": ">=6.2.0",
     "@typescript-eslint/parser": ">=6.2.0",
@@ -38,6 +36,9 @@
     "eslint-plugin-node": ">=11.1.0",
     "eslint-plugin-json": ">=3.1.0",
     "eslint-plugin-import": "^2.27.5",
+    "prettier": "^3.0.0",
+    "ts-node": ">=10.9.1",
+    "tsconfig-paths": ">=4.2.0",
     "typescript": ">=5.1.6"
   }
 }
