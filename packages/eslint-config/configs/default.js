@@ -552,6 +552,13 @@ if (config.getHasMocha()) {
   _testOverrides.rules = { ..._testOverrides.rules, ...mochaConfig.rules };
 }
 
+if (config.getHasVitest()) {
+  const vitestConfig = require("./vitest");
+  _testOverrides.plugins = [...(_testOverrides.plugins || []), ...vitestConfig.plugins];
+  _testOverrides.env = { ..._testOverrides.env, ...vitestConfig.env };
+  _testOverrides.rules = { ..._testOverrides.rules, ...vitestConfig.rules };
+}
+
 if (config.getHasChai()) {
   const chaiConfig = require("./chai");
   _testOverrides.plugins = [...(_testOverrides.plugins || []), ...chaiConfig.plugins];

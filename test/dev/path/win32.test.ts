@@ -101,7 +101,7 @@ describe("test/dev/path/win32", () => {
   describe("isSep", () => {
     it("returns false for empty string", () => expect(isSep("")).to.equal(false));
     it("returns false for a string", () => expect(isSep("x")).to.equal(false));
-    it("returns false for a string", () => expect(isSep("xxx")).to.equal(false));
+    it("returns false for another string", () => expect(isSep("xxx")).to.equal(false));
     it('returns false for "/x"', () => expect(isSep("/x")).to.equal(false));
     it("returns false for 0", () => expect(isSep(0)).to.equal(false));
     it('returns true for "/"', () => expect(isSep("/")).to.equal(true));
@@ -148,7 +148,7 @@ describe("test/dev/path/win32", () => {
     it('removes \\ for ".\\"', () => expect(removeTrailingSlash(".\\")).to.equal("."));
     it('removes \\ for "..\\"', () => expect(removeTrailingSlash("..\\")).to.equal(".."));
     it('removes \\ for "\\xx\\yy\\"', () => expect(removeTrailingSlash("\\xx\\yy\\")).to.equal("\\xx\\yy"));
-    it("removes multiple ending slashes", () => expect(removeTrailingSlash("xx\\\\\\\\")).to.equal("xx"));
+    it("removes multiple ending \\ slashes", () => expect(removeTrailingSlash("xx\\\\\\\\")).to.equal("xx"));
   });
 
   describe("appendTrailingSlash", () => {
@@ -387,10 +387,10 @@ describe("test/dev/path/win32", () => {
 
   describe("pathFromFileURL", () => {
     it("parses URL objects", () => {
-      expect(pathFromFileURL(new URL("file:///home/foo")), "\\home\\foo");
+      expect(pathFromFileURL(new URL("file:///home/foo")), "\\home\\foo").to.equal("\\home\\foo");
     });
     it("parses URLLike objects", () => {
-      expect(pathFromFileURL({ href: "file:///home/foo" }), "\\home\\foo");
+      expect(pathFromFileURL({ href: "file:///home/foo" }), "\\home\\foo").to.equal("\\home\\foo");
     });
     it("parses files urls", () => {
       expect(pathFromFileURL("file:///")).to.equal("\\");
@@ -409,7 +409,7 @@ describe("test/dev/path/win32", () => {
     });
   });
 
-  describe("", () => {
+  describe("various url paths without protocol", () => {
     expect(absolutePathToFileURL("/home/foo").href).to.equal("file:///home/foo");
     expect(absolutePathToFileURL("/home/ ").href).to.equal("file:///home/%20");
     expect(absolutePathToFileURL("/home/%20").href).to.equal("file:///home/%2520");

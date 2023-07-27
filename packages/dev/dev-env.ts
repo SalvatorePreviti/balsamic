@@ -8,6 +8,7 @@ import type { WriteStream } from "node:tty";
 
 import { makePathRelative } from "./path/lib/make-path-relative";
 import { _initialCwd } from "./main/_initial-cwd";
+import type { UnsafeAny } from "./types";
 
 const private_isCI = Symbol("isCI");
 const private_colorsLevel = Symbol("colorsLevel");
@@ -15,6 +16,8 @@ const private_stderrColorsLevel = Symbol("stderrColorsLevel");
 const private_processTitle = Symbol("processTitle");
 const private_defaultProcessTitle = Symbol("defaultProcessTitle");
 const private_env = Symbol("env");
+
+const tsn = (global as UnsafeAny)[Symbol.for("@balsamic/tsn")];
 
 export let devEnv: DevEnv;
 
@@ -56,6 +59,9 @@ export class DevEnv {
   }
 
   public get isCI(): boolean {
+    if (tsn && this === devEnv) {
+      return tsn.isCI;
+    }
     let result = this[private_isCI];
     if (result === undefined) {
       result =
@@ -66,10 +72,17 @@ export class DevEnv {
   }
 
   public set isCI(value: boolean) {
-    this[private_isCI] = !!value;
+    if (tsn && this === devEnv) {
+      tsn.isCI = value;
+    } else {
+      this[private_isCI] = !!value;
+    }
   }
 
   public get colorsLevel(): 0 | 1 | 2 | 3 {
+    if (tsn && this === devEnv) {
+      return tsn.colorsLevel;
+    }
     let result = this[private_colorsLevel];
     if (result === undefined) {
       result = _loadHasColors(this, process.stdout);
@@ -79,17 +92,24 @@ export class DevEnv {
   }
 
   public set colorsLevel(value: number | boolean | string | null) {
-    if (typeof value === "string") {
-      value = Number.parseInt(value);
+    if (tsn && this === devEnv) {
+      tsn.colorsLevel = value;
+    } else {
+      if (typeof value === "string") {
+        value = Number.parseInt(value);
+      }
+      this[private_colorsLevel] = !value
+        ? 0
+        : value === true
+        ? 1
+        : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
     }
-    this[private_colorsLevel] = !value
-      ? 0
-      : value === true
-      ? 1
-      : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
   }
 
   public get stderrColorsLevel(): 0 | 1 | 2 | 3 {
+    if (tsn && this === devEnv) {
+      return tsn.stderrColorsLevel;
+    }
     let result = this[private_stderrColorsLevel];
     if (result === undefined) {
       result = _loadHasColors(this, process.stderr);
@@ -99,17 +119,24 @@ export class DevEnv {
   }
 
   public set stderrColorsLevel(value: number | boolean | string | null) {
-    if (typeof value === "string") {
-      value = Number.parseInt(value);
+    if (tsn && this === devEnv) {
+      tsn.stderrColorsLevel = value;
+    } else {
+      if (typeof value === "string") {
+        value = Number.parseInt(value);
+      }
+      this[private_stderrColorsLevel] = !value
+        ? 0
+        : value === true
+        ? 1
+        : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
     }
-    this[private_stderrColorsLevel] = !value
-      ? 0
-      : value === true
-      ? 1
-      : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
   }
 
   public get processTitle(): string {
+    if (tsn && this === devEnv) {
+      return tsn.processTitle;
+    }
     let result = this[private_processTitle];
     if (result === undefined) {
       result = this[private_defaultProcessTitle];
@@ -131,10 +158,17 @@ export class DevEnv {
           readonly path?: string | undefined;
         },
   ) {
-    this[private_processTitle] = _extrapolateProcessTitle(title);
+    if (tsn && this === devEnv) {
+      tsn.processTitle = title;
+    } else {
+      this[private_processTitle] = _extrapolateProcessTitle(title);
+    }
   }
 
   public get hasProcessTitle(): boolean {
+    if (tsn) {
+      return tsn.hasProcessTitle;
+    }
     return this[private_processTitle] !== undefined;
   }
 

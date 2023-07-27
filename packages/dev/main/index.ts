@@ -26,27 +26,11 @@ let _exitTimeoutExitCode = 2;
 let _ignoredWarnings: Set<string> | null = null;
 let _unhandledErrorsLogged: WeakSet<{}> | null = null;
 
-let _tsNodeInitialized = false;
-const _tsNodeInitializedSym = Symbol.for("@balsamic/dev/init-ts-node");
-
 export enum Main {}
 
 export namespace Main {
-  export function initTsNode(options: { typecheck?: boolean | "typecheck" | "transpile-only" | undefined }): void {
-    if (!_tsNodeInitialized) {
-      _tsNodeInitialized = true;
-      if (!(global as UnsafeAny)[_tsNodeInitializedSym]) {
-        (global as UnsafeAny)[_tsNodeInitializedSym] = true;
-        if (options && options.typecheck && options.typecheck !== "transpile-only") {
-          require("ts-node/register");
-        } else {
-          require("ts-node/register/transpile-only");
-        }
-        try {
-          require("tsconfig-paths/register");
-        } catch {}
-      }
-    }
+  export function initTsNode(): void {
+    require("../init-ts-node");
   }
 
   /** Prints process information */
@@ -315,7 +299,7 @@ export interface DevRunMainOptions<T = unknown> {
   onTerminated?: ((result: Error | T) => void | Promise<void>) | null | undefined | false;
 
   /** If not false, setup ts-node and tsconfig-paths */
-  initTsNode?: boolean | "typecheck" | "transpile-only" | undefined;
+  initTsNode?: boolean | null | undefined;
 
   /** The function to run in the module */
   functionName?: string | undefined;
@@ -410,7 +394,7 @@ export async function devRunMain<T = unknown>(
     }
 
     if (options.initTsNode) {
-      Main.initTsNode({ typecheck: options.initTsNode === "typecheck" });
+      Main.initTsNode();
     }
 
     if (options.onBeforeStart) {

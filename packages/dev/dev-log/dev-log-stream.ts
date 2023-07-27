@@ -69,7 +69,7 @@ export class DevLogStream {
     this._isTerm = value;
   }
 
-  public getColor(color: TermColor | null | undefined): _colors.Chalk {
+  public getColor(color: TermColor | null | undefined): Chalk {
     return this.colors.level > 0 ? _getColor(color) : _colors_disabled;
   }
 
@@ -267,7 +267,7 @@ export class DevLogStream {
     this.write(`${text}\n`);
   }
 
-  private _rgbColorFromValue(value: number): _colors.Chalk {
+  private _rgbColorFromValue(value: number): Chalk {
     const g = Math.max(0, Math.min(190, 245 - Math.floor(value * 255) + 40));
     const r = Math.max(0, Math.min(255, Math.round(value * 255 + 110)));
     return this.colors.rgb(r, g, 35);

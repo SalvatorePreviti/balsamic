@@ -44,10 +44,27 @@
     "strictPropertyInitialization": true,
     "stripInternal": true,
     "suppressImplicitAnyIndexErrors": false,
-    "target": "es2021",
+    "target": "es2022",
     "useDefineForClassFields": false,
     "removeComments": false,
     "sourceMap": true
+  },
+  "ts-node": {
+    "swc": true,
+    "transpileOnly": true,
+    "preferTsExts": true,
+    "require": ["tsconfig-paths/register"],
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "isolatedModules": true,
+      "importHelpers": false,
+      "preserveConstEnums": true,
+      "resolveJsonModule": true,
+      "skipDefaultLibCheck": true,
+      "skipLibCheck": true,
+      "sourceMap": true
+    }
   },
   "compileOnSave": false,
   "typeAcquisition": { "enable": true }

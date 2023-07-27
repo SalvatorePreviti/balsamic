@@ -16,7 +16,6 @@ module.exports = {
     "mocha/handle-done-callback": 2,
     "mocha/no-global-tests": 2,
     "mocha/no-return-and-callback": 2,
-    "mocha/valid-test-description": 1,
     "mocha/valid-suite-description": 1,
     "mocha/no-nested-tests": 2,
     "mocha/no-async-describe": 2,

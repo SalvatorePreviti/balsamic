@@ -53,7 +53,7 @@ function loadPackageJson(packageJsonPath) {
   }
 }
 
-function rewritePackageJson(packageJsonPath, project) {
+async function rewritePackageJson(packageJsonPath, project) {
   const stringified = JSON.stringify(project, null, 2);
   let originalManifest;
   try {
@@ -62,12 +62,12 @@ function rewritePackageJson(packageJsonPath, project) {
   let formatted;
   try {
     const prettierInterface = require("prettier");
-    formatted = prettierInterface.format(stringified, { ignoreErrors: true, parser: "json-stringify" });
+    formatted = await prettierInterface.format(stringified, { ignoreErrors: true, parser: "json-stringify" });
   } catch {}
   formatted = cleanupText(formatted || stringified);
   if (formatted !== originalManifest) {
     logging.progress("rewriting package.json ...");
-    fs.writeFileSync(packageJsonPath, formatted);
+    await fs.promises.writeFile(packageJsonPath, formatted);
   } else {
     logging.skip("package.json unchanged");
   }

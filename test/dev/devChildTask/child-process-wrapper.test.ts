@@ -87,7 +87,7 @@ describe("ChildProcessWrapper", () => {
 
     await wrapper.terminationPromise();
 
-    expect(wrapper.exitCode === "SIGTERM");
+    expect(wrapper.exitCode === "SIGTERM").to.equal(true);
     expect(wrapper.error?.message).to.equal("The operation was aborted");
     expect(AbortError.isAbortError(wrapper.error)).to.equal(true);
     expect(wrapper.isRejected).to.equal(true);

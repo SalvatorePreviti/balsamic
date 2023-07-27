@@ -1,21 +1,37 @@
 import { devEnv } from "./dev-env";
 
-import colors from "chalk";
+import type { UnsafeAny } from "./types";
 
-colors.level = devEnv.colorsLevel;
+const tsn = (global as UnsafeAny)[Symbol.for("@balsamic/tsn")];
+
+import type Chalk from "chalk";
+
+export let colors: Chalk;
+
+export type colors = Chalk.Chalk;
+
+if (tsn) {
+  colors = tsn.colors;
+  Object.defineProperty(exports, "colors_disabled", {
+    get: () => tsn.colors_disabled,
+    configurable: true,
+    enumerable: true,
+  });
+}
+
+if (!colors!) {
+  colors = require("chalk");
+  colors.level = devEnv.colorsLevel;
+  let _colors_disabled: Chalk.Chalk | undefined;
+  Object.defineProperty(exports, "colors_disabled", {
+    get: () => _colors_disabled || (_colors_disabled = new colors.Instance({ level: 0 })),
+    configurable: true,
+    enumerable: true,
+  });
+}
 
 /** An instance of colors that is always disabled. */
-export declare const colors_disabled: colors.Chalk;
-
-export { colors };
-
-let _colors_disabled: colors.Chalk | undefined;
-
-Object.defineProperty(exports, "colors_disabled", {
-  get: () => _colors_disabled || (_colors_disabled = new colors.Instance({ level: 0 })),
-  configurable: true,
-  enumerable: true,
-});
+export declare const colors_disabled: Chalk.Chalk;
 
 export type TermBasicColor =
   | "black"
@@ -37,7 +53,7 @@ export type TermBasicColor =
 
 export type TermColor = Chalk | TermBasicColor | "error" | "warning" | "info" | "debug" | "verbose" | "notice" | "box";
 
-export type Chalk = colors.Chalk;
+export type Chalk = Chalk.Chalk;
 
 export function getColor(color: TermColor | null | undefined): Chalk {
   if (typeof color === "string") {

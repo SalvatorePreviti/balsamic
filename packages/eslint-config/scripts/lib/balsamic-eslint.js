@@ -2,7 +2,7 @@
 
 const logging = require("./logging");
 const path = require("path");
-const { initProject, initClangFormat, initNpmIgnore } = require("./init-project");
+const { initProject, initClangFormat, initNpmIgnore, initTsn } = require("./init-project");
 
 exports.handleUncaughtError = logging.handleUncaughtError;
 
@@ -25,6 +25,9 @@ exports.main = async function main(argv = process.argv) {
     case "--init-clangformat":
     case "--init-clang":
       return initClangFormat();
+
+    case "--init-tsn":
+      return initTsn();
   }
 
   logging.banner("help");
@@ -32,6 +35,7 @@ exports.main = async function main(argv = process.argv) {
   logging.log(`  ${name} --init              : initializes a project`);
   logging.log(`  ${name} --init-npmignore    : initializes .npmignore`);
   logging.log(`  ${name} --init-clang-format : initializes .clang-format`);
+  logging.log(`  ${name} --init-tsn          : initializes tsn executable`);
   logging.log();
 
   if (!process.exitCode && argument !== "--help" && argument !== "--version") {

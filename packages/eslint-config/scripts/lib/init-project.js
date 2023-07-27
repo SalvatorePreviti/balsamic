@@ -18,6 +18,7 @@ module.exports = {
   initProject,
   initNpmIgnore,
   initClangFormat,
+  initTsn,
 };
 
 function initNpmIgnore() {
@@ -29,6 +30,13 @@ function initNpmIgnore() {
 function initClangFormat() {
   logging.banner("clang-format initialization");
   copyProjectFile(".clang-format");
+  logging.log();
+}
+
+function initTsn() {
+  logging.banner("tsn initialization");
+  copyProjectFile("bin/tsn", "tsn");
+  fs.chmodSync("tsn", 0o755);
   logging.log();
 }
 
@@ -65,7 +73,11 @@ async function initProject() {
 
   addDependencies(project, { hasGitHooks });
 
-  rewritePackageJson("package.json", project);
+  if (!fs.existsSync("tsn")) {
+    initTsn();
+  }
+
+  await rewritePackageJson("package.json", project);
 
   logging.footer("Initialization completed.");
 
@@ -78,7 +90,7 @@ async function initProject() {
   }
 
   if (hasGitHooks) {
-    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright("husky install")}\` to initialize git hooks.`));
+    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright("npx husky install")}\` to initialize git hooks.`));
   }
 
   logging.log("");
@@ -246,6 +258,11 @@ function addDependencies(project, { hasGitHooks }) {
     addDevDependency("@types/mocha", extraDependencies["@types/mocha"]);
     addDevDependency("mocha", extraDependencies.mocha);
     addDevDependency("chai", extraDependencies.chai);
+    hasChai = true;
+  }
+
+  if (existingDeps.vitest) {
+    addDevDependency("eslint-plugin-vitest", extraDependencies["eslint-plugin-vitest"]);
     hasChai = true;
   }
 

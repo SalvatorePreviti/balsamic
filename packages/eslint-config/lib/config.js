@@ -1,6 +1,7 @@
 const { resolve: pathResolve } = require("path");
 const { readFileSync: fsReadFileSync } = require("fs");
 const { findFileInParents } = require("./utils");
+const path = require("path");
 const Module = require("module");
 
 const sourceNodeExtensions = [".ts", ".tsx", ".mts", ".cts", ".jsx", ".js", ".mjs", ".cjs"];
@@ -24,6 +25,7 @@ module.exports = {
     "**/emscripten/**/*",
   ],
   scripts: [
+    "vite.config*",
     "**/dev-server/**/*",
     "**/scripts/**/*",
     "**/dev/**/*",
@@ -45,6 +47,7 @@ module.exports = {
     "**/.mocharc.*",
   ],
   tests: [
+    "*vitest*",
     "*.test.*",
     "*.spec.*",
     "**/test/**/*",
@@ -73,6 +76,7 @@ module.exports = {
   getHasMocha,
   getHasReact,
   getHasJest,
+  getHasVitest,
 };
 
 function loadIgnorePatternsFromFile(filename) {
@@ -87,7 +91,7 @@ function loadIgnorePatterns() {
 }
 
 const _hasPackageCache = new Map();
-let _hasPackageResolver;
+let _packageResolver;
 
 function _hasPackage(name) {
   let result = _hasPackageCache.get(name);
@@ -95,11 +99,15 @@ function _hasPackage(name) {
     return result;
   }
   result = false;
-  if (!_hasPackageResolver) {
-    _hasPackageResolver = Module.createRequire(process.cwd());
+  if (!_packageResolver) {
+    _packageResolver = Module.createRequire(path.resolve(process.cwd(), "index.js"));
   }
   try {
-    _hasPackageResolver.resolve(name);
+    _packageResolver.resolve(name);
+    result = true;
+  } catch {}
+  try {
+    require.resolve(name);
     result = true;
   } catch {}
   _hasPackageCache.set(name, result);
@@ -112,6 +120,10 @@ function getHasChai() {
 
 function getHasMocha() {
   return _hasPackage("mocha") && _hasPackage("eslint-plugin-mocha");
+}
+
+function getHasVitest() {
+  return _hasPackage("vitest") && _hasPackage("eslint-plugin-vitest");
 }
 
 function getHasReact() {

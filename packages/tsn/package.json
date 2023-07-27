@@ -1,0 +1,59 @@
+{
+  "name": "@balsamic/tsn",
+  "version": "0.0.1",
+  "description": "typescript tooling",
+  "type": "commonjs",
+  "sideEffects": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SalvatorePreviti/balsamic.git",
+    "directory": "packages/tsn"
+  },
+  "keywords": [
+    "balsamic",
+    "tsn"
+  ],
+  "author": "Salvatore Previti",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SalvatorePreviti/balsamic/issues"
+  },
+  "homepage": "https://github.com/SalvatorePreviti/balsamic/tree/main/packages/dev#readme",
+  "bin": {
+    "tsn": "./tsn",
+    "tscheck": "./tscheck/tscheck.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./index": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./index.js": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./index.mjs": "./index.mjs",
+    "./package.json": "./package.json",
+    "./tscheck": "./tscheck/index.js",
+    "./tscheck.js": "./tscheck/index.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "app-root-path": "3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.1.6",
+    "ts-node": ">=10.9.1",
+    "tsconfig-paths": ">=4.2.0"
+  }
+}

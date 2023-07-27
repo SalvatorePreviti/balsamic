@@ -53,19 +53,21 @@ function initTsNode() {
 
     global[Symbol.for("_tsNodeInitialized")] = true;
 
-    tryRequire("ts-node/register/transpile-only");
-    tryRequire("tsconfig-paths/register");
+    if (!tryRequire("@balsamic/tsn")) {
+      tryRequire("ts-node/register/transpile-only");
+      tryRequire("tsconfig-paths/register");
 
-    // Modify process.execArgv to include the current file.
-    const execArgvSet = new Set(process.execArgv);
-    if (
-      !execArgvSet.has(__filename) &&
-      !execArgvSet.has("@balsamic/dev/init-ts-node") &&
-      !execArgvSet.has("@balsamic/dev/init-ts-node.js")
-    ) {
-      process.execArgv.unshift("-r", __filename);
+      // Modify process.execArgv to include the current file.
+      const execArgvSet = new Set(process.execArgv);
+      if (
+        !execArgvSet.has(__filename) &&
+        !execArgvSet.has("@balsamic/dev/init-ts-node") &&
+        !execArgvSet.has("@balsamic/dev/init-ts-node.js")
+      ) {
+        process.execArgv.unshift("-r", __filename);
+      }
+
+      workerThreads.Worker = TsWorker;
     }
-
-    workerThreads.Worker = TsWorker;
   }
 }
