@@ -35,7 +35,7 @@ function initClangFormat() {
 
 function initTsn() {
   logging.banner("tsn initialization");
-  copyProjectFile("bin/tsn", "tsn");
+  copyProjectFile("tsn", "tsn");
   fs.chmodSync("tsn", 0o755);
   logging.log();
 }
@@ -73,7 +73,7 @@ async function initProject() {
 
   addDependencies(project, { hasGitHooks });
 
-  if (!fs.existsSync("./tsn")) {
+  if (!fs.existsSync("tsn")) {
     initTsn();
   }
 
