@@ -4,6 +4,7 @@
   "description": "typescript tooling",
   "type": "commonjs",
   "sideEffects": true,
+  "private": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SalvatorePreviti/balsamic.git",
