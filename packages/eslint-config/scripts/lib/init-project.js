@@ -166,7 +166,10 @@ function fixProjectFields(project) {
     project.name = path.dirname(process.cwd());
     logging.progress(`project name is now ${project.name}`);
   }
-  project.engines = { ...manifest.engines, ...project.engines };
+  project.engines = {
+    node: ">=18.17.0",
+    ...project.engines,
+  };
   if (!project.license) {
     project.license = "ISC";
     logging.progress(`project license is now ${project.license}`);
@@ -228,6 +231,10 @@ function addDependencies(project, { hasGitHooks }) {
   };
 
   addDevDependency(manifest.name, `^${manifest.version}`);
+
+  for (const [key, value] of Object.entries(sortObjectKeys(manifest.peerDependencies))) {
+    addDevDependency(key, value);
+  }
 
   for (const key of Object.keys(dependencies)) {
     addDevDependency(key, extraDependencies[key]);
