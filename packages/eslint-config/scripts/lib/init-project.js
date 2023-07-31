@@ -121,15 +121,7 @@ async function initProject() {
 }
 
 function createProjectFiles() {
-  createProjectFile(
-    "tsconfig.json",
-    cleanupText(JSON.stringify({ extends: "@balsamic/eslint-config/tsconfig.json" }, null, 2)),
-  );
-
-  createProjectFile(
-    [".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.yaml", ".eslintrc.yml", ".eslintrc.json"],
-    cleanupText(JSON.stringify({ extends: ["@balsamic"] }, null, 2)),
-  );
+  createProjectFile("tsconfig.json", cleanupText(JSON.stringify({ extends: "@balsamic/tsn/tsconfig.json" }, null, 2)));
 
   copyProjectFile(".gitignore.default", ".gitignore");
   copyProjectFile(".vscode/settings.json");

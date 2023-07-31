@@ -278,6 +278,20 @@ if (global[_initializedSym]) {
 
   const argv = process.argv;
 
+  // If we are running the helping screen
+  if (execArgv.includes("--help") || execArgv.includes("-h")) {
+    process.on("exit", () => {
+      console.log();
+      console.log("@balsamic/tsn options:");
+      console.log();
+      console.log("  tsn [node arguments] file [argv] : ", "run a file with tsn");
+      console.log("  tsn typecheck [options]          : ", "run typecheck, same as `npx tscheck`");
+      console.log("  tsn spawn [options]              : ", "spawn a new process with the right NODE_OPTIONS settings");
+      console.log("  tsn mocha [options]              : ", "run mocha with the right settings to load ts files");
+      console.log();
+    });
+  }
+
   if (!require.main) {
     const requiredMain = process.argv[1] || "";
 

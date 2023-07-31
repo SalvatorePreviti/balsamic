@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic",
@@ -27,7 +27,7 @@
     "balsamic-eslint": "scripts/main.js"
   },
   "engines": {
-    "node": ">=12.20.0"
+    "node": ">=16.0.0"
   },
   "main": "index.js",
   "dependencies": {
