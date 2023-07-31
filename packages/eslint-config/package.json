@@ -35,6 +35,10 @@
     "parse-gitignore": "^2.0.0",
     "app-root-path": "^3.1.0"
   },
+  "bundleDependencies": [
+    "parse-gitignore",
+    "app-root-path"
+  ],
   "peerDependencies": {
     "@balsamic/tsn": ">=0.0.2",
     "@types/node": ">=20.4.5",
