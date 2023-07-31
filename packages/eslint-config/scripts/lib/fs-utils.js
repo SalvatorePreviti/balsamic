@@ -21,7 +21,7 @@ function beforeCreateFile(targetPath) {
     return path.resolve(targetPath[0]);
   }
   const resolved = path.resolve(targetPath);
-  if (fs.existsSync(resolved)) {
+  if (fs.existsSync(resolved) && !process.argv.includes("--overwrite")) {
     logging.skip(`skiping existing file ${targetPath}`);
     return false;
   }

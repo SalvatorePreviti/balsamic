@@ -1,8 +1,9 @@
-const { resolve: pathResolve } = require("path");
-const { readFileSync: fsReadFileSync } = require("fs");
 const { findFileInParents } = require("./utils");
 const path = require("path");
+const fs = require("fs");
 const Module = require("module");
+const parseGitignore = require("parse-gitignore");
+const appRootPath = require("app-root-path");
 
 const sourceNodeExtensions = [".ts", ".tsx", ".mts", ".cts", ".jsx", ".js", ".mjs", ".cjs"];
 
@@ -25,7 +26,7 @@ module.exports = {
     "**/emscripten/**/*",
   ],
   scripts: [
-    "vite.config*",
+    "*.config*",
     "**/dev-server/**/*",
     "**/scripts/**/*",
     "**/dev/**/*",
@@ -79,15 +80,56 @@ module.exports = {
   getHasVitest,
 };
 
-function loadIgnorePatternsFromFile(filename) {
-  return fsReadFileSync(filename, "utf-8")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !/^\s*#/.test(s));
-}
-
 function loadIgnorePatterns() {
-  return loadIgnorePatternsFromFile(pathResolve(__dirname, "../.eslintignore"));
+  const processedDirs = new Set();
+  const ignoreFiles = new Set();
+
+  const loadGitIgnoreFiles = (dir) => {
+    for (;;) {
+      if (processedDirs.has(dir)) {
+        break;
+      }
+      processedDirs.add(dir);
+      const ignoreFile = path.join(dir, ".gitignore");
+      if (fs.existsSync(ignoreFile)) {
+        const gitIgnorePath = path.join(dir, ".gitignore");
+        const prettierIgnorePath = path.join(dir, ".prettierignore");
+
+        const hasGitignore = fs.existsSync(gitIgnorePath);
+        const hasPrettierIgnore = fs.existsSync(prettierIgnorePath);
+
+        if (
+          (hasGitignore || hasPrettierIgnore) &&
+          (fs.existsSync(path.join(dir, "package.json")) || fs.existsSync(path.join(dir, ".git")))
+        ) {
+          if (hasGitignore) {
+            ignoreFiles.add(gitIgnorePath);
+          }
+          if (hasPrettierIgnore) {
+            ignoreFiles.add(prettierIgnorePath);
+          }
+        }
+      }
+      dir = path.dirname(dir);
+    }
+  };
+
+  loadGitIgnoreFiles(process.cwd());
+  loadGitIgnoreFiles(appRootPath.path);
+
+  let allIgnoreText = "dist\nnode_modules\nvendor\npackage-lock.json\nyarn.lock\npnpm-lock.*\n";
+  for (const ignoreFile of Array.from(ignoreFiles).reverse()) {
+    try {
+      const content = fs.readFileSync(ignoreFile, "utf8").trim();
+      if (content.length > 0) {
+        allIgnoreText += `# ${ignoreFile}\n`;
+        allIgnoreText += content;
+        allIgnoreText += "\n\n";
+      }
+    } catch {}
+  }
+
+  return parseGitignore(allIgnoreText).patterns;
 }
 
 const _hasPackageCache = new Map();

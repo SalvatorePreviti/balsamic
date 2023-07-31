@@ -3,7 +3,6 @@
 
 const patterns = require("../lib/config");
 const scriptsConfig = require("./scripts.js");
-const distConfig = require("./dist.js");
 const config = require("../lib/config");
 
 const tsConfigPath = config.getTsConfigPath();
@@ -612,7 +611,7 @@ const eslintConfig = {
         jsx: true,
       },
       env: { browser: true },
-      parserOptions: { jsx: true, project: tsConfigPath },
+      parserOptions: { jsx: true, project: [tsConfigPath] },
       rules: {
         strict: [1, "never"],
         "@typescript-eslint/no-var-requires": 2,
@@ -630,19 +629,18 @@ const eslintConfig = {
       parserOptions: {
         sourceType: "module",
         ecmaVersion: "latest",
-        project: tsConfigPath,
+        project: [tsConfigPath],
         ecmaFeatures: {
           globalReturn: false,
         },
       },
     },
     { files: patterns.scripts, ...scriptsConfig },
-    { files: patterns.dist, ...distConfig },
     {
       files: ["*.json"],
       parser: "espree",
       parserOptions: {
-        project: tsConfigPath,
+        project: [tsConfigPath],
       },
       rules: {
         "json/undefined": 2,
@@ -680,7 +678,7 @@ const eslintConfig = {
   parserOptions: {
     ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false, warnOnUnsupportedTypeScriptVersion: false },
     ecmaVersion: "latest",
-    project: tsConfigPath,
+    project: [tsConfigPath],
     extraFileExtensions: [".json"],
   },
   plugins: ["node", "@typescript-eslint", "json", "import"],
@@ -700,7 +698,7 @@ if (tsConfigPath) {
     files: ["*.ts", "*.tsx", "*.mts", "*.cts"],
     rules: tsProjectRules,
     parserOptions: {
-      project: tsConfigPath,
+      project: [tsConfigPath],
     },
   });
   eslintConfig.rules["@typescript-eslint/await-thenable"] = 2;

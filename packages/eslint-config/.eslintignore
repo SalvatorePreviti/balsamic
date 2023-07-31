@@ -1,18 +1,3 @@
-# dotfiles
-
-!.*.js
-!.*._js
-!.*.jsx
-!.*.mjs
-!.*.cjs
-!.*.es
-!.*.es6
-!.*.assetgen
-!.*.ts
-!.*.tsx
-!.*.json
-!.eslintrc.js
-
 # Dependencies and vendor
 vendor
 node_modules
@@ -25,7 +10,7 @@ package-lock.json
 .webpack
 .next/
 
-# Build outputs
+# Build outputs 
 bundle.js
 *.bundle.js
 .serverless

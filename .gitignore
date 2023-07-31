@@ -1,5 +1,4 @@
-dist/
-__test/
+dist
 
 # excluded files for security
 .env

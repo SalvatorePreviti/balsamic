@@ -2,7 +2,14 @@
 
 const logging = require("./logging");
 const path = require("path");
-const { initProject, initClangFormat, initNpmIgnore, initTsn } = require("./init-project");
+const {
+  initProject,
+  initClangFormat,
+  initNpmIgnore,
+  initTsn,
+  initEditorConfig,
+  initLicense,
+} = require("./init-project");
 
 exports.handleUncaughtError = logging.handleUncaughtError;
 
@@ -26,16 +33,25 @@ exports.main = async function main(argv = process.argv) {
     case "--init-clang":
       return initClangFormat();
 
+    case "--init-editor-config":
+    case "--init-editorconfig":
+      return initEditorConfig();
+
+    case "--init-license=MIT":
+      return initLicense();
+
     case "--init-tsn":
       return initTsn();
   }
 
   logging.banner("help");
-  logging.log(`  ${name} --help              : this help screen`);
-  logging.log(`  ${name} --init              : initializes a project`);
-  logging.log(`  ${name} --init-npmignore    : initializes .npmignore`);
-  logging.log(`  ${name} --init-clang-format : initializes .clang-format`);
-  logging.log(`  ${name} --init-tsn          : initializes tsn executable`);
+  logging.log(`  ${name} --help                : this help screen`);
+  logging.log(`  ${name} --init                : initializes a project`);
+  logging.log(`  ${name} --init-license=MIT    : initializes a MIT LICENSE file`);
+  logging.log(`  ${name} --init-npmignore      : initializes .npmignore`);
+  logging.log(`  ${name} --init-clang-format   : initializes .clang-format`);
+  logging.log(`  ${name} --init-editorconfig   : initializes .editorconfig`);
+  logging.log(`  ${name} --init-tsn            : initializes tsn executable`);
   logging.log();
 
   if (!process.exitCode && argument !== "--help" && argument !== "--version") {

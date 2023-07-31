@@ -19,11 +19,35 @@ module.exports = {
   initNpmIgnore,
   initClangFormat,
   initTsn,
+  initEditorConfig,
+  initLicense,
 };
 
 function initNpmIgnore() {
   logging.banner(".npmignore initialization");
   copyProjectFile(".npmignore.default", ".npmignore");
+  logging.log();
+}
+
+function initLicense() {
+  logging.banner("MIT license initialization");
+  const author = manifest.author || "";
+  const year = new Date().getFullYear();
+
+  let content = fs.readFileSync(path.join(__dirname, "license-templates/mit-license-template.txt"), "utf8");
+
+  content = content.replace(/<year>/g, year);
+
+  if (author) {
+    content = content.replace(/<author>/g, author);
+  }
+
+  createProjectFile("LICENSE", content);
+}
+
+function initEditorConfig() {
+  logging.banner(".editorconfig initialization");
+  copyProjectFile(".editorconfig", ".editorconfig");
   logging.log();
 }
 
@@ -108,10 +132,6 @@ function createProjectFiles() {
   );
 
   copyProjectFile(".gitignore.default", ".gitignore");
-  copyProjectFile(".prettierignore");
-  copyProjectFile(".eslintignore");
-  copyProjectFile(".editorconfig");
-  copyProjectFile(".prettierrc");
   copyProjectFile(".vscode/settings.json");
   copyProjectFile(".vscode/extensions.json");
 }
@@ -177,6 +197,17 @@ function fixProjectFields(project) {
   if (!project.keywords) {
     project.keywords = [project.name];
     logging.progress("added project keywords", project.keywords);
+  }
+  if (!project.prettier) {
+    project.prettier = "@balsamic/eslint-config";
+    logging.progress(`added prettier config ${project.prettier}`);
+  }
+  if (!project.eslintConfig) {
+    project.eslintConfig = {
+      $schema: "http://json.schemastore.org/prettierrc",
+      extends: "@balsamic",
+    };
+    logging.progress(`added eslint config ${project.eslintConfig}`);
   }
 }
 
@@ -281,7 +312,7 @@ function addDependencies(project, { hasGitHooks }) {
 
   if (Object.keys(devDependencies).length) {
     if (JSON.stringify(project.devDependencies || null) !== JSON.stringify(devDependencies)) {
-      project.devDependencies = devDependencies;
+      project.devDependencies = sortObjectKeys(devDependencies);
     }
   } else {
     delete project.devDependencies;
@@ -289,7 +320,7 @@ function addDependencies(project, { hasGitHooks }) {
 
   if (Object.keys(dependencies).length) {
     if (JSON.stringify(project.dependencies || null) !== JSON.stringify(dependencies)) {
-      project.dependencies = dependencies;
+      project.dependencies = sortObjectKeys(dependencies);
     }
   } else {
     delete project.dependencies;
