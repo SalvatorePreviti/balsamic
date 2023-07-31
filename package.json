@@ -42,11 +42,13 @@
       "prettier --write --log-level=warn"
     ]
   },
-  "devDependencies": {
-    "@balsamic/tsn": "*",
+  "dependencies": {
     "@balsamic/dev": "*",
     "@balsamic/eslint-config": "*",
-    "@swc/core": "^1.3.71",
+    "@balsamic/tsn": "*"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.3.72",
     "@types/chai": "^4.3.5",
     "@types/micromatch": "^4.0.2",
     "@types/mocha": "^10.0.1",
@@ -59,12 +61,12 @@
     "esbuild": "^0.18.17",
     "eslint": "^8.46.0",
     "eslint-plugin-chai-expect": "^3.0.0",
+    "eslint-plugin-import": "^2.28.0",
+    "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-mocha": "^10.1.0",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-react": "^7.33.1",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-import": "^2.28.0",
     "eslint-plugin-vitest": "^0.2.8",
     "husky": "^8.0.3",
     "lint-staged": "^13.2.3",
@@ -76,5 +78,10 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.6",
     "vitest": "^0.33.0"
+  },
+  "prettier": "@balsamic/eslint-config/.prettierrc",
+  "eslintConfig": {
+    "$schema": "http://json.schemastore.org/prettierrc",
+    "extends": "@balsamic"
   }
 }

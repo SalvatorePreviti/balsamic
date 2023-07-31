@@ -199,7 +199,7 @@ function fixProjectFields(project) {
     logging.progress("added project keywords", project.keywords);
   }
   if (!project.prettier) {
-    project.prettier = "@balsamic/eslint-config";
+    project.prettier = "@balsamic/eslint-config/.prettierrc";
     logging.progress(`added prettier config ${project.prettier}`);
   }
   if (!project.eslintConfig) {
@@ -223,8 +223,8 @@ function sortObjectKeys(obj) {
 }
 
 function addDependencies(project, { hasGitHooks }) {
-  const dependenciesAdded = [];
-  const dependenciesUpdated = [];
+  const dependenciesAdded = new Set();
+  const dependenciesUpdated = new Set();
   const existingDeps = getAllProjectDependencies(project);
 
   const extraDependencies = getAllProjectDependencies(require("./extra-packages/package.json"));
@@ -244,9 +244,9 @@ function addDependencies(project, { hasGitHooks }) {
     }
     value = value.replace(">=", "^");
     if (!existingDeps[key] && !devDependencies[key]) {
-      dependenciesAdded.push(key);
+      dependenciesAdded.add(key);
     } else if (isSemverBetter(existingDeps[key], value)) {
-      dependenciesUpdated.push(key);
+      dependenciesUpdated.add(key);
     } else {
       return false;
     }
@@ -328,10 +328,10 @@ function addDependencies(project, { hasGitHooks }) {
 
   const loggingArgs = [];
   if (dependenciesAdded.length) {
-    dependenciesAdded.push("added dependencies:", dependenciesAdded);
+    dependenciesAdded.push("added dependencies:", Array.from(dependenciesAdded));
   }
   if (dependenciesUpdated.length) {
-    loggingArgs.push("updated dependencies:", dependenciesUpdated);
+    loggingArgs.push("updated dependencies:", Array.from(dependenciesUpdated));
   }
   if (loggingArgs.length) {
     logging.progress(...loggingArgs);
