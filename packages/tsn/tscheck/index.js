@@ -254,12 +254,12 @@ function tscheckMain(cb) {
       }
     })
     .catch((e) => {
-      console.log();
       if (!process.exitCode) {
         process.exitCode = 1;
       }
 
-      if (e.showStack === false) {
+      console.log();
+      if (e && e.showStack === false) {
         console.error(tsn.colors.redBright(`❌ ERROR: ${e.message}`));
       } else {
         console.error(tsn.colors.redBright(`❌ ERROR:`), e);
@@ -271,3 +271,7 @@ function tscheckMain(cb) {
 }
 
 exports.tscheckMain = tscheckMain;
+
+if (require.main === module) {
+  tscheckMain();
+}

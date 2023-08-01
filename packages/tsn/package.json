@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/tsn",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "typescript tooling",
   "type": "commonjs",
   "sideEffects": true,
@@ -40,6 +40,8 @@
       "import": "./index.mjs",
       "require": "./index.js"
     },
+    "./git-subtree": "./git-subtree.js",
+    "./git-subtree.js": "./git-subtree.js",
     "./index.mjs": "./index.mjs",
     "./package.json": "./package.json",
     "./tsconfig.json": "./tsconfig.json",

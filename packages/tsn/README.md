@@ -40,4 +40,23 @@ tsn spawn <executable> [arguments]
 
 tsn mocha [mocha arguments]
 
+# Manages git subtrees
+
+tsn git-subtree <arguments>
+
+```
+
+## Git subtrees
+
+```
+Usage: tsn git-subtree <command> [args]
+
+Configuration is read from package.json, under the key `git-subtree`
+    "git-subtree": { <name> { localFolder: [relative path], "repository": "https://...", "branch": [branch name], "push_branch": [branch name] } ... }
+
+Commands:
+  init [subtree1] [subtree2] ...   Initialize subtrees
+  pull [subtree1] [subtree2] ...   Pull subtrees
+  push <subtree> [branch]          Push subtree
+  commit <subtree> "<message>"     Commit subtree
 ```

@@ -289,6 +289,7 @@ if (global[_initializedSym]) {
       console.log("  tsn spawn [options]              : ", "spawn a new process with the right NODE_OPTIONS settings");
       console.log("  tsn mocha [options]              : ", "run mocha with the right settings to load ts files");
       console.log();
+      console.log("  tsn git-subtree --help           : ", "show git-subtree help");
     });
   }
 
@@ -316,6 +317,8 @@ if (global[_initializedSym]) {
       }
     } else if (requiredMain === path.resolve("tscheck") || requiredMain === path.resolve("typecheck")) {
       argv[1] = require.resolve("./tscheck/tscheck.js");
+    } else if (requiredMain === path.resolve("git-subtree")) {
+      argv[1] = require.resolve("./git-subtree.js");
     }
   }
 }
