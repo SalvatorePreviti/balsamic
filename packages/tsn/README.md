@@ -57,6 +57,8 @@ Configuration is read from package.json, under the key `git-subtree`
 Commands:
   init [subtree1] [subtree2] ...   Initialize subtrees
   pull [subtree1] [subtree2] ...   Pull subtrees
-  push <subtree> [branch]          Push subtree
   commit <subtree> "<message>"     Commit subtree
+  push <subtree> [branch]          Push subtree
+  print-config                     Print configuration
+  list                             List the configured subtrees
 ```
