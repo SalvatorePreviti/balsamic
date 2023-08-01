@@ -129,7 +129,7 @@ class Config {
           let packageJsonContent = null;
           try {
             packageJsonContent = JSON.parse(await fs.promises.readFile(path.join(currentDir, "package.json"), "utf-8"));
-            const cfg = packageJsonContent && packageJsonContent["git-subtree"];
+            const cfg = packageJsonContent && (packageJsonContent["git-subtree"] || packageJsonContent["git-subtrees"]);
             if (typeof cfg === "object" && cfg !== null && !Array.isArray(cfg)) {
               config = cfg;
               root = currentDir;
@@ -161,7 +161,7 @@ class Config {
           currentDir = parent;
         }
         if (!config) {
-          throw errorWithoutStack('No valid "git-subtree" configuration found in workspace package.json');
+          throw errorWithoutStack('No valid "git-subtrees" configuration found in workspace package.json');
         }
         return new Config(root, config, hasDotGit);
       })();
@@ -186,7 +186,7 @@ function printHelp() {
   console.log();
   console.log("Usage: tsn git-subtree <command> [args]");
   console.log();
-  console.log("Configuration is read from package.json, under the key `git-subtree`");
+  console.log("Configuration is read from package.json, under the key `git-subtrees`");
   console.log(
     '    "git-subtree": { <name> { localFolder: [relative path], "repository": "https://...", "branch": [branch name], "push_branch": [branch name] } ... }',
   );
@@ -305,7 +305,7 @@ async function getRemotesSet() {
 }
 
 async function cmd_init(subtreeNames) {
-  await checkHasHead();
+  await checkChangesPending();
 
   const subtrees = (await Config.load()).getMany(subtreeNames, true);
 
