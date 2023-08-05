@@ -203,9 +203,21 @@ if (global[_initializedSym]) {
     get hasProcessTitle() {
       return _processTitle !== undefined;
     },
+
+    get default() {
+      return tsn;
+    },
+
+    get tsn() {
+      return tsn;
+    },
   };
 
   global[_initializedSym] = tsn;
+
+  if (!("tsn" in global)) {
+    Reflect.defineProperty(global, "tsn", { value: tsn, enumerable: false, configurable: true, writable: true });
+  }
 
   exports.tsn = tsn;
 
@@ -227,6 +239,11 @@ if (global[_initializedSym]) {
     process.env.TSN_NO_DOTENV = "1";
     loadDotEnv();
   }
+
+  process.env.PATH = `${path.resolve(tsn.initialCwd, "node_modules/.bin")}${path.delimiter}${path.resolve(
+    tsn.appRootPath,
+    "node_modules/.bin",
+  )}${path.delimiter}${process.env.PATH || ""}`;
 
   if (!("FORCE_COLOR" in process.env)) {
     process.env.FORCE_COLOR = _loadHasColors().toString();
@@ -282,20 +299,43 @@ if (global[_initializedSym]) {
   if (execArgv.includes("--help") || execArgv.includes("-h")) {
     process.on("exit", () => {
       console.log();
-      console.log("@balsamic/tsn options:");
+      console.log(tsn.colors.greenBright("@balsamic/tsn options:"));
       console.log();
-      console.log("  tsn [node arguments] file [argv] : ", "run a file with tsn");
-      console.log("  tsn typecheck [options]          : ", "run typecheck, same as `npx tscheck`");
-      console.log("  tsn spawn [options]              : ", "spawn a new process with the right NODE_OPTIONS settings");
-      console.log("  tsn mocha [options]              : ", "run mocha with the right settings to load ts files");
+      console.log("  tsn [node args] <file> [argv] : ", "run a file with tsn");
+      console.log("  tsn typecheck [options]       : ", "run typecheck, same as `npx tscheck`");
+      console.log("  tsn spawn [options]           : ", "spawn a new process with the right NODE_OPTIONS settings");
+      console.log("  tsn mocha [options]           : ", "run mocha with the right settings to load ts files");
       console.log();
-      console.log("  tsn git-subtree --help           : ", "show git-subtree help");
+      console.log("  tsn git-subtree --help        : ", "show git-subtree help");
+      console.log();
     });
   }
 
-  if (!require.main) {
-    const requiredMain = process.argv[1] || "";
+  const repl = require("repl");
+  const oldReplStart = repl.start;
+  let tsNodeRepl;
+  // Patch node repl to use ts-node
+  repl.start = (options, ...args) => {
+    if (!tsNodeRepl) {
+      const tsNode = require("ts-node");
+      tsNodeRepl = tsNode.createRepl();
+      const service = tsNode.create({ ...tsNodeRepl.evalAwarePartialHost });
+      tsNodeRepl.setService(service);
+    }
+    options = {
+      useColors: tsn.colorsLevel > 0,
+      breakEvalOnSigint: false,
+      eval: tsNodeRepl.nodeEval,
+      ...options,
+    };
+    if (options.eval) {
+      delete options.breakEvalOnSigint;
+    }
+    return oldReplStart(options, ...args);
+  };
 
+  if (!require.main) {
+    const requiredMain = process.argv[1];
     if (requiredMain === path.resolve("mocha")) {
       const resolved = tsn.tryResolve("mocha/bin/mocha.js");
       if (resolved) {

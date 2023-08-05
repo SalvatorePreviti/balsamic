@@ -76,6 +76,12 @@ export interface Tsn {
 
   /** patch mocha esm */
   patchMocha(): boolean;
+
+  get default(): this;
+
+  get tsn(): this;
 }
 
 export const tsn: Tsn;
+
+export default tsn;

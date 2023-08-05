@@ -48,11 +48,11 @@
     "@balsamic/tsn": "*"
   },
   "devDependencies": {
-    "@swc/core": "^1.3.73",
+    "@swc/core": "^1.3.74",
     "@types/chai": "^4.3.5",
     "@types/micromatch": "^4.0.2",
     "@types/mocha": "^10.0.1",
-    "@types/node": "^20.4.5",
+    "@types/node": "^20.4.8",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",
     "ajv": "^8.12.0",
@@ -71,13 +71,13 @@
     "husky": "^8.0.3",
     "lint-staged": "^13.2.3",
     "mocha": "^10.2.0",
-    "prettier": "^3.0.0",
+    "prettier": "^3.0.1",
     "react": "^18.2.0",
     "terser": "^5.19.2",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.6",
-    "vitest": "^0.33.0"
+    "vitest": "^0.34.1"
   },
   "prettier": "@balsamic/eslint-config/.prettierrc",
   "eslintConfig": {
