@@ -33,12 +33,12 @@
     "app-root-path": "3.1.0",
     "chalk": "^4.1.2",
     "fast-glob": "^3.3.1",
-    "normalize-package-data": "^5.0.0",
+    "normalize-package-data": "^6.0.0",
     "tree-kill": "^1.2.2",
-    "yaml": "^2.3.1",
-    "which": "^3.0.1"
+    "yaml": "^2.3.2",
+    "which": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.4.8"
+    "@types/node": "^20.8.0"
   }
 }

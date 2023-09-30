@@ -226,7 +226,11 @@ if (global[_initializedSym]) {
     const name = args[0];
     if (name === "warning") {
       const data = args[1];
-      if (data && data.name === "ExperimentalWarning" && data.message.includes("Custom ESM Loaders")) {
+      if (
+        data &&
+        data.name === "ExperimentalWarning" &&
+        (data.message.includes("Custom ESM Loaders") || data.message.includes("experimental-loader"))
+      ) {
         // Ignore Custom ESM Loaders experimental warning
         return false;
       }
@@ -290,6 +294,14 @@ if (global[_initializedSym]) {
 
   tryRequire("ts-node/register/transpile-only");
   tryRequire("tsconfig-paths/register");
+
+  if (Module.register) {
+    Module.register("@balsamic/tsn", pathToFileURL("./"));
+  }
+
+  // (node:46302) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+  // --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("%40balsamic/tsn", pathToFileURL("./"));'
+  // (Use `node --trace-warnings ...` to show where the warning was created)
 
   // Custom arguments
 
@@ -433,7 +445,11 @@ function _loadHasColors(stream = process.stdout) {
   const env = process.env;
 
   const hasNoColorArg = argv.includes("--no-color") || argv.includes("--no-colors");
-  const hasNoColorEnv = !!env.NO_COLOR && env.NO_COLOR !== "false";
+  let hasNoColorEnv = (!!env.NO_COLOR && env.NO_COLOR !== "false") || env.COLOR === "0" || env.FORCE_COLOR === "0";
+
+  if (hasNoColorArg || hasNoColorEnv || env.FORCE_COLOR === "0" || env.COLOR === "0") {
+    hasNoColorEnv = true;
+  }
 
   if (!hasNoColorArg && !hasNoColorEnv) {
     switch (env.FORCE_COLOR) {
@@ -486,6 +502,14 @@ function _loadHasColors(stream = process.stdout) {
       }
     } else if (!result && exports.isCI) {
       result = 1;
+    }
+
+    if (result === 0) {
+      env.NO_COLOR = "true";
+      env.COLOR = "0";
+      env.FORCE_COLOR = "0";
+    } else {
+      env.FORCE_COLOR = result.toString();
     }
   }
 

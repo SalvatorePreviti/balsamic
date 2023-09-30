@@ -15,6 +15,7 @@ import { abortSignals } from "../promises/abort-signals";
 import { NodeResolver } from "../modules/node-resolver";
 import { millisecondsToString } from "../elapsed-time";
 import { serviceRunnerServiceSymbol } from "../promises/service-runner-types";
+import { devEnv } from "../dev-env";
 
 let _treeKill: typeof import("tree-kill") | undefined;
 
@@ -92,6 +93,8 @@ export namespace ChildProcessWrapper {
 
     /** If true, stdout and stderr are captured as string */
     captureOutputText?: boolean | "combined" | undefined;
+
+    colorsLevel?: "auto" | 0 | 1 | 2 | 3 | undefined;
   }
 
   export type ConstructorInput =
@@ -157,6 +160,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
 
     const defaultOptions = new.target?.defaultOptions ?? ChildProcessWrapper.defaultOptions;
     options = _sanitizeOptions({ ...defaultOptions, ...options }, defaultOptions);
+
     const captureOutputText = options.captureOutputText || false;
 
     if (typeof input === "function") {
@@ -691,6 +695,23 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
     }
     const signal = "signal" in opts ? opts.signal : abortSignals.getSignal(opts.signal);
     opts.signal = undefined;
+
+    if (opts.colorsLevel === "auto") {
+      opts.colorsLevel = devEnv.colorsLevel;
+    }
+
+    if (opts.captureOutputText && opts.colorsLevel === undefined) {
+      opts.colorsLevel = 0;
+    }
+
+    if (opts.colorsLevel !== undefined) {
+      if (opts.colorsLevel === 0) {
+        opts.env = { ...(opts.env || process.env), NO_COLOR: "true", COLOR: "0", FORCE_COLOR: "0" };
+      } else if (opts.colorsLevel > 0) {
+        opts.env = { ...(opts.env || process.env), COLOR: "1", FORCE_COLOR: opts.colorsLevel.toString() };
+        delete opts.env.NO_COLOR;
+      }
+    }
     return { command, args, opts, signal };
   }
 

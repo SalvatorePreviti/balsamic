@@ -103,6 +103,7 @@ class MainModule extends Module {
 
 export function devrun(options: ParsedArguments): void {
   if (options.noColor) {
+    process.env.COLOR = "0";
     process.env.FORCE_COLOR = "0";
     process.env.NO_COLOR = "true";
   }

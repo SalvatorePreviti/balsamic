@@ -79,7 +79,7 @@ export class DevEnv {
     }
   }
 
-  public get colorsLevel(): 0 | 1 | 2 | 3 {
+  public getColorsLevel(): 0 | 1 | 2 | 3 {
     if (tsn && this === devEnv) {
       return tsn.colorsLevel;
     }
@@ -89,6 +89,10 @@ export class DevEnv {
       this[private_colorsLevel] = result;
     }
     return result;
+  }
+
+  public get colorsLevel(): 0 | 1 | 2 | 3 {
+    return this.getColorsLevel();
   }
 
   public set colorsLevel(value: number | boolean | string | null) {
@@ -274,7 +278,16 @@ function _loadHasColors(instance: DevEnv, stream: WriteStream): 0 | 1 | 2 | 3 {
   const env = process.env;
 
   const hasNoColorArg = argv.includes("--no-color") || argv.includes("--no-colors");
-  const hasNoColorEnv = !!env.NO_COLOR && env.NO_COLOR !== "false";
+  let hasNoColorEnv = (!!env.NO_COLOR && env.NO_COLOR !== "false") || env.COLOR === "0" || env.FORCE_COLOR === "0";
+
+  if (hasNoColorArg || hasNoColorEnv || env.FORCE_COLOR === "0" || env.COLOR === "0") {
+    hasNoColorEnv = true;
+    if (instance === devEnv) {
+      env.NO_COLOR = "true";
+      env.COLOR = "0";
+      env.FORCE_COLOR = "0";
+    }
+  }
 
   if (!hasNoColorArg && !hasNoColorEnv) {
     switch (env.FORCE_COLOR) {
@@ -331,6 +344,10 @@ function _loadHasColors(instance: DevEnv, stream: WriteStream): 0 | 1 | 2 | 3 {
   }
 
   if (instance === devEnv) {
+    if (result === 0) {
+      env.NO_COLOR = "true";
+      env.COLOR = "0";
+    }
     env.FORCE_COLOR = result.toString();
   }
 
