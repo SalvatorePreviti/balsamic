@@ -290,7 +290,7 @@ function removeAbortHandler(
   if (typeof handler !== "function") {
     return;
   }
-  signal.removeEventListener("abort", handler);
+  signal.removeEventListener("abort", handler as UnsafeAny);
 }
 
 /**

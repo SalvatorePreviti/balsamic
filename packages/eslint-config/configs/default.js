@@ -34,6 +34,54 @@ const paddingLineBetweenStatementsRules = [
 ];
 
 const jsRules = {
+  "no-ex-assign": 0,
+  "no-unused-labels": 0,
+  "spaced-comment": [
+    1,
+    "always",
+    {
+      line: {
+        markers: ["*package", "!", "/", ",", "=", "*", "@", "#"],
+        exceptions: [
+          "/",
+          "*",
+          "+",
+          "-",
+          "=",
+          "_",
+          "@__NOINLINE__",
+          "@__INLINE__",
+          "@__PURE__",
+          "@__KEY__",
+          "@__MANGLE_PROP__",
+          "#__NOINLINE__",
+          "#__INLINE__",
+          "#__PURE__",
+          "#__KEY__",
+          "#__MANGLE_PROP__",
+        ],
+      },
+      block: {
+        balanced: true,
+        markers: ["*package", "!", ",", ":", "::", "flow-include"],
+        exceptions: [
+          "*",
+          "@",
+          "#",
+          "@__NOINLINE__",
+          "@__INLINE__",
+          "@__PURE__",
+          "@__KEY__",
+          "@__MANGLE_PROP__",
+          "#__NOINLINE__",
+          "#__INLINE__",
+          "#__PURE__",
+          "#__KEY__",
+          "#__MANGLE_PROP__",
+        ],
+      },
+    },
+  ],
   "array-bracket-newline": 0,
   "array-bracket-spacing": 0,
   "array-callback-return": 2,
@@ -339,18 +387,6 @@ const jsRules = {
   "node/no-new-require": 2,
   "node/no-path-concat": 2,
   "prefer-promise-reject-errors": 2,
-  "spaced-comment": [
-    1,
-    "always",
-    {
-      line: { markers: ["*package", "!", "/", ",", "=", "*", "@", "#"], exceptions: ["/", "*", "+", "-", "=", "_"] },
-      block: {
-        balanced: true,
-        markers: ["*package", "!", ",", ":", "::", "flow-include"],
-        exceptions: ["*", "@", "#"],
-      },
-    },
-  ],
   "use-isnan": [2, { enforceForSwitchCase: true, enforceForIndexOf: true }],
   "valid-typeof": [2, { requireStringLiterals: true }],
   "ban-ts-comment": 0,
@@ -405,7 +441,20 @@ const jsRules = {
   "@typescript-eslint/restrict-plus-operands": 0,
 };
 
+const eslintPlugin = require("@typescript-eslint/eslint-plugin");
+
+const typescriptBaseRules = {
+  ...eslintPlugin.configs["eslint-recommended"].rules,
+  ...eslintPlugin.configs.recommended.rules,
+};
+
+const typescriptWithProjectBaseRules = {
+  ...typescriptBaseRules,
+  ...eslintPlugin.configs["recommended-type-checked"].rules,
+};
+
 const typescriptRules = {
+  "no-undef": 0,
   "@typescript-eslint/array-type": 1,
   "@typescript-eslint/ban-ts-comment": 0,
   "@typescript-eslint/ban-types": 0,
@@ -494,6 +543,7 @@ const typescriptRules = {
   "@typescript-eslint/no-duplicate-type-constituents": 0,
   "@typescript-eslint/no-redundant-type-constituents": 0,
   "@typescript-eslint/no-unsafe-enum-comparison": 0,
+  "@typescript-eslint/no-unsafe-argument": 0,
   "no-shadow": 0,
   "no-redeclare": [0, { builtinGlobals: false }],
   "func-call-spacing": [0, ["never"]],
@@ -529,6 +579,12 @@ const tsProjectRules = {
   "@typescript-eslint/no-duplicate-type-constituents": 1,
   "@typescript-eslint/no-redundant-type-constituents": 0,
   "@typescript-eslint/no-unsafe-enum-comparison": 1,
+};
+
+const fullTypeScriptRules = {
+  ...(tsConfigPath ? typescriptWithProjectBaseRules : typescriptBaseRules),
+  ...typescriptRules,
+  ...(tsConfigPath ? tsProjectRules : null),
 };
 
 const _testOverrides = {
@@ -574,17 +630,33 @@ if (config.getHasJest()) {
 const eslintConfig = {
   env: { browser: true, es2020: true, node: true },
   ignorePatterns: config.getIgnorePatterns(),
-  extends: [
-    "eslint:recommended",
-    "plugin:node/recommended",
-    tsConfigPath
-      ? "plugin:@typescript-eslint/recommended-requiring-type-checking"
-      : "plugin:@typescript-eslint/recommended",
-  ],
+  extends: ["eslint:recommended", "plugin:node/recommended"],
   overrides: [
     { files: patterns.sourceExtensions.map((x) => `*${x}`) },
     {
-      files: ["*.d.ts", "*.d.tsx"],
+      files: ["*.ts", "*.tsx", "*.mts", "*.cts"],
+      parser: "@typescript-eslint/parser",
+      parserOptions: {
+        sourceType: "module",
+        ecmaVersion: "latest",
+        project: !!tsConfigPath,
+        ecmaFeatures: {
+          globalReturn: false,
+        },
+      },
+      plugins: ["@typescript-eslint"],
+      rules: {
+        ...fullTypeScriptRules,
+      },
+    },
+    {
+      files: ["*.tsx"],
+      rules: {
+        "@typescript-eslint/no-var-requires": 2,
+      },
+    },
+    {
+      files: ["*.d.ts", "*.d.tsx", "*.d.mts", "*.d.cts"],
       rules: {
         "no-var": 0,
         "@typescript-eslint/no-redeclare": 0,
@@ -611,10 +683,9 @@ const eslintConfig = {
         jsx: true,
       },
       env: { browser: true },
-      parserOptions: { jsx: true, project: [tsConfigPath] },
+      parserOptions: { jsx: true },
       rules: {
         strict: [1, "never"],
-        "@typescript-eslint/no-var-requires": 2,
         "node/shebang": 2,
         "no-extend-native": 1,
         "no-sparse-arrays": 1,
@@ -629,7 +700,6 @@ const eslintConfig = {
       parserOptions: {
         sourceType: "module",
         ecmaVersion: "latest",
-        project: [tsConfigPath],
         ecmaFeatures: {
           globalReturn: false,
         },
@@ -639,9 +709,6 @@ const eslintConfig = {
     {
       files: ["*.json"],
       parser: "espree",
-      parserOptions: {
-        project: [tsConfigPath],
-      },
       rules: {
         "json/undefined": 2,
         "json/enum-value-mismatch": 2,
@@ -662,9 +729,6 @@ const eslintConfig = {
         "json/comment-not-permitted": 2,
         "json/schema-resolve-error": 2,
         "json/unknown": 2,
-
-        ...Object.fromEntries(Object.entries(typescriptRules).map((x) => [x[0], 0])),
-        ...Object.fromEntries(Object.entries(tsProjectRules).map((x) => [x[0], 0])),
       },
     },
     {
@@ -676,13 +740,14 @@ const eslintConfig = {
     _testOverrides,
   ],
   parserOptions: {
+    sourceType: "module",
     ecmaFeatures: { globalReturn: false, impliedStrict: true, jsx: false, warnOnUnsupportedTypeScriptVersion: false },
     ecmaVersion: "latest",
-    project: [tsConfigPath],
+    project: !!tsConfigPath,
     extraFileExtensions: [".json"],
   },
   plugins: ["node", "@typescript-eslint", "json", "import"],
-  rules: { ...jsRules, ...typescriptRules },
+  rules: { ...jsRules },
   settings: {},
 };
 
@@ -691,17 +756,6 @@ if (config.getHasReact()) {
   eslintConfig.extends = [...eslintConfig.extends, ...reactConfig.extends];
   eslintConfig.rules = { ...eslintConfig.rules, ...reactConfig.rules };
   eslintConfig.settings = { ...eslintConfig.settings, ...reactConfig.settings };
-}
-
-if (tsConfigPath) {
-  eslintConfig.overrides.push({
-    files: ["*.ts", "*.tsx", "*.mts", "*.cts"],
-    rules: tsProjectRules,
-    parserOptions: {
-      project: [tsConfigPath],
-    },
-  });
-  eslintConfig.rules["@typescript-eslint/await-thenable"] = 2;
 }
 
 module.exports = eslintConfig;
