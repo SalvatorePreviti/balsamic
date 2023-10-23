@@ -644,21 +644,35 @@ const eslintConfig = {
           globalReturn: false,
         },
       },
-      plugins: ["@typescript-eslint"],
       rules: {
         ...fullTypeScriptRules,
       },
     },
     {
-      files: ["*.tsx"],
+      files: ["*.tsx", "*.mts"],
       rules: {
         "@typescript-eslint/no-var-requires": 2,
       },
     },
     {
       files: ["*.d.ts", "*.d.tsx", "*.d.mts", "*.d.cts"],
+      parser: "@typescript-eslint/parser",
+      parserOptions: {
+        sourceType: "module",
+        ecmaVersion: "latest",
+        project: true,
+      },
       rules: {
+        // First disable all the typescript rules
+        ...Object.fromEntries(Object.keys(fullTypeScriptRules).map((x) => [x, 0])),
+
+        // Then enable the ones that make sense for declaration files
+        ...typescriptBaseRules,
+        ...typescriptRules,
+
+        // Additional overrides
         "no-var": 0,
+        "@typescript-eslint/no-var-requires": 0,
         "@typescript-eslint/no-redeclare": 0,
         "@typescript-eslint/restrict-plus-operands": 0,
         "@typescript-eslint/no-floating-promises": 0,
@@ -666,12 +680,12 @@ const eslintConfig = {
         "@typescript-eslint/no-unused-vars": 0,
         "@typescript-eslint/await-thenable": 0,
         "@typescript-eslint/no-explicit-any": 0,
-        "no-unmodified-loop-condition": 0,
-        "node/no-unsupported-features/es-builtins": 0,
         "@typescript-eslint/no-base-to-string": 0,
         "@typescript-eslint/no-duplicate-type-constituents": 0,
         "@typescript-eslint/no-redundant-type-constituents": 0,
         "@typescript-eslint/no-unsafe-enum-comparison": 0,
+        "no-unmodified-loop-condition": 0,
+        "node/no-unsupported-features/es-builtins": 0,
         "object-shorthand": 0,
         "no-func-assign": 0,
       },
@@ -693,16 +707,6 @@ const eslintConfig = {
           "error",
           { object: "require", property: "ensure", message: "Please use import() instead." },
         ],
-      },
-    },
-    {
-      files: ["*.mjs", "*.es", "*.es6", "*.jsx", "*.tsx"],
-      parserOptions: {
-        sourceType: "module",
-        ecmaVersion: "latest",
-        ecmaFeatures: {
-          globalReturn: false,
-        },
       },
     },
     { files: patterns.scripts, ...scriptsConfig },
@@ -746,7 +750,7 @@ const eslintConfig = {
     project: !!tsConfigPath,
     extraFileExtensions: [".json"],
   },
-  plugins: ["node", "@typescript-eslint", "json", "import"],
+  plugins: ["@typescript-eslint", "node", "json", "import"],
   rules: { ...jsRules },
   settings: {},
 };
