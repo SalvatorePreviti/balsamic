@@ -683,6 +683,7 @@ const eslintConfig = {
         "@typescript-eslint/no-base-to-string": 0,
         "@typescript-eslint/no-duplicate-type-constituents": 0,
         "@typescript-eslint/no-redundant-type-constituents": 0,
+        "@typescript-eslint/no-unsafe-declaration-merging": 0,
         "@typescript-eslint/no-unsafe-enum-comparison": 0,
         "no-unmodified-loop-condition": 0,
         "node/no-unsupported-features/es-builtins": 0,
