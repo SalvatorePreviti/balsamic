@@ -105,8 +105,8 @@ export class DevEnv {
       this[private_colorsLevel] = !value
         ? 0
         : value === true
-        ? 1
-        : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
+          ? 1
+          : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
     }
   }
 
@@ -132,8 +132,8 @@ export class DevEnv {
       this[private_stderrColorsLevel] = !value
         ? 0
         : value === true
-        ? 1
-        : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
+          ? 1
+          : ((value > 0 ? (value < 3 ? value | 0 : 3) : 0) as 1 | 2 | 3);
     }
   }
 

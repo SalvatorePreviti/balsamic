@@ -251,10 +251,10 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       captureOutputText === "combined"
         ? _captureStdout
         : captureOutputText && stderr
-        ? (data: string): void => {
-            this.stderrText += data;
-          }
-        : null;
+          ? (data: string): void => {
+              this.stderrText += data;
+            }
+          : null;
 
     const onClose = (): void => {
       removeAbortRegistration();
@@ -543,7 +543,7 @@ export class ChildProcessWrapper implements ServicesRunner.Service {
       const myPromise = promise.finally(() => {
         const index = this._pendingPromises.indexOf(myPromise);
         if (index >= 0) {
-          this._pendingPromises.splice(index, 1);
+          void this._pendingPromises.splice(index, 1);
         }
       });
       this._pendingPromises.push(myPromise);

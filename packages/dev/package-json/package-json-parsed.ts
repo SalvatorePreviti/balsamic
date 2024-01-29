@@ -854,8 +854,8 @@ function _workspaceGetPatterns(
     ? isArray(workspaces)
       ? workspaces
       : isArray(workspaces.packages)
-      ? workspaces.packages
-      : []
+        ? workspaces.packages
+        : []
     : [];
 
   if (typeof pnpmWorkspaces === "object" && pnpmWorkspaces !== null && !Array.isArray(pnpmWorkspaces)) {
@@ -883,7 +883,7 @@ function _workspaceGetPatterns(
       }
 
       // an odd number of ! means a negated pattern.  !!foo ==> foo
-      const negate = !!(excl && excl[0]!.length % 2 === 1);
+      const negate = !!(excl && excl[0].length % 2 === 1);
 
       // strip off any / from the start of the pattern.  /foo => foo
       pattern = pattern.replace(/^\/+/, "").replace(/\\/g, "/");

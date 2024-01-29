@@ -435,7 +435,7 @@ export class ServicesRunner implements AbortController {
         if (promise) {
           const indexOfPromise = this._activeRunPromises.indexOf(promise);
           if (indexOfPromise >= 0) {
-            this._activeRunPromises.splice(indexOfPromise, 1);
+            void this._activeRunPromises.splice(indexOfPromise, 1);
           }
           promise = undefined;
         }

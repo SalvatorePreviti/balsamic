@@ -79,7 +79,6 @@
     "typescript": "^5.3.3",
     "vitest": "^1.2.2"
   },
-  "prettier": "@balsamic/eslint-config/.prettierrc",
   "eslintConfig": {
     "$schema": "http://json.schemastore.org/prettierrc",
     "extends": "@balsamic"

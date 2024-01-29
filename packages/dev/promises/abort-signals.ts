@@ -417,13 +417,14 @@ function signalAddPendingPromise(
     if (pendingPromises) {
       const index = pendingPromises.indexOf(promise);
       if (index >= 0) {
-        pendingPromises.splice(index, 1);
+        void pendingPromises.splice(index, 1);
       }
       pendingPromises = undefined;
     }
   };
 
   if (!pendingPromises) {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     pendingPromises = [promise];
     _pendingPromisesBySignalMap.set(signal, pendingPromises);
   } else {
@@ -454,7 +455,7 @@ function signalRemovePendingPromise(
   if (index < 0) {
     return false;
   }
-  pendingPromises.splice(index, 1);
+  void pendingPromises.splice(index, 1);
   return true;
 }
 

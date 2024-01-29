@@ -729,7 +729,7 @@ const eslintConfig = {
         "json/value-expected": 2,
         "json/comma-or-close-backet-expected": 2,
         "json/comma-or-close-brace-expected": 2,
-        "json/trailing-comma": 2,
+        "json/trailing-comma": 0,
         "json/duplicate-key": 2,
         "json/comment-not-permitted": 2,
         "json/schema-resolve-error": 2,
@@ -751,7 +751,7 @@ const eslintConfig = {
     project: !!tsConfigPath,
     extraFileExtensions: [".json"],
   },
-  plugins: ["@typescript-eslint", "node", "json", "import"],
+  plugins: ["@typescript-eslint/eslint-plugin", "eslint-plugin-node", "eslint-plugin-json", "eslint-plugin-import"],
   rules: { ...jsRules },
   settings: {},
 };

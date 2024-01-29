@@ -138,8 +138,8 @@ class Config {
                   typeof packageJsonContent.name === "string" && config.defaultBranch
                     ? config.defaultBranch
                     : typeof packageJsonContent.name === "string"
-                    ? packageJsonContent.name.replace("@", "").replace("/", "-")
-                    : "";
+                      ? packageJsonContent.name.replace("@", "").replace("/", "-")
+                      : "";
               }
             }
           } catch (error) {

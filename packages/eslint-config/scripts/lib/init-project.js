@@ -126,6 +126,7 @@ function createProjectFiles() {
   copyProjectFile(".gitignore.default", ".gitignore");
   copyProjectFile(".vscode/settings.json");
   copyProjectFile(".vscode/extensions.json");
+  copyProjectFile(".prettierrc");
 }
 
 function initGitHooks(project, gitDirectory) {
@@ -189,10 +190,6 @@ function fixProjectFields(project) {
   if (!project.keywords) {
     project.keywords = [project.name];
     logging.progress("added project keywords", project.keywords);
-  }
-  if (!project.prettier) {
-    project.prettier = "@balsamic/eslint-config/.prettierrc";
-    logging.progress(`added prettier config ${project.prettier}`);
   }
   if (!project.eslintConfig) {
     project.eslintConfig = {

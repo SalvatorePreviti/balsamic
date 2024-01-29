@@ -21,7 +21,7 @@ export const isGlob = (glob: string): boolean => {
     if (match[2]) {
       return true;
     }
-    let i = match.index + match[0]!.length;
+    let i = match.index + match[0].length;
     const open = match[1];
     const close = open ? GLOB_MATCHING_CHARS[open] : null;
     if (open && close) {
