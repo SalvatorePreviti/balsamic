@@ -18,7 +18,6 @@ module.exports = {
   initProject,
   initNpmIgnore,
   initClangFormat,
-  initTsn,
   initEditorConfig,
   initLicense,
 };
@@ -57,13 +56,6 @@ function initClangFormat() {
   logging.log();
 }
 
-function initTsn() {
-  logging.banner("tsn initialization");
-  copyProjectFile("tsn", "tsn");
-  fs.chmodSync("tsn", 0o755);
-  logging.log();
-}
-
 async function initProject() {
   logging.banner("project initialization");
 
@@ -97,10 +89,6 @@ async function initProject() {
 
   addDependencies(project, { hasGitHooks });
 
-  if (!fs.existsSync("tsn")) {
-    initTsn();
-  }
-
   await rewritePackageJson("package.json", project);
 
   logging.footer("Initialization completed.");
@@ -121,7 +109,10 @@ async function initProject() {
 }
 
 function createProjectFiles() {
-  createProjectFile("tsconfig.json", cleanupText(JSON.stringify({ extends: "@balsamic/tsn/tsconfig.json" }, null, 2)));
+  createProjectFile(
+    "tsconfig.json",
+    cleanupText(JSON.stringify({ extends: "@balsamic/eslint-config/tsconfig.json" }, null, 2)),
+  );
 
   copyProjectFile(".gitignore.default", ".gitignore");
   copyProjectFile(".vscode/settings.json");

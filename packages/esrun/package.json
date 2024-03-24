@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/SalvatorePreviti/balsamic/tree/main/packages/esrun#readme",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.19.1"
   },
   "type": "commonjs",
   "exports": {

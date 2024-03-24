@@ -25,7 +25,7 @@
     "tscheck": "./tscheck/tscheck.js"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.19.1"
   },
   "exports": {
     ".": {
