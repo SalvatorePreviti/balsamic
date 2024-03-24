@@ -1,6 +1,6 @@
 import path from "node:path";
 import { ChildProcess } from "node:child_process";
-import { expect, it, describe, beforeAll, afterAll } from "vitest";
+import { expect, it, describe } from "vitest";
 import { AbortError, ChildProcessPromise, ChildProcessWrapper, devChildTask } from "@balsamic/dev";
 
 describe("devChildTask", () => {
