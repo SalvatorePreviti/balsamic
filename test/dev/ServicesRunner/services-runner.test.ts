@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import { runParallel, runSequential, ServicesRunner } from "@balsamic/dev";
 
 describe("ServicesRunner", () => {
@@ -71,7 +71,7 @@ describe("ServicesRunner", () => {
       g,
     };
 
-    expect(sequence).to.deep.equal({
+    expect(sequence).toEqual({
       a: 1,
       b: 4,
       c: 2,

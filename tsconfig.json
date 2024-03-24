@@ -9,5 +9,26 @@
     "lib": ["ESNext"],
     "target": "es2021"
   },
+  "ts-node": {
+    "swc": true,
+    "transpileOnly": true,
+    "preferTsExts": true,
+    "require": ["@balsamic/tsn"],
+    "ignore": [],
+    "compilerOptions": {
+      "allowJs": false,
+      "target": "es2022",
+      "module": "NodeNext",
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "isolatedModules": true,
+      "importHelpers": false,
+      "preserveConstEnums": true,
+      "resolveJsonModule": true,
+      "skipDefaultLibCheck": true,
+      "skipLibCheck": true,
+      "sourceMap": true
+    }
+  },
   "exclude": ["**/node_modules", "**/dist", "**/dist/**/*"]
 }

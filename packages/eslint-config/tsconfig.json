@@ -44,7 +44,7 @@
     "strictPropertyInitialization": true,
     "stripInternal": true,
     "suppressImplicitAnyIndexErrors": false,
-    "target": "ES2023",
+    "target": "ES2022",
     "useDefineForClassFields": false,
     "removeComments": false,
     "sourceMap": true

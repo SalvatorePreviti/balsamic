@@ -1,31 +1,22 @@
 import path from "node:path";
 import { ChildProcess } from "node:child_process";
-import { expect } from "chai";
+import { expect, it, describe, beforeAll, afterAll } from "vitest";
 import { AbortError, ChildProcessPromise, ChildProcessWrapper, devChildTask } from "@balsamic/dev";
 
 describe("devChildTask", () => {
-  let originalFolder: string;
-
-  before(() => {
-    originalFolder = process.cwd();
-    process.chdir(path.resolve(__dirname, "package"));
-  });
-
-  after(() => {
-    process.chdir(originalFolder);
-  });
+  const cwd = path.resolve(__dirname, "package");
 
   describe("ChildProcessPromise.rejectProcessPromise", () => {
     it("returns a valid rejected promise", async () => {
       const promise = ChildProcessPromise.reject(new Error("xxx"));
 
-      expect(promise.status).to.equal("rejected");
-      expect(promise.isRunning).to.equal(false);
-      expect(promise.isRejected).to.equal(true);
-      expect(promise.isSettled).to.equal(true);
-      expect(promise.isSucceeded).to.equal(false);
+      expect(promise.status).equal("rejected");
+      expect(promise.isRunning).equal(false);
+      expect(promise.isRejected).equal(true);
+      expect(promise.isSettled).equal(true);
+      expect(promise.isSucceeded).equal(false);
 
-      expect(promise.childProcess).to.be.instanceOf(ChildProcess);
+      expect(promise.childProcess).toBeInstanceOf(ChildProcess);
 
       let error: unknown;
       try {
@@ -34,8 +25,8 @@ describe("devChildTask", () => {
         error = e;
       }
 
-      expect(error).to.be.instanceOf(Error);
-      expect(promise.error).to.equal(error);
+      expect(error).toBeInstanceOf(Error);
+      expect(promise.error).equal(error);
     });
   });
 
@@ -55,7 +46,7 @@ describe("devChildTask", () => {
         controller.signal,
       ).promise();
 
-      expect(fnCalled).to.equal(false);
+      expect(fnCalled).equal(false);
 
       let error: unknown;
       try {
@@ -64,8 +55,8 @@ describe("devChildTask", () => {
         error = e;
       }
 
-      expect(error).to.be.an.instanceOf(Error);
-      expect(AbortError.isAbortError(error)).to.eq(true);
+      expect(error).toBeInstanceOf(Error);
+      expect(AbortError.isAbortError(error)).toBe(true);
     });
 
     it("allows aborting without throwing", async () => {
@@ -83,14 +74,12 @@ describe("devChildTask", () => {
         controller.signal,
       ).promise();
 
-      expect(fnCalled).to.equal(false);
+      expect(fnCalled).equal(false);
 
       await promise;
     });
 
-    it("allows aborting", async function () {
-      this.timeout(10000);
-
+    it("allows aborting", async () => {
       const controller = new AbortController();
 
       const promise = devChildTask.fork(path.resolve(__dirname, "package/long-running.js"), [], {
@@ -110,9 +99,9 @@ describe("devChildTask", () => {
         error = e as Error;
       }
 
-      expect(error).to.be.instanceOf(Error);
-      expect(error!.code).to.equal("ABORT_ERR");
-    });
+      expect(error).toBeInstanceOf(Error);
+      expect(error!.code).equal("ABORT_ERR");
+    }, 10000);
 
     it("allows aborting without raising errors", async () => {
       const controller = new AbortController();
@@ -129,7 +118,7 @@ describe("devChildTask", () => {
       }, 100).unref();
 
       const result = await promise;
-      expect(result).to.equal(promise.childProcessWrapper);
+      expect(result).equal(promise.childProcessWrapper);
 
       expect(result.killed).equal(true);
     });
@@ -142,78 +131,78 @@ describe("devChildTask", () => {
       captureOutputText: true,
     });
 
-    expect(promise.status).to.equal("pending");
-    expect(promise.isRunning).to.equal(true);
-    expect(promise.isRejected).to.equal(false);
-    expect(promise.isSettled).to.equal(false);
-    expect(promise.isSucceeded).to.equal(false);
+    expect(promise.status).equal("pending");
+    expect(promise.isRunning).equal(true);
+    expect(promise.isRejected).equal(false);
+    expect(promise.isSettled).equal(false);
+    expect(promise.isSucceeded).equal(false);
 
-    expect(promise.error).to.equal(null);
-    expect(promise.exitCode).to.equal(null);
+    expect(promise.error).equal(null);
+    expect(promise.exitCode).equal(null);
 
-    expect(promise.title).to.equal("hey");
+    expect(promise.title).equal("hey");
 
     const result = await promise;
 
-    expect(promise.status).to.equal("succeeded");
-    expect(promise.isRunning).to.equal(false);
-    expect(promise.isRejected).to.equal(false);
-    expect(promise.isSettled).to.equal(true);
-    expect(promise.isSucceeded).to.equal(true);
+    expect(promise.status).equal("succeeded");
+    expect(promise.isRunning).equal(false);
+    expect(promise.isRejected).equal(false);
+    expect(promise.isSettled).equal(true);
+    expect(promise.isSucceeded).equal(true);
 
-    expect(promise.error).to.equal(null);
-    expect(promise.exitCode).to.equal(0);
+    expect(promise.error).equal(null);
+    expect(promise.exitCode).equal(0);
 
-    expect(result).to.deep.include({ exitCode: 0 });
+    expect(result).include({ exitCode: 0 });
 
-    expect(result.stderrText).to.equal("");
-    expect(result.stdoutText).to.equal("1234\n");
+    expect(result.stderrText).equal("");
+    expect(result.stdoutText).equal("1234\n");
   });
 
   describe("npmRun", () => {
     it("executes an ok script", async () => {
-      const promise = devChildTask.npmRun("ok", [], { printStarted: false });
-      expect(promise.childProcess).to.be.instanceOf(ChildProcess);
+      const promise = devChildTask.npmRun("ok", [], { printStarted: false, cwd });
+      expect(promise.childProcess).toBeInstanceOf(ChildProcess);
 
-      expect(promise.status).to.equal("pending");
-      expect(promise.isRunning).to.equal(true);
-      expect(promise.isRejected).to.equal(false);
-      expect(promise.isSettled).to.equal(false);
-      expect(promise.isSucceeded).to.equal(false);
+      expect(promise.status).equal("pending");
+      expect(promise.isRunning).equal(true);
+      expect(promise.isRejected).equal(false);
+      expect(promise.isSettled).equal(false);
+      expect(promise.isSucceeded).equal(false);
 
-      expect(promise.error).to.equal(null);
-      expect(promise.exitCode).to.equal(null);
+      expect(promise.error).equal(null);
+      expect(promise.exitCode).equal(null);
 
-      expect(promise.title).to.include(" run ok");
+      expect(promise.title).include(" run ok");
 
       const result = await promise;
 
-      expect(promise.status).to.equal("succeeded");
-      expect(promise.isRunning).to.equal(false);
-      expect(promise.isRejected).to.equal(false);
-      expect(promise.isSettled).to.equal(true);
-      expect(promise.isSucceeded).to.equal(true);
+      expect(promise.status).equal("succeeded");
+      expect(promise.isRunning).equal(false);
+      expect(promise.isRejected).equal(false);
+      expect(promise.isSettled).equal(true);
+      expect(promise.isSucceeded).equal(true);
 
-      expect(promise.error).to.equal(null);
-      expect(promise.exitCode).to.equal(0);
+      expect(promise.error).equal(null);
+      expect(promise.exitCode).equal(0);
 
-      expect(result).to.deep.include({ exitCode: 0 });
+      expect(result).include({ exitCode: 0 });
     });
 
     it("executes a script with error", async () => {
-      const promise = devChildTask.npmRun("fail", [], { logError: false, timed: false });
-      expect(promise.childProcess).to.be.instanceOf(ChildProcess);
+      const promise = devChildTask.npmRun("fail", [], { logError: false, timed: false, cwd });
+      expect(promise.childProcess).toBeInstanceOf(ChildProcess);
 
-      expect(promise.status).to.equal("pending");
-      expect(promise.isRunning).to.equal(true);
-      expect(promise.isRejected).to.equal(false);
-      expect(promise.isSettled).to.equal(false);
-      expect(promise.isSucceeded).to.equal(false);
+      expect(promise.status).equal("pending");
+      expect(promise.isRunning).equal(true);
+      expect(promise.isRejected).equal(false);
+      expect(promise.isSettled).equal(false);
+      expect(promise.isSucceeded).equal(false);
 
-      expect(promise.error).to.equal(null);
-      expect(promise.exitCode).to.equal(null);
+      expect(promise.error).equal(null);
+      expect(promise.exitCode).equal(null);
 
-      expect(promise.title).to.include(" run fail");
+      expect(promise.title).include(" run fail");
 
       let error: unknown;
       try {
@@ -222,16 +211,16 @@ describe("devChildTask", () => {
         error = e;
       }
 
-      expect(error).to.be.instanceOf(Error);
+      expect(error).toBeInstanceOf(Error);
 
-      expect(promise.status).to.equal("rejected");
-      expect(promise.isRunning).to.equal(false);
-      expect(promise.isRejected).to.equal(true);
-      expect(promise.isSettled).to.equal(true);
-      expect(promise.isSucceeded).to.equal(false);
+      expect(promise.status).equal("rejected");
+      expect(promise.isRunning).equal(false);
+      expect(promise.isRejected).equal(true);
+      expect(promise.isSettled).equal(true);
+      expect(promise.isSucceeded).equal(false);
 
-      expect(promise.error).to.equal(error);
-      expect(promise.exitCode).to.not.equal(0);
+      expect(promise.error).equal(error);
+      expect(promise.exitCode).not.eq(0);
     });
   });
 });

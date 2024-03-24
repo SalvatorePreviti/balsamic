@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import child_process from "node:child_process";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { AbortError, abortSignals, ChildProcessWrapper } from "@balsamic/dev";
 
 const options: ChildProcessWrapper.Options = {
@@ -16,18 +16,18 @@ describe("ChildProcessWrapper", () => {
 
     await wrapper.terminationPromise();
 
-    expect(wrapper.status).to.equal("succeeded");
-    expect(wrapper.isRunning).to.equal(false);
-    expect(wrapper.isRejected).to.equal(false);
-    expect(wrapper.isSettled).to.equal(true);
-    expect(wrapper.isSucceeded).to.equal(true);
+    expect(wrapper.status).equal("succeeded");
+    expect(wrapper.isRunning).equal(false);
+    expect(wrapper.isRejected).equal(false);
+    expect(wrapper.isSettled).equal(true);
+    expect(wrapper.isSucceeded).equal(true);
 
-    expect(wrapper.error).to.equal(null);
-    expect(wrapper.exitCode).to.equal(0);
+    expect(wrapper.error).equal(null);
+    expect(wrapper.exitCode).equal(0);
 
-    expect(process.listeners("close").length).to.equal(0);
-    expect(process.listeners("exit").length).to.equal(0);
-    expect(process.listeners("error").length).to.equal(0);
+    expect(process.listeners("close").length).equal(0);
+    expect(process.listeners("exit").length).equal(0);
+    expect(process.listeners("error").length).equal(0);
   });
 
   it("Creates a child process wrapper from an error", async () => {
@@ -36,18 +36,18 @@ describe("ChildProcessWrapper", () => {
 
     await wrapper.terminationPromise();
 
-    expect(wrapper.status).to.equal("rejected");
-    expect(wrapper.isRunning).to.equal(false);
-    expect(wrapper.isRejected).to.equal(true);
-    expect(wrapper.isSettled).to.equal(true);
-    expect(wrapper.isSucceeded).to.equal(false);
+    expect(wrapper.status).equal("rejected");
+    expect(wrapper.isRunning).equal(false);
+    expect(wrapper.isRejected).equal(true);
+    expect(wrapper.isSettled).equal(true);
+    expect(wrapper.isSucceeded).equal(false);
 
-    expect(wrapper.error).to.equal(error);
-    expect(wrapper.exitCode).to.equal(-1);
+    expect(wrapper.error).equal(error);
+    expect(wrapper.exitCode).equal(-1);
 
-    expect(wrapper.childProcess.listeners("close").length).to.equal(0);
-    expect(wrapper.childProcess.listeners("exit").length).to.equal(0);
-    expect(wrapper.childProcess.listeners("error").length).to.equal(0);
+    expect(wrapper.childProcess.listeners("close").length).equal(0);
+    expect(wrapper.childProcess.listeners("exit").length).equal(0);
+    expect(wrapper.childProcess.listeners("error").length).equal(0);
   });
 
   it("has the correct state for an already aborted process", async () => {
@@ -62,18 +62,18 @@ describe("ChildProcessWrapper", () => {
 
     await wrapper.terminationPromise();
 
-    expect(wrapper.status).to.equal("rejected");
-    expect(wrapper.isRunning).to.equal(false);
-    expect(wrapper.isRejected).to.equal(true);
-    expect(wrapper.isSettled).to.equal(true);
-    expect(wrapper.isSucceeded).to.equal(false);
+    expect(wrapper.status).equal("rejected");
+    expect(wrapper.isRunning).equal(false);
+    expect(wrapper.isRejected).equal(true);
+    expect(wrapper.isSettled).equal(true);
+    expect(wrapper.isSucceeded).equal(false);
 
-    expect(wrapper.error?.message).to.include("failed");
-    expect(wrapper.exitCode).to.equal("SIGTERM");
+    expect(wrapper.error?.message).include("failed");
+    expect(wrapper.exitCode).equal("SIGTERM");
 
-    expect(process.listeners("close").length).to.equal(0);
-    expect(process.listeners("exit").length).to.equal(0);
-    expect(process.listeners("error").length).to.equal(0);
+    expect(process.listeners("close").length).equal(0);
+    expect(process.listeners("exit").length).equal(0);
+    expect(process.listeners("error").length).equal(0);
   });
 
   it("supports killing a process via abortSignal", async () => {
@@ -87,11 +87,11 @@ describe("ChildProcessWrapper", () => {
 
     await wrapper.terminationPromise();
 
-    expect(wrapper.exitCode === "SIGTERM").to.equal(true);
-    expect(wrapper.error?.message).to.equal("The operation was aborted");
-    expect(AbortError.isAbortError(wrapper.error)).to.equal(true);
-    expect(wrapper.isRejected).to.equal(true);
-    expect(wrapper.killed).to.equal(true);
+    expect(wrapper.exitCode === "SIGTERM").equal(true);
+    expect(wrapper.error?.message).equal("The operation was aborted");
+    expect(AbortError.isAbortError(wrapper.error)).equal(true);
+    expect(wrapper.isRejected).equal(true);
+    expect(wrapper.killed).equal(true);
   });
 });
 
