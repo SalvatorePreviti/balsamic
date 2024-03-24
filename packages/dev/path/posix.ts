@@ -36,13 +36,13 @@ export const {
 } = _nodePath.posix;
 
 /** Posix path separator '/' */
-export const sep = "/" as const;
+export const sep = "/";
 
 /** Separator charcode for '/', 47 */
-export const sepCharCode = 47 as const;
+export const sepCharCode = 47;
 
 /** Posix file delimiter ':' */
-export const delimiter = ":" as const;
+export const delimiter = ":";
 
 /** Win32 file delimiter charcode for ':', 58 */
 export const delimiterCharCode = 58;

@@ -509,19 +509,19 @@ export async function devRunMain<T = unknown>(
       return ret;
     }
     terminated = true;
-    if (options!.processExitTimeout) {
+    if (options.processExitTimeout) {
       try {
-        if (typeof options!.processExitTimeout === "object") {
-          Main.processExitTimeout(options!.processExitTimeout);
+        if (typeof options.processExitTimeout === "object") {
+          Main.processExitTimeout(options.processExitTimeout);
         } else {
           Main.processExitTimeout({
-            milliseconds: options!.processExitTimeout === true ? undefined : options!.processExitTimeout,
+            milliseconds: options.processExitTimeout === true ? undefined : options.processExitTimeout,
           });
         }
       } catch {}
     }
-    if (typeof options!.onTerminated === "function") {
-      await options!.onTerminated(ret);
+    if (typeof options.onTerminated === "function") {
+      await options.onTerminated(ret);
     }
     return ret;
   };

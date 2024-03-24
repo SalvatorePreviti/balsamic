@@ -38,13 +38,13 @@ export const {
 } = _nodePath.win32;
 
 /** Win32 path separator '\\' */
-export const sep = "\\" as const;
+export const sep = "\\";
 
 /** Separator charcode for '\\, 92 */
-export const sepCharCode = 92 as const;
+export const sepCharCode = 92;
 
 /** Win32 file delimiter ';' */
-export const delimiter = ";" as const;
+export const delimiter = ";";
 
 /** Win32 file delimiter charcode for ';', 59 */
 export const delimiterCharCode = 59;
