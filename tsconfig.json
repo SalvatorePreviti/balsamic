@@ -1,5 +1,5 @@
 {
-  "extends": "@balsamic/tsn/tsconfig.json",
+  "extends": "@balsamic/eslint-config/tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",

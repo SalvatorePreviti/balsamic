@@ -2,7 +2,7 @@ const path = require("path");
 const manifest = require("../../package.json");
 const logging = require("./logging");
 const fs = require("fs");
-const chalk = require("chalk");
+const ansis = require("ansis");
 const {
   loadPackageJson,
   rewritePackageJson,
@@ -61,7 +61,7 @@ async function initProject() {
 
   const gitDirectory = findDirectoryInParents(".git");
   if (!gitDirectory) {
-    if (await logging.askConfirmation(`.git not found. Do you want to run ${chalk.yellow("git init")}?`)) {
+    if (await logging.askConfirmation(`.git not found. Do you want to run ${ansis.yellow("git init")}?`)) {
       await runAsync("git", ["init"]);
     }
   }
@@ -78,7 +78,7 @@ async function initProject() {
 
   if (project.private === undefined) {
     project.private = !!(await logging.askConfirmation(
-      `Is this a ${chalk.yellowBright("private")}${chalk.yellow(": ")}${chalk.greenBright("true")} package?`,
+      `Is this a ${ansis.yellowBright("private")}${ansis.yellow(": ")}${ansis.greenBright("true")} package?`,
     ));
   }
 
@@ -93,16 +93,16 @@ async function initProject() {
 
   logging.footer("Initialization completed.");
 
-  logging.log(chalk.greenBright("IMPORTANT:"));
+  logging.log(ansis.greenBright("IMPORTANT:"));
 
   if (getPackageManager() === "yarn") {
-    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright("yarn")}\` to install all packages.`));
+    logging.log(ansis.cyanBright(` run \`${ansis.yellowBright("yarn")}\` to install all packages.`));
   } else {
-    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright("npm i")}\` to install all packages.`));
+    logging.log(ansis.cyanBright(` run \`${ansis.yellowBright("npm i")}\` to install all packages.`));
   }
 
   if (hasGitHooks) {
-    logging.log(chalk.cyanBright(` run \`${chalk.yellowBright("npx husky install")}\` to initialize git hooks.`));
+    logging.log(ansis.cyanBright(` run \`${ansis.yellowBright("npx husky install")}\` to initialize git hooks.`));
   }
 
   logging.log("");

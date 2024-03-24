@@ -1,14 +1,14 @@
 /* eslint-disable no-console */
 
-const chalk = require("chalk");
+const ansis = require("ansis");
 const manifest = require("../../package.json");
 
 const _formatArg = (arg) => {
   if (arg instanceof Error && arg.showStack === false) {
     const name = arg.name || "Error";
     return name && name !== "Error"
-      ? `${chalk.yellowBright.underline(name)}: ${chalk.yellow(arg.message)}`
-      : chalk.yellow(arg.message);
+      ? `${ansis.yellowBright.underline(name)}: ${ansis.yellow(arg.message)}`
+      : ansis.yellow(arg.message);
   }
   return arg;
 };
@@ -28,33 +28,33 @@ exports.footer = (...args) => {
 };
 
 exports.error = (...args) => {
-  console.error(chalk.redBright(`${chalk.underline("ERROR")}:`), ...args.map(_formatArg));
+  console.error(ansis.redBright(`${ansis.underline("ERROR")}:`), ...args.map(_formatArg));
 };
 
 exports.warn = (...args) => {
-  console.warn(chalk.yellowBright(`${chalk.underline("WARN")}:`), ...args.map(_formatArg));
+  console.warn(ansis.yellowBright(`${ansis.underline("WARN")}:`), ...args.map(_formatArg));
 };
 
 exports.info = (...args) => {
-  console.info(chalk.blueBright(`${chalk.underline("INFO")}:`), ...args.map(_formatArg));
+  console.info(ansis.blueBright(`${ansis.underline("INFO")}:`), ...args.map(_formatArg));
 };
 
 exports.skip = (...args) => {
   console.info(
-    chalk.yellow("-"),
+    ansis.yellow("-"),
     ...args.map((x) => {
       const s = _formatArg(x);
-      return typeof s === "string" ? chalk.yellow(s) : s;
+      return typeof s === "string" ? ansis.yellow(s) : s;
     }),
   );
 };
 
 exports.progress = (...args) => {
   console.info(
-    chalk.cyanBright("+"),
+    ansis.cyanBright("+"),
     ...args.map((x) => {
       const s = _formatArg(x);
-      return typeof s === "string" ? chalk.cyan(s) : s;
+      return typeof s === "string" ? ansis.cyan(s) : s;
     }),
   );
 };
@@ -74,14 +74,14 @@ exports.askConfirmation = async function askConfirmation(message, defaultValue =
   }
   return new Promise((resolve) => {
     const rl = require("readline").createInterface(process.stdin, process.stdout);
-    const question = `${chalk.greenBright("?")} ${chalk.whiteBright(message)} ${chalk.gray(
+    const question = `${ansis.greenBright("?")} ${ansis.whiteBright(message)} ${ansis.gray(
       defaultValue ? "(Y/n)" : "(N/y)",
     )} `;
     rl.question(question, (answer) => {
       rl.close();
       answer = (answer || "").trim();
       const confirm = /^[yY]/.test(answer || (defaultValue ? "Y" : "N"));
-      console.log(confirm ? chalk.greenBright("  Yes") : chalk.redBright("  No"));
+      console.log(confirm ? ansis.greenBright("  Yes") : ansis.redBright("  No"));
       console.log();
       resolve(confirm);
     });

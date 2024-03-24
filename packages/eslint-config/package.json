@@ -1,6 +1,6 @@
 {
   "name": "@balsamic/eslint-config",
-  "version": "0.6.11",
+  "version": "0.7.0",
   "description": "balsamic eslint configuration",
   "keywords": [
     "balsamic",
@@ -31,7 +31,7 @@
   },
   "main": "index.js",
   "dependencies": {
-    "chalk": "^4.1.2",
+    "ansis": "^2.3.0",
     "parse-gitignore": "^2.0.0",
     "app-root-path": "^3.1.0"
   },
